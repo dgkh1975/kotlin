@@ -7,7 +7,7 @@ fun <T> bar(x: T, y: T) {}
 fun test1() {
     when (1) {
         1 ->
-            when (val y = 2) {
+            <!NO_ELSE_IN_WHEN!>when<!> (val y = 2) {
                 2 -> foo()
             }
     }
@@ -16,7 +16,7 @@ fun test1() {
 fun test2() {
     when (val x = 1) {
         1 ->
-            when (val y = 2) {
+            <!NO_ELSE_IN_WHEN!>when<!> (val y = 2) {
                 2 -> foo()
             }
     }
@@ -25,7 +25,7 @@ fun test2() {
 fun test3() {
     when (val x = 1) {
         1 ->
-            when (val x = 2) {
+            <!NO_ELSE_IN_WHEN!>when<!> (val x = 2) {
                 2 -> foo()
             }
     }
@@ -34,7 +34,7 @@ fun test3() {
 fun test4() {
     when (val x = 1) {
         1 ->
-            when (val y = 2) {
+            <!NO_ELSE_IN_WHEN!>when<!> (val y = 2) {
                 2 -> bar(x, y)
             }
     }

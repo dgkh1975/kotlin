@@ -10,7 +10,7 @@
  */
 fun foo(a: Int) {
     @ann
-    when (a) {
+    <!NO_ELSE_IN_WHEN!>when<!> (a) {
         1 -> {}
     }
 }
