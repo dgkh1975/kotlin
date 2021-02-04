@@ -16,7 +16,7 @@ import org.jetbrains.kotlin.fir.resolve.calls.SyntheticPropertySymbol
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeAmbiguityError
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeInapplicableCandidateError
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeOperatorAmbiguityError
-import org.jetbrains.kotlin.fir.resolve.firSymbolProvider
+import org.jetbrains.kotlin.fir.resolve.symbolProvider
 import org.jetbrains.kotlin.fir.resolve.toSymbol
 import org.jetbrains.kotlin.fir.symbols.AbstractFirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.ConeClassLikeLookupTagImpl
@@ -301,7 +301,7 @@ internal object FirReferenceResolveHelper {
             return listOfNotNull(classId.toTargetPsi(session, symbolBuilder))
         }
         val name = fir.importedName ?: return emptyList()
-        val symbolProvider = session.firSymbolProvider
+        val symbolProvider = session.symbolProvider
 
         @OptIn(ExperimentalStdlibApi::class)
         return buildList {

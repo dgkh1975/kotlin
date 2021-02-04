@@ -11,7 +11,7 @@ import org.jetbrains.kotlin.fir.analysis.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors
 import org.jetbrains.kotlin.fir.analysis.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.declarations.*
-import org.jetbrains.kotlin.fir.resolve.firSymbolProvider
+import org.jetbrains.kotlin.fir.resolve.symbolProvider
 import org.jetbrains.kotlin.fir.types.ConeClassLikeType
 import org.jetbrains.kotlin.fir.types.FirResolvedTypeRef
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
@@ -50,7 +50,7 @@ object FirSealedSupertypeChecker : FirMemberDeclarationChecker() {
                 continue
             }
 
-            val fir = context.session.firSymbolProvider.getClassLikeSymbolByFqName(classId)
+            val fir = context.session.symbolProvider.getClassLikeSymbolByFqName(classId)
                 ?.fir.safeAs<FirRegularClass>()
                 ?: continue
 
@@ -72,7 +72,7 @@ object FirSealedSupertypeChecker : FirMemberDeclarationChecker() {
                 continue
             }
 
-            val fir = context.session.firSymbolProvider.getClassLikeSymbolByFqName(classId)
+            val fir = context.session.symbolProvider.getClassLikeSymbolByFqName(classId)
                 ?.fir.safeAs<FirRegularClass>()
                 ?: continue
 
@@ -94,7 +94,7 @@ object FirSealedSupertypeChecker : FirMemberDeclarationChecker() {
                 continue
             }
 
-            val fir = context.session.firSymbolProvider.getClassLikeSymbolByFqName(classId)
+            val fir = context.session.symbolProvider.getClassLikeSymbolByFqName(classId)
                 ?.fir.safeAs<FirRegularClass>()
                 ?: continue
 
