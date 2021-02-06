@@ -5,19 +5,27 @@
 
 package org.jetbrains.kotlin.fir.expressions
 
+import org.jetbrains.kotlin.fir.symbols.CallableId
 import org.jetbrains.kotlin.name.ClassId
 
 sealed class ExhaustivenessStatus {
     object Exhaustive : ExhaustivenessStatus()
-    class NotExhaustive(val reasons: List<WhenMissingCase>) : ExhaustivenessStatus()
+    class NotExhaustive(val reasons: List<WhenMissingCase>) : ExhaustivenessStatus() {
+        companion object {
+            val NO_ELSE_BRANCH = NotExhaustive(listOf(WhenMissingCase.Unknown))
+        }
+    }
 }
 
 sealed class WhenMissingCase {
     object Unknown : WhenMissingCase()
     object NullIsMissing : WhenMissingCase()
-    class BooleanIsMissing(val value: Boolean) : WhenMissingCase()
+    sealed class BooleanIsMissing(val value: Boolean) : WhenMissingCase() {
+        object True : BooleanIsMissing(true)
+        object False : BooleanIsMissing(false)
+    }
     class IsTypeCheckIsMissing(val classId: ClassId) : WhenMissingCase()
-    class EnumCheckIsMissing(val classId: ClassId) : WhenMissingCase()
+    class EnumCheckIsMissing(val callableId: CallableId) : WhenMissingCase()
 }
 
 val FirWhenExpression.isExhaustive: Boolean
