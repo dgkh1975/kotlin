@@ -67,12 +67,12 @@ private val provisionalFunctionExpressionPhase = makeIrFilePhase<CommonBackendCo
 )
 
 private val arrayConstructorPhase = makeIrFilePhase(
-    ::JvmArrayConstructorLowering,
+    ::ArrayConstructorLowering,
     name = "ArrayConstructor",
     description = "Transform `Array(size) { index -> value }` into a loop"
 )
 
-private val expectDeclarationsRemovingPhase = makeIrModulePhase(
+internal val expectDeclarationsRemovingPhase = makeIrModulePhase(
     ::ExpectDeclarationsRemoveLowering,
     name = "ExpectDeclarationsRemoving",
     description = "Remove expect declaration from module fragment"
@@ -102,7 +102,7 @@ internal val propertiesPhase = makeIrFilePhase(
     description = "Move fields and accessors for properties to their classes, " +
             "replace calls to default property accessors with field accesses, " +
             "remove unused accessors and create synthetic methods for property annotations",
-    stickyPostconditions = setOf((PropertiesLowering)::checkNoProperties)
+    stickyPostconditions = setOf(PropertiesLowering.Companion::checkNoProperties)
 )
 
 internal val IrClass.isGeneratedLambdaClass: Boolean
@@ -266,7 +266,8 @@ private val syntheticAccessorPhase = makeIrFilePhase(
 private val tailrecPhase = makeIrFilePhase(
     ::JvmTailrecLowering,
     name = "Tailrec",
-    description = "Handle tailrec calls"
+    description = "Handle tailrec calls",
+    prerequisite = setOf(localDeclarationsPhase)
 )
 
 private val kotlinNothingValueExceptionPhase = makeIrFilePhase<CommonBackendContext>(
@@ -294,13 +295,13 @@ private fun codegenPhase(generateMultifileFacade: Boolean): NamedCompilerPhase<J
                     object : FileLoweringPass {
                         override fun lower(irFile: IrFile) {
                             val isMultifileFacade = irFile.fileEntry is MultifileFacadeFileEntry
-                            if (isMultifileFacade != generateMultifileFacade) return
-
-                            for (loweredClass in irFile.declarations) {
-                                if (loweredClass !is IrClass) {
-                                    throw AssertionError("File-level declaration should be IrClass after JvmLower, got: " + loweredClass.render())
+                            if (isMultifileFacade == generateMultifileFacade) {
+                                for (loweredClass in irFile.declarations) {
+                                    if (loweredClass !is IrClass) {
+                                        throw AssertionError("File-level declaration should be IrClass after JvmLower, got: " + loweredClass.render())
+                                    }
+                                    ClassCodegen.getOrCreate(loweredClass, context).generate()
                                 }
-                                ClassCodegen.getOrCreate(loweredClass, context).generate()
                             }
                         }
                     }
@@ -325,8 +326,6 @@ private val jvmFilePhases = listOf(
     annotationPhase,
     polymorphicSignaturePhase,
     varargPhase,
-    arrayConstructorPhase,
-    checkNotNullPhase,
 
     lateinitNullableFieldsPhase,
     lateinitDeclarationLoweringPhase,
@@ -335,7 +334,9 @@ private val jvmFilePhases = listOf(
     inlineCallableReferenceToLambdaPhase,
     functionReferencePhase,
     suspendLambdaPhase,
+    propertyReferenceDelegationPhase,
     propertyReferencePhase,
+    arrayConstructorPhase,
     constPhase1,
     // TODO: merge the next three phases together, as visitors behave incorrectly between them
     //  (backing fields moved out of companion objects are reachable by two paths):
@@ -343,17 +344,13 @@ private val jvmFilePhases = listOf(
     propertiesPhase,
     remapObjectFieldAccesses,
     anonymousObjectSuperConstructorPhase,
-    tailrecPhase,
-    makePatchParentsPhase(1),
-
     jvmStandardLibraryBuiltInsPhase,
 
     rangeContainsLoweringPhase,
     forLoopsPhase,
     collectionStubMethodLowering,
     jvmInlineClassPhase,
-
-    makePatchParentsPhase(2),
+    makePatchParentsPhase(1),
 
     enumWhenPhase,
     singletonReferencesPhase,
@@ -363,6 +360,10 @@ private val jvmFilePhases = listOf(
     returnableBlocksPhase,
     sharedVariablesPhase,
     localDeclarationsPhase,
+
+    tailrecPhase,
+    makePatchParentsPhase(2),
+
     jvmLocalClassExtractionPhase,
     staticCallableReferencePhase,
 
@@ -427,6 +428,7 @@ private val jvmLoweringPhases = NamedCompilerPhase(
     lower = validateIrBeforeLowering then
             processOptionalAnnotationsPhase then
             expectDeclarationsRemovingPhase then
+            serializeIrPhase then
             scriptsToClassesPhase then
             fileClassPhase then
             jvmStaticInObjectPhase then

@@ -9,13 +9,9 @@ import org.jetbrains.kotlin.backend.common.CommonBackendContext
 import org.jetbrains.kotlin.backend.common.DefaultMapping
 import org.jetbrains.kotlin.backend.common.Mapping
 import org.jetbrains.kotlin.backend.common.ir.Ir
-import org.jetbrains.kotlin.backend.common.lower.irThrow
 import org.jetbrains.kotlin.backend.common.phaser.PhaseConfig
 import org.jetbrains.kotlin.backend.common.psi.PsiErrorBuilder
-import org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen
-import org.jetbrains.kotlin.backend.jvm.codegen.IrTypeMapper
-import org.jetbrains.kotlin.backend.jvm.codegen.MethodSignatureMapper
-import org.jetbrains.kotlin.backend.jvm.codegen.createFakeContinuation
+import org.jetbrains.kotlin.backend.jvm.codegen.*
 import org.jetbrains.kotlin.backend.jvm.descriptors.JvmSharedVariablesManager
 import org.jetbrains.kotlin.backend.jvm.intrinsics.IrIntrinsicMethods
 import org.jetbrains.kotlin.backend.jvm.lower.BridgeLowering
@@ -29,7 +25,6 @@ import org.jetbrains.kotlin.descriptors.TypeParameterDescriptor
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.irBlock
-import org.jetbrains.kotlin.ir.builders.irNull
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrFactoryImpl
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
@@ -37,6 +32,7 @@ import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
 import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.IrTypeSystemContext
 import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.util.SymbolTable
 import org.jetbrains.kotlin.name.FqName
@@ -48,10 +44,11 @@ class JvmBackendContext(
     val state: GenerationState,
     override val irBuiltIns: IrBuiltIns,
     irModuleFragment: IrModuleFragment,
-    private val symbolTable: SymbolTable,
+    val symbolTable: SymbolTable,
     val phaseConfig: PhaseConfig,
     val generatorExtensions: JvmGeneratorExtensions,
     val backendExtension: JvmBackendExtension,
+    val irSerializer: JvmIrSerializer?,
     val notifyCodegenStart: () -> Unit,
 ) : CommonBackendContext {
     // If the JVM fqname of a class differs from what is implied by its parent, e.g. if it's a file class
@@ -64,11 +61,14 @@ class JvmBackendContext(
     override val scriptMode: Boolean = false
 
     override val builtIns = state.module.builtIns
+    override val typeSystem: IrTypeSystemContext = JvmIrTypeSystemContext(irBuiltIns)
     val typeMapper = IrTypeMapper(this)
     val methodSignatureMapper = MethodSignatureMapper(this)
 
     internal val innerClassesSupport = JvmInnerClassesSupport(irFactory)
-    internal val cachedDeclarations = JvmCachedDeclarations(this, state.languageVersionSettings)
+    internal val cachedDeclarations = JvmCachedDeclarations(
+        this, generatorExtensions.cachedFields
+    )
 
     override val mapping: Mapping = DefaultMapping()
 
@@ -134,6 +134,8 @@ class JvmBackendContext(
 
     val inlineMethodGenerationLock = Any()
 
+    val directInvokedLambdas = mutableListOf<IrAttributeContainer>()
+
     init {
         state.mapInlineClass = { descriptor ->
             typeMapper.mapType(referenceClass(descriptor).defaultType)
@@ -161,7 +163,6 @@ class JvmBackendContext(
     override fun throwUninitializedPropertyAccessException(builder: IrBuilderWithScope, name: String): IrExpression =
         builder.irBlock {
             +super.throwUninitializedPropertyAccessException(builder, name)
-            +irThrow(irNull())
         }
 
     override fun handleDeepCopy(
@@ -186,6 +187,13 @@ class JvmBackendContext(
             val newOriginal = functionSymbolMap[original.symbol]?.owner ?: continue
             val newStaticReplacement = inlineClassReplacements.getReplacementFunction(newOriginal) ?: continue
             functionSymbolMap[staticReplacement.symbol] = newStaticReplacement.symbol
+        }
+
+        for ((methodReplacement, original) in inlineClassReplacements.originalFunctionForMethodReplacement) {
+            if (methodReplacement !is IrSimpleFunction) continue
+            val newOriginal = functionSymbolMap[original.symbol]?.owner ?: continue
+            val newMethodReplacement = inlineClassReplacements.getReplacementFunction(newOriginal) ?: continue
+            functionSymbolMap[methodReplacement.symbol] = newMethodReplacement.symbol
         }
 
         for ((original, suspendView) in suspendFunctionOriginalToView) {

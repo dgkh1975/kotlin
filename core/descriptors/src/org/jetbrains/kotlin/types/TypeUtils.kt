@@ -25,6 +25,7 @@ import org.jetbrains.kotlin.resolve.calls.inference.isCaptured
 import org.jetbrains.kotlin.resolve.descriptorUtil.builtIns
 import org.jetbrains.kotlin.types.*
 import org.jetbrains.kotlin.types.checker.*
+import org.jetbrains.kotlin.types.model.TypeArgumentMarker
 import org.jetbrains.kotlin.types.model.TypeVariableTypeConstructorMarker
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
 import java.util.*
@@ -182,26 +183,103 @@ fun KotlinType.getImmediateSuperclassNotAny(): KotlinType? {
 fun KotlinType.asTypeProjection(): TypeProjection = TypeProjectionImpl(this)
 fun KotlinType.contains(predicate: (UnwrappedType) -> Boolean) = TypeUtils.contains(this, predicate)
 
-fun KotlinType.replaceArgumentsWithStarProjections() = replaceArgumentsWith(::StarProjectionImpl)
-fun KotlinType.replaceArgumentsWithNothing() = replaceArgumentsWith { it.builtIns.nothingType.asTypeProjection() }
+fun KotlinType.replaceArgumentsWithStarProjections() = replaceArgumentsByParametersWith(::StarProjectionImpl)
+fun KotlinType.replaceArgumentsWithNothing() = replaceArgumentsByParametersWith { it.builtIns.nothingType.asTypeProjection() }
 
-private inline fun KotlinType.replaceArgumentsWith(replacement: (TypeParameterDescriptor) -> TypeProjection): KotlinType {
+fun KotlinType.extractTypeParametersFromUpperBounds(visitedTypeParameters: Set<TypeParameterDescriptor>?): Set<TypeParameterDescriptor> =
+    mutableSetOf<TypeParameterDescriptor>().also { extractTypeParametersFromUpperBounds(this, it, visitedTypeParameters) }
+
+private fun KotlinType.extractTypeParametersFromUpperBounds(
+    baseType: KotlinType,
+    to: MutableSet<TypeParameterDescriptor>,
+    visitedTypeParameters: Set<TypeParameterDescriptor>?
+) {
+    val declarationDescriptor = constructor.declarationDescriptor
+
+    if (declarationDescriptor is TypeParameterDescriptor) {
+        if (constructor != baseType.constructor) {
+            to += declarationDescriptor
+        } else {
+            for (upperBound in declarationDescriptor.upperBounds) {
+                upperBound.extractTypeParametersFromUpperBounds(baseType, to, visitedTypeParameters)
+            }
+        }
+    } else {
+        val typeParameters = (constructor.declarationDescriptor as? ClassifierDescriptorWithTypeParameters)?.declaredTypeParameters
+        for ((i, argument) in arguments.withIndex()) {
+            val typeParameter = typeParameters?.getOrNull(i) // TODO: support inner classes' type parameters
+            val isTypeParameterVisited = typeParameter != null && visitedTypeParameters != null && typeParameter in visitedTypeParameters
+            if (isTypeParameterVisited || argument.isStarProjection) continue
+            if (argument.type.constructor.declarationDescriptor in to || argument.type.constructor == baseType.constructor) continue
+            argument.type.extractTypeParametersFromUpperBounds(baseType, to, visitedTypeParameters)
+        }
+    }
+}
+
+@JvmOverloads
+fun hasTypeParameterRecursiveBounds(
+    typeParameter: TypeParameterDescriptor,
+    selfConstructor: TypeConstructor? = null,
+    visitedTypeParameters: Set<TypeParameterDescriptor>? = null
+): Boolean =
+    typeParameter.upperBounds.any { upperBound ->
+        upperBound.containsSelfTypeParameter(typeParameter.defaultType.constructor, visitedTypeParameters)
+                && (selfConstructor == null || upperBound.constructor == selfConstructor)
+    }
+
+private fun KotlinType.containsSelfTypeParameter(
+    baseConstructor: TypeConstructor,
+    visitedTypeParameters: Set<TypeParameterDescriptor>?
+): Boolean {
+    if (this.constructor == baseConstructor) return true
+
+    val typeParameters = (constructor.declarationDescriptor as? ClassifierDescriptorWithTypeParameters)?.declaredTypeParameters
+    return arguments.withIndex().any { (i, argument) ->
+        val typeParameter = typeParameters?.getOrNull(i)
+        val isTypeParameterVisited =
+            typeParameter != null && visitedTypeParameters != null && typeParameter in visitedTypeParameters
+        if (isTypeParameterVisited || argument.isStarProjection) return@any false
+        argument.type.containsSelfTypeParameter(baseConstructor, visitedTypeParameters)
+    }
+}
+
+fun KotlinType.replaceArgumentsWithStarProjectionOrMapped(
+    substitutor: TypeSubstitutor,
+    substitutionMap: Map<TypeConstructor, TypeProjection>,
+    variance: Variance,
+    visitedTypeParameters: Set<TypeParameterDescriptor>?
+) =
+    replaceArgumentsByParametersWith { typeParameterDescriptor ->
+        val argument = arguments.getOrNull(typeParameterDescriptor.index)
+        val isTypeParameterVisited = visitedTypeParameters != null && typeParameterDescriptor in visitedTypeParameters
+        if (!isTypeParameterVisited && argument != null && argument.type.constructor in substitutionMap) {
+            argument
+        } else StarProjectionImpl(typeParameterDescriptor)
+    }.let { substitutor.safeSubstitute(it, variance) }
+
+
+inline fun KotlinType.replaceArgumentsByParametersWith(replacement: (TypeParameterDescriptor) -> TypeProjection): KotlinType {
     val unwrapped = unwrap()
     return when (unwrapped) {
         is FlexibleType -> KotlinTypeFactory.flexibleType(
-            unwrapped.lowerBound.replaceArgumentsWith(replacement),
-            unwrapped.upperBound.replaceArgumentsWith(replacement)
+            unwrapped.lowerBound.replaceArgumentsByParametersWith(replacement),
+            unwrapped.upperBound.replaceArgumentsByParametersWith(replacement)
         )
-        is SimpleType -> unwrapped.replaceArgumentsWith(replacement)
+        is SimpleType -> unwrapped.replaceArgumentsByParametersWith(replacement)
     }.inheritEnhancement(unwrapped)
 }
 
-private inline fun SimpleType.replaceArgumentsWith(replacement: (TypeParameterDescriptor) -> TypeProjection): SimpleType {
+inline fun SimpleType.replaceArgumentsByParametersWith(replacement: (TypeParameterDescriptor) -> TypeProjection): SimpleType {
     if (constructor.parameters.isEmpty() || constructor.declarationDescriptor == null) return this
 
     val newArguments = constructor.parameters.map(replacement)
 
     return replace(newArguments)
+}
+
+inline fun SimpleType.replaceArgumentsByExistingArgumentsWith(replacement: (TypeArgumentMarker) -> TypeArgumentMarker): SimpleType {
+    if (arguments.isEmpty()) return this
+    return replace(newArguments = arguments.map { replacement(it) as TypeProjection })
 }
 
 fun KotlinType.containsTypeAliasParameters(): Boolean =
@@ -308,4 +386,5 @@ private fun NewCapturedType.unCaptureTopLevelType(): UnwrappedType {
     return constructor.projection.type.unwrap()
 }
 
-fun KotlinType.shouldBeUpdated() = contains { it is StubType || it.constructor is TypeVariableTypeConstructorMarker || it.isError }
+fun KotlinType?.shouldBeUpdated() =
+    this == null || contains { it is StubTypeForBuilderInference || it.constructor is TypeVariableTypeConstructorMarker || it.isError }

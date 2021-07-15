@@ -16,6 +16,7 @@ import com.intellij.psi.PsiPackageStatement
 import com.intellij.psi.impl.PsiFileFactoryImpl
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.testFramework.LightVirtualFile
+import org.jetbrains.kotlin.ObsoleteTestInfrastructure
 import org.jetbrains.kotlin.asJava.finder.JavaElementFinder
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
@@ -26,6 +27,7 @@ import org.jetbrains.kotlin.fir.createSessionForTests
 import org.jetbrains.kotlin.fir.java.declarations.FirJavaClass
 import org.jetbrains.kotlin.fir.resolve.symbolProvider
 import org.jetbrains.kotlin.fir.resolve.providers.impl.FirCompositeSymbolProvider
+import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
@@ -38,6 +40,7 @@ import java.io.File
 import java.io.IOException
 import kotlin.reflect.jvm.javaField
 
+@OptIn(SymbolInternals::class)
 abstract class AbstractFirTypeEnhancementTest : KtUsefulTestCase() {
     private lateinit var javaFilesDir: File
 
@@ -82,6 +85,7 @@ abstract class AbstractFirTypeEnhancementTest : KtUsefulTestCase() {
         }
     }
 
+    @OptIn(ObsoleteTestInfrastructure::class)
     fun doTest(path: String) {
         val javaFile = File(path)
         val javaLines = javaFile.readLines()

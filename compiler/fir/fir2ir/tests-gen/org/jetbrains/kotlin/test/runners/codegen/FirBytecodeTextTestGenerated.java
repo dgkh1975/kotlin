@@ -296,6 +296,12 @@ public class FirBytecodeTextTestGenerated extends AbstractFirBytecodeTextTest {
     }
 
     @Test
+    @TestMetadata("kt46615.kt")
+    public void testKt46615() throws Exception {
+        runTest("compiler/testData/codegen/bytecodeText/kt46615.kt");
+    }
+
+    @Test
     @TestMetadata("kt5016.kt")
     public void testKt5016() throws Exception {
         runTest("compiler/testData/codegen/bytecodeText/kt5016.kt");
@@ -740,6 +746,12 @@ public class FirBytecodeTextTestGenerated extends AbstractFirBytecodeTextTest {
         @TestMetadata("simpleUninitializedMerge.kt")
         public void testSimpleUninitializedMerge() throws Exception {
             runTest("compiler/testData/codegen/bytecodeText/boxingOptimization/simpleUninitializedMerge.kt");
+        }
+
+        @Test
+        @TestMetadata("suspendBoxing.kt")
+        public void testSuspendBoxing() throws Exception {
+            runTest("compiler/testData/codegen/bytecodeText/boxingOptimization/suspendBoxing.kt");
         }
 
         @Test
@@ -3507,6 +3519,12 @@ public class FirBytecodeTextTestGenerated extends AbstractFirBytecodeTextTest {
         }
 
         @Test
+        @TestMetadata("genericNoUnbox.kt")
+        public void testGenericNoUnbox() throws Exception {
+            runTest("compiler/testData/codegen/bytecodeText/inlineClasses/genericNoUnbox.kt");
+        }
+
+        @Test
         @TestMetadata("hashCodeIsCalledByInlineClass.kt")
         public void testHashCodeIsCalledByInlineClass() throws Exception {
             runTest("compiler/testData/codegen/bytecodeText/inlineClasses/hashCodeIsCalledByInlineClass.kt");
@@ -3570,6 +3588,24 @@ public class FirBytecodeTextTestGenerated extends AbstractFirBytecodeTextTest {
         @TestMetadata("mangledInlineClassInterfaceImplementation.kt")
         public void testMangledInlineClassInterfaceImplementation() throws Exception {
             runTest("compiler/testData/codegen/bytecodeText/inlineClasses/mangledInlineClassInterfaceImplementation.kt");
+        }
+
+        @Test
+        @TestMetadata("mangledSamWrappers.kt")
+        public void testMangledSamWrappers() throws Exception {
+            runTest("compiler/testData/codegen/bytecodeText/inlineClasses/mangledSamWrappers.kt");
+        }
+
+        @Test
+        @TestMetadata("mangledSamWrappersIndy.kt")
+        public void testMangledSamWrappersIndy() throws Exception {
+            runTest("compiler/testData/codegen/bytecodeText/inlineClasses/mangledSamWrappersIndy.kt");
+        }
+
+        @Test
+        @TestMetadata("mangledSamWrappersOld.kt")
+        public void testMangledSamWrappersOld() throws Exception {
+            runTest("compiler/testData/codegen/bytecodeText/inlineClasses/mangledSamWrappersOld.kt");
         }
 
         @Test
@@ -4617,6 +4653,12 @@ public class FirBytecodeTextTestGenerated extends AbstractFirBytecodeTextTest {
         }
 
         @Test
+        @TestMetadata("safeCallAndElvisChains.kt")
+        public void testSafeCallAndElvisChains() throws Exception {
+            runTest("compiler/testData/codegen/bytecodeText/nullCheckOptimization/safeCallAndElvisChains.kt");
+        }
+
+        @Test
         @TestMetadata("trivialInstanceOf.kt")
         public void testTrivialInstanceOf() throws Exception {
             runTest("compiler/testData/codegen/bytecodeText/nullCheckOptimization/trivialInstanceOf.kt");
@@ -4664,6 +4706,12 @@ public class FirBytecodeTextTestGenerated extends AbstractFirBytecodeTextTest {
         @TestMetadata("definedInSources.kt")
         public void testDefinedInSources() throws Exception {
             runTest("compiler/testData/codegen/bytecodeText/optimizedDelegatedProperties/definedInSources.kt");
+        }
+
+        @Test
+        @TestMetadata("delegateToAnother.kt")
+        public void testDelegateToAnother() throws Exception {
+            runTest("compiler/testData/codegen/bytecodeText/optimizedDelegatedProperties/delegateToAnother.kt");
         }
 
         @Test
@@ -5096,6 +5144,12 @@ public class FirBytecodeTextTestGenerated extends AbstractFirBytecodeTextTest {
         @TestMetadata("concatDynamicIndyDataClass.kt")
         public void testConcatDynamicIndyDataClass() throws Exception {
             runTest("compiler/testData/codegen/bytecodeText/stringOperations/concatDynamicIndyDataClass.kt");
+        }
+
+        @Test
+        @TestMetadata("concatDynamicSpecialSymbols.kt")
+        public void testConcatDynamicSpecialSymbols() throws Exception {
+            runTest("compiler/testData/codegen/bytecodeText/stringOperations/concatDynamicSpecialSymbols.kt");
         }
 
         @Test

@@ -32,7 +32,9 @@ enum DestroyRuntimeMode {
 };
 
 DestroyRuntimeMode Kotlin_getDestroyRuntimeMode();
+bool Kotlin_getGcAggressive();
 
+// For experimental MM, if runtime gets initialized, it will be in the native state after this.
 RUNTIME_NOTHROW void Kotlin_initRuntimeIfNeeded();
 void Kotlin_deinitRuntimeIfNeeded();
 

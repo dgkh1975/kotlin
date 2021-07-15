@@ -79,7 +79,7 @@ class DeclarationsChecker(
 
     private val modifiersChecker = modifiersChecker.withTrace(trace)
 
-    private val exposedChecker = ExposedVisibilityChecker(trace)
+    private val exposedChecker = ExposedVisibilityChecker(languageVersionSettings, trace)
 
     private val shadowedExtensionChecker = ShadowedExtensionChecker(typeSpecificityComparator, trace)
 
@@ -518,9 +518,10 @@ class DeclarationsChecker(
     }
 
     private fun checkTypeParameters(typeParameterListOwner: KtTypeParameterListOwner) {
-        // TODO: Support annotation for type parameters
         for (jetTypeParameter in typeParameterListOwner.typeParameters) {
-            AnnotationResolverImpl.reportUnsupportedAnnotationForTypeParameter(jetTypeParameter, trace)
+            if (!languageVersionSettings.supportsFeature(LanguageFeature.ClassTypeParameterAnnotations)) {
+                AnnotationResolverImpl.reportUnsupportedAnnotationForTypeParameter(jetTypeParameter, trace)
+            }
 
             trace.get(TYPE_PARAMETER, jetTypeParameter)?.let { DescriptorResolver.checkConflictingUpperBounds(trace, it, jetTypeParameter) }
         }
@@ -712,6 +713,21 @@ class DeclarationsChecker(
                 trace.report(DELEGATED_PROPERTY_IN_INTERFACE.on(delegate))
             } else if (isExpect) {
                 trace.report(EXPECTED_DELEGATED_PROPERTY.on(delegate))
+            } else if (property.receiverTypeReference != null) {
+                val delegatedPropertyResolvedCall = trace.get(DELEGATED_PROPERTY_RESOLVED_CALL, propertyDescriptor.getter)
+                val dispatchReceiverType = delegatedPropertyResolvedCall?.dispatchReceiver?.type
+                val extensionReceiverType = delegatedPropertyResolvedCall?.extensionReceiver?.type
+                val usedParameter = propertyDescriptor.typeParameters.find { typeParameter ->
+                    dispatchReceiverType?.contains { it.constructor == typeParameter.typeConstructor } == true ||
+                            extensionReceiverType?.contains { it.constructor == typeParameter.typeConstructor } == true
+                }
+                if (usedParameter != null) {
+                    if (languageVersionSettings.supportsFeature(LanguageFeature.ForbidUsingExtensionPropertyTypeParameterInDelegate)) {
+                        trace.report(DELEGATE_USES_EXTENSION_PROPERTY_TYPE_PARAMETER.on(delegate, usedParameter.name.asString()))
+                    } else {
+                        trace.report(DELEGATE_USES_EXTENSION_PROPERTY_TYPE_PARAMETER_WARNING.on(delegate, usedParameter.name.asString()))
+                    }
+                }
             }
         } else {
             val isUninitialized = trace.bindingContext.get(BindingContext.IS_UNINITIALIZED, propertyDescriptor) ?: false

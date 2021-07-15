@@ -38,7 +38,13 @@ abstract class KotlinSoftwareComponent(
 
     override fun getVariants(): Set<SoftwareComponent> = kotlinTargets
         .filter { target -> target !is KotlinMetadataTarget }
-        .flatMap { it.components }.toSet()
+        .flatMap { target ->
+            val targetPublishableComponentNames =
+                (target as? AbstractKotlinTarget)?.kotlinComponents?.mapNotNullTo(mutableSetOf()) { component ->
+                    component.name.takeIf { component.publishable }
+                }
+            target.components.filter { targetPublishableComponentNames?.contains(it.name) ?: true }
+        }.toSet()
 
     private val _usages: Set<UsageContext> by lazy {
         val metadataTarget = project.multiplatformExtension.metadata()
@@ -84,9 +90,13 @@ abstract class KotlinSoftwareComponent(
         return _usages
     }
 
-
     val sourcesArtifacts: Set<PublishArtifact> by lazy {
-        val sourcesJarTask = sourcesJarTask(project, lazy { project.kotlinExtension.sourceSets.toSet() }, null, name.toLowerCase())
+        val sourcesJarTask = sourcesJarTask(
+            project,
+            lazy { project.kotlinExtension.sourceSets.associate { it.name to it.kotlin } },
+            null,
+            name.toLowerCase()
+        )
         val sourcesJarArtifact = project.artifacts.add(Dependency.ARCHIVES_CONFIGURATION, sourcesJarTask) { sourcesJarArtifact ->
             sourcesJarArtifact.classifier = "sources"
         }

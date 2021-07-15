@@ -7,9 +7,11 @@ package org.jetbrains.kotlin.fir.lazy
 
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.fir.backend.Fir2IrComponents
+import org.jetbrains.kotlin.fir.backend.computeInlineClassRepresentation
 import org.jetbrains.kotlin.fir.backend.declareThisReceiverParameter
 import org.jetbrains.kotlin.fir.backend.toIrType
 import org.jetbrains.kotlin.fir.declarations.*
+import org.jetbrains.kotlin.fir.declarations.utils.*
 import org.jetbrains.kotlin.fir.dispatchReceiverClassOrNull
 import org.jetbrains.kotlin.fir.scopes.unsubstitutedScope
 import org.jetbrains.kotlin.fir.symbols.Fir2IrClassSymbol
@@ -19,8 +21,10 @@ import org.jetbrains.kotlin.fir.types.FirResolvedTypeRef
 import org.jetbrains.kotlin.fir.types.isNullableAny
 import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.declarations.lazy.IrMaybeDeserializedClass
 import org.jetbrains.kotlin.ir.declarations.lazy.lazyVar
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
+import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
 import org.jetbrains.kotlin.ir.util.isFakeOverride
@@ -34,7 +38,7 @@ class Fir2IrLazyClass(
     override var origin: IrDeclarationOrigin,
     override val fir: FirRegularClass,
     override val symbol: Fir2IrClassSymbol,
-) : IrClass(), AbstractFir2IrLazyDeclaration<FirRegularClass, IrClass>, Fir2IrComponents by components {
+) : IrClass(), AbstractFir2IrLazyDeclaration<FirRegularClass, IrClass>, IrMaybeDeserializedClass, Fir2IrComponents by components {
     init {
         symbol.bind(this)
         classifierStorage.preCacheTypeParameters(fir)
@@ -117,6 +121,12 @@ class Fir2IrLazyClass(
         receiver
     }
 
+    override var inlineClassRepresentation: InlineClassRepresentation<IrSimpleType>?
+        get() = computeInlineClassRepresentation(fir)
+        set(_) {
+            error("Mutating Fir2Ir lazy elements is not possible")
+        }
+
     private val fakeOverridesByName = mutableMapOf<Name, Collection<IrDeclaration>>()
 
     fun getFakeOverridesByName(name: Name): Collection<IrDeclaration> = fakeOverridesByName.getOrPut(name) {
@@ -192,6 +202,9 @@ class Fir2IrLazyClass(
     override var metadata: MetadataSource?
         get() = null
         set(_) = error("We should never need to store metadata of external declarations.")
+
+    override val moduleName: String?
+        get() = fir.moduleName
 
     private fun FirNamedFunctionSymbol.isAbstractMethodOfAny(): Boolean {
         val fir = fir

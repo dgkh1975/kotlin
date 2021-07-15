@@ -8,13 +8,12 @@ package org.jetbrains.kotlin.commonizer.metadata
 import kotlinx.metadata.*
 import kotlinx.metadata.klib.*
 import org.jetbrains.kotlin.backend.common.serialization.metadata.DynamicTypeDeserializer
-import org.jetbrains.kotlin.descriptors.CallableMemberDescriptor
 import org.jetbrains.kotlin.commonizer.cir.*
-import org.jetbrains.kotlin.commonizer.mergedtree.*
 import org.jetbrains.kotlin.commonizer.metadata.TypeAliasExpansion.*
 import org.jetbrains.kotlin.commonizer.utils.DEFAULT_SETTER_VALUE_NAME
 import org.jetbrains.kotlin.commonizer.utils.SPECIAL_CLASS_WITHOUT_SUPERTYPES_CLASS_NAMES
 import org.jetbrains.kotlin.commonizer.utils.compactMap
+import org.jetbrains.kotlin.descriptors.CallableMemberDescriptor
 import org.jetbrains.kotlin.types.Variance
 
 internal fun CirModule.serializeModule(
@@ -165,15 +164,15 @@ internal fun CirProperty.serializeProperty(
         property.receiverParameterType = receiver.type.serializeType(context)
     }
     setter?.takeIf { !it.isDefault }?.let { setter ->
-        property.setterParameter = object : CirValueParameter {
-            override val annotations get() = setter.parameterAnnotations
-            override val name get() = DEFAULT_SETTER_VALUE_NAME
-            override val returnType get() = this@serializeProperty.returnType
-            override val varargElementType: CirType? get() = null
-            override val declaresDefaultValue get() = false
-            override val isCrossinline get() = false
-            override val isNoinline get() = false
-        }.serializeValueParameter(context)
+        property.setterParameter = CirValueParameter.createInterned(
+            annotations = setter.parameterAnnotations,
+            name = DEFAULT_SETTER_VALUE_NAME,
+            returnType = this@serializeProperty.returnType,
+            varargElementType = null,
+            declaresDefaultValue = false,
+            isCrossinline = false,
+            isNoinline = false
+        ).serializeValueParameter(context)
     }
     property.returnType = returnType.serializeType(context)
 }
@@ -195,9 +194,9 @@ internal fun CirFunction.serializeFunction(
 }
 
 private fun CirAnnotation.serializeAnnotation(): KmAnnotation {
-    val arguments = LinkedHashMap<String, KmAnnotationArgument<*>>(constantValueArguments.size + annotationValueArguments.size, 1F)
+    val arguments = LinkedHashMap<String, KmAnnotationArgument>(constantValueArguments.size + annotationValueArguments.size, 1F)
 
-    constantValueArguments.forEach { (name: CirName, value: CirConstantValue<*>) ->
+    constantValueArguments.forEach { (name: CirName, value: CirConstantValue) ->
         arguments[name.name] = value.serializeConstantValue()
             ?: error("Unexpected <null> constant value inside of $this")
     }
@@ -212,7 +211,8 @@ private fun CirAnnotation.serializeAnnotation(): KmAnnotation {
     )
 }
 
-private fun CirConstantValue<*>.serializeConstantValue(): KmAnnotationArgument<*>? = when (this) {
+@OptIn(ExperimentalUnsignedTypes::class)
+private fun CirConstantValue.serializeConstantValue(): KmAnnotationArgument? = when (this) {
     is CirConstantValue.StringValue -> KmAnnotationArgument.StringValue(value)
     is CirConstantValue.CharValue -> KmAnnotationArgument.CharValue(value)
 
@@ -233,7 +233,7 @@ private fun CirConstantValue<*>.serializeConstantValue(): KmAnnotationArgument<*
     is CirConstantValue.EnumValue -> KmAnnotationArgument.EnumValue(enumClassId.toString(), enumEntryName.name)
     is CirConstantValue.NullValue -> null
 
-    is CirConstantValue.ArrayValue -> KmAnnotationArgument.ArrayValue(value.compactMap { element ->
+    is CirConstantValue.ArrayValue -> KmAnnotationArgument.ArrayValue(elements.compactMap { element ->
         element.serializeConstantValue() ?: error("Unexpected <null> constant value inside of $this")
     })
 }

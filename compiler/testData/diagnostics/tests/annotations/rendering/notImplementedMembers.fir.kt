@@ -15,7 +15,7 @@ interface B {
     fun <T> a(@An arg: @An Int)
 }
 
-interface C : A, B
+<!CONFLICTING_INHERITED_MEMBERS!>interface C<!> : A, B
 
 @An
 abstract class D {
@@ -44,5 +44,5 @@ interface GI : G {
     override fun a(@An arg: @An Int) {}
 }
 
-class AG1(val a: A, val g: G) : A by a, G by g
-class AG2() : AI, GI
+<!MANY_IMPL_MEMBER_NOT_IMPLEMENTED!>class AG1<!>(val a: A, val g: G) : A by a, G by g
+<!MANY_INTERFACES_MEMBER_NOT_IMPLEMENTED!>class AG2<!>() : AI, GI

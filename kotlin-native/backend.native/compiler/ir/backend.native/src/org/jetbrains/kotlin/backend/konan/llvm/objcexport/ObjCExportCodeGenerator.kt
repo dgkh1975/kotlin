@@ -29,7 +29,8 @@ import org.jetbrains.kotlin.ir.symbols.IrConstructorSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
-import org.jetbrains.kotlin.konan.target.KonanTarget
+import org.jetbrains.kotlin.konan.ForeignExceptionMode
+import org.jetbrains.kotlin.konan.target.AppleConfigurables
 import org.jetbrains.kotlin.konan.target.LinkerOutputKind
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.utils.DFS
@@ -67,13 +68,31 @@ internal open class ObjCExportCodeGeneratorBase(codegen: CodeGenerator) : ObjCCo
     fun FunctionGenerationContext.callFromBridge(
             function: LLVMValueRef,
             args: List<LLVMValueRef>,
-            resultLifetime: Lifetime = Lifetime.IRRELEVANT
+            resultLifetime: Lifetime = Lifetime.IRRELEVANT,
+            toNative: Boolean = false
     ): LLVMValueRef {
 
         // TODO: it is required only for Kotlin-to-Objective-C bridges.
         this.forwardingForeignExceptionsTerminatedWith = objcTerminate
 
-        return call(function, args, resultLifetime, ExceptionHandler.Caller)
+        val switchStateToNative = toNative && context.config.memoryModel == MemoryModel.EXPERIMENTAL
+        val exceptionHandler: ExceptionHandler
+
+        if (switchStateToNative) {
+            switchThreadState(ThreadState.Native)
+            // Note: this is suboptimal. We should forbid Kotlin exceptions thrown from native code, and use simple fatal handler here.
+            exceptionHandler = filteringExceptionHandler(ExceptionHandler.Caller, ForeignExceptionMode.default, switchThreadState = true)
+        } else {
+            exceptionHandler = ExceptionHandler.Caller
+        }
+
+        val result = call(function, args, resultLifetime, exceptionHandler)
+
+        if (switchStateToNative) {
+            switchThreadState(ThreadState.Runnable)
+        }
+
+        return result
     }
 
     fun FunctionGenerationContext.kotlinReferenceToObjC(value: LLVMValueRef) =
@@ -134,7 +153,8 @@ internal class ObjCExportCodeGenerator(
             returnType: LLVMTypeRef,
             receiver: LLVMValueRef,
             selector: String,
-            vararg args: LLVMValueRef
+            switchToNative: Boolean,
+            vararg args: LLVMValueRef,
     ): LLVMValueRef {
 
         val objcMsgSendType = functionType(
@@ -143,7 +163,7 @@ internal class ObjCExportCodeGenerator(
                 listOf(int8TypePtr, int8TypePtr) + args.map { it.type }
         )
 
-        return callFromBridge(msgSender(objcMsgSendType), listOf(receiver, genSelector(selector)) + args)
+        return callFromBridge(msgSender(objcMsgSendType), listOf(receiver, genSelector(selector)) + args, toNative = switchToNative)
     }
 
     fun FunctionGenerationContext.kotlinToObjC(
@@ -343,7 +363,7 @@ internal class ObjCExportCodeGenerator(
         if (context.llvmModuleSpecification.importsKotlinDeclarationsFromOtherSharedLibraries()) {
             replaceExternalWeakOrCommonGlobal(
                     "Kotlin_ObjCExport_initTypeAdapters",
-                    Int1(1),
+                    Int1(true),
                     context.standardLlvmSymbolsOrigin
             )
         }
@@ -438,14 +458,12 @@ internal class ObjCExportCodeGenerator(
 
     inner class KotlinToObjCMethodAdapter(
             selector: String,
-            nameSignature: Long,
             itablePlace: ClassLayoutBuilder.InterfaceTablePlace,
             vtableIndex: Int,
             kotlinImpl: ConstPointer
     ) : Struct(
             runtime.kotlinToObjCMethodAdapter,
             staticData.cStringLiteral(selector),
-            Int64(nameSignature),
             Int32(itablePlace.interfaceId),
             Int32(itablePlace.itableSize),
             Int32(itablePlace.methodIndex),
@@ -458,7 +476,6 @@ internal class ObjCExportCodeGenerator(
             typeInfo: ConstPointer?,
             vtable: ConstPointer?,
             vtableSize: Int,
-            methodTable: List<RTTIGenerator.MethodTableRecord>,
             itable: List<RTTIGenerator.InterfaceTableRecord>,
             itableSize: Int,
             val objCName: String,
@@ -472,9 +489,6 @@ internal class ObjCExportCodeGenerator(
 
             vtable,
             Int32(vtableSize),
-
-            staticData.placeGlobalConstArray("", runtime.methodTableRecordType, methodTable),
-            Int32(methodTable.size),
 
             staticData.placeGlobalConstArray("", runtime.interfaceTableRecordType, itable),
             Int32(itableSize),
@@ -627,7 +641,8 @@ private fun ObjCExportCodeGenerator.emitBoxConverter(
         val value = kotlinToObjC(kotlinValue, objCValueType)
 
         val nsNumberSubclass = genGetLinkedClass(namer.numberBoxName(boxClass.classId!!).binaryName)
-        ret(genSendMessage(int8TypePtr, nsNumberSubclass, nsNumberFactorySelector, value))
+        val switchToNative = false // We consider these methods fast enough.
+        ret(genSendMessage(int8TypePtr, nsNumberSubclass, nsNumberFactorySelector, switchToNative, value))
     }
 
     LLVMSetLinkage(converter, LLVMLinkage.LLVMPrivateLinkage)
@@ -754,7 +769,7 @@ private inline fun ObjCExportCodeGenerator.generateObjCImpBy(
         null
     }
 
-    generateFunction(codegen, result, startLocation = location, endLocation = location) {
+    generateFunction(codegen, result, startLocation = location, endLocation = location, switchToRunnable = true) {
         genBody()
     }
 
@@ -867,7 +882,7 @@ private fun ObjCExportCodeGenerator.generateObjCImp(
                 is MethodBridge.ReturnValue.WithError.ZeroForError -> {
                     if (returnType.successBridge == MethodBridge.ReturnValue.Instance.InitResult) {
                         // Release init receiver, as required by convention.
-                        callFromBridge(objcRelease, listOf(param(0)))
+                        callFromBridge(objcRelease, listOf(param(0)), toNative = true)
                     }
                     Zero(returnType.objCType(context)).llvm
                 }
@@ -1046,7 +1061,7 @@ private fun ObjCExportCodeGenerator.generateKotlinToObjCBridge(
             }
         }
 
-        val targetResult = callFromBridge(objcMsgSend, objCArgs)
+        val targetResult = callFromBridge(objcMsgSend, objCArgs, toNative = true)
 
         assert(baseMethod.symbol !is IrConstructorSymbol)
 
@@ -1147,12 +1162,10 @@ private fun ObjCExportCodeGenerator.generateKotlinToObjCBridge(
 private fun ObjCExportCodeGenerator.createReverseAdapter(
         irFunction: IrFunction,
         baseMethod: ObjCMethodSpec.BaseMethod<IrSimpleFunctionSymbol>,
-        functionName: String,
         vtableIndex: Int?,
         itablePlace: ClassLayoutBuilder.InterfaceTablePlace?
 ): ObjCExportCodeGenerator.KotlinToObjCMethodAdapter {
 
-    val nameSignature = functionName.localHash.value
     val selector = baseMethod.selector
 
     val kotlinToObjC = generateKotlinToObjCBridge(
@@ -1160,7 +1173,7 @@ private fun ObjCExportCodeGenerator.createReverseAdapter(
             baseMethod
     ).bitcast(int8TypePtr)
 
-    return KotlinToObjCMethodAdapter(selector, nameSignature,
+    return KotlinToObjCMethodAdapter(selector,
             itablePlace ?: ClassLayoutBuilder.InterfaceTablePlace.INVALID,
             vtableIndex ?: -1,
             kotlinToObjC)
@@ -1230,8 +1243,9 @@ private fun ObjCExportCodeGenerator.vtableIndex(irFunction: IrSimpleFunction): I
 private fun ObjCExportCodeGenerator.itablePlace(irFunction: IrSimpleFunction): ClassLayoutBuilder.InterfaceTablePlace? {
     assert(irFunction.isOverridable)
     val irClass = irFunction.parentAsClass
-    return if (irClass.isInterface && context.ghaEnabled()
-            && (irFunction.isReal || irFunction.resolveFakeOverrideMaybeAbstract().parent != context.irBuiltIns.anyClass.owner)) {
+    return if (irClass.isInterface
+            && (irFunction.isReal || irFunction.resolveFakeOverrideMaybeAbstract().parent != context.irBuiltIns.anyClass.owner)
+    ) {
         context.getLayoutBuilder(irClass).itablePlace(irFunction)
     } else {
         null
@@ -1250,7 +1264,6 @@ private fun ObjCExportCodeGenerator.createTypeAdapterForFileClass(
             typeInfo = null,
             vtable = null,
             vtableSize = -1,
-            methodTable = emptyList(),
             itable = emptyList(),
             itableSize = -1,
             objCName = name,
@@ -1285,11 +1298,14 @@ private fun ObjCExportCodeGenerator.createTypeAdapter(
                 classAdapters += createEnumValuesAdapter(it.valuesFunctionSymbol.owner, it.selector)
             }
             is ObjCGetterForObjectInstance -> {
-                classAdapters += if (irClass.isUnit()) {
+                classAdapters += if (it.classSymbol.owner.isUnit()) {
                     createUnitInstanceAdapter(it.selector)
                 } else {
-                    createObjectInstanceAdapter(irClass, it.selector)
+                    createObjectInstanceAdapter(it.classSymbol.owner, it.selector)
                 }
+            }
+            ObjCKotlinThrowableAsErrorMethod -> {
+                adapters += createThrowableAsErrorAdapter()
             }
             is ObjCMethodForKotlinMethod -> {} // Handled below.
         }.let {} // Force exhaustive.
@@ -1330,15 +1346,9 @@ private fun ObjCExportCodeGenerator.createTypeAdapter(
         null
     }
 
-    val methodTable = if (!irClass.isInterface && irClass.isAbstract()) {
-        rttiGenerator.methodTableRecords(irClass)
-    } else {
-        emptyList()
-    }
-
     val (itable, itableSize) = when {
-        irClass.isInterface -> Pair(emptyList(), context.getLayoutBuilder(irClass).interfaceTableEntries.size)
-        irClass.isAbstract() && context.ghaEnabled() -> rttiGenerator.interfaceTableRecords(irClass)
+        irClass.isInterface -> Pair(emptyList(), context.getLayoutBuilder(irClass).interfaceVTableEntries.size)
+        irClass.isAbstract() -> rttiGenerator.interfaceTableRecords(irClass)
         else -> Pair(emptyList(), -1)
     }
 
@@ -1347,7 +1357,6 @@ private fun ObjCExportCodeGenerator.createTypeAdapter(
             typeInfo,
             vtable,
             vtableSize,
-            methodTable,
             itable,
             itableSize,
             objCName,
@@ -1442,7 +1451,7 @@ private fun ObjCExportCodeGenerator.createReverseAdapters(
                     presentVtableBridges += vtableIndex
                     presentMethodTableBridges += functionName
                     presentItableBridges += itablePlace
-                    result += createReverseAdapter(it, baseMethod, functionName, vtableIndex, itablePlace)
+                    result += createReverseAdapter(it, baseMethod, vtableIndex, itablePlace)
                     coveredMethods += it
                 }
             }
@@ -1463,7 +1472,6 @@ private fun ObjCExportCodeGenerator.nonOverridableAdapter(
         hasSelectorAmbiguity: Boolean
 ): ObjCExportCodeGenerator.KotlinToObjCMethodAdapter = KotlinToObjCMethodAdapter(
     selector,
-    -1,
     vtableIndex = if (hasSelectorAmbiguity) -2 else -1, // Describes the reason.
     kotlinImpl = NullPointer(int8Type),
     itablePlace = ClassLayoutBuilder.InterfaceTablePlace.INVALID
@@ -1509,7 +1517,7 @@ private inline fun ObjCExportCodeGenerator.generateObjCToKotlinSyntheticGetter(
             MethodBridgeReceiver.Static, valueParameters = emptyList()
     )
 
-    val imp = generateFunction(codegen, objCFunctionType(context, methodBridge), "objc2kotlin") {
+    val imp = generateFunction(codegen, objCFunctionType(context, methodBridge), "objc2kotlin", switchToRunnable = true) {
         block()
     }
 
@@ -1530,6 +1538,7 @@ private fun ObjCExportCodeGenerator.objCToKotlinMethodAdapter(
 
 private fun ObjCExportCodeGenerator.createUnitInstanceAdapter(selector: String) =
         generateObjCToKotlinSyntheticGetter(selector) {
+            // Note: generateObjCToKotlinSyntheticGetter switches to Runnable, which is probably not required here and thus suboptimal.
             initRuntimeIfNeeded() // For instance methods it gets called when allocating.
 
             ret(callFromBridge(context.llvm.Kotlin_ObjCExport_convertUnit, listOf(codegen.theUnitInstanceRef.llvm)))
@@ -1573,6 +1582,22 @@ private fun ObjCExportCodeGenerator.createEnumValuesAdapter(
 
     val imp = generateObjCImp(valuesFunction, valuesFunction, methodBridge, isVirtual = false)
 
+    return objCToKotlinMethodAdapter(selector, methodBridge, imp)
+}
+
+private fun ObjCExportCodeGenerator.createThrowableAsErrorAdapter(): ObjCExportCodeGenerator.ObjCToKotlinMethodAdapter {
+    val methodBridge = MethodBridge(
+            returnBridge = MethodBridge.ReturnValue.Mapped(ReferenceBridge),
+            receiver = MethodBridgeReceiver.Instance,
+            valueParameters = emptyList()
+    )
+
+    val imp = generateObjCImpBy(methodBridge) {
+        val exception = objCReferenceToKotlin(param(0), Lifetime.ARGUMENT)
+        ret(callFromBridge(context.llvm.Kotlin_ObjCExport_WrapExceptionToNSError, listOf(exception)))
+    }
+
+    val selector = ObjCExportNamer.kotlinThrowableAsErrorMethodName
     return objCToKotlinMethodAdapter(selector, methodBridge, imp)
 }
 
@@ -1669,56 +1694,10 @@ private val TypeBridge.objCEncoding: String get() = when (this) {
     is ValueTypeBridge -> this.objCValueType.encoding
 }
 
-private fun Context.is64BitNSInteger(): Boolean = when (val target = this.config.target) {
-    KonanTarget.IOS_X64,
-    KonanTarget.IOS_ARM64,
-    KonanTarget.TVOS_ARM64,
-    KonanTarget.TVOS_X64,
-    KonanTarget.MACOS_X64,
-    KonanTarget.MACOS_ARM64,
-    KonanTarget.WATCHOS_X64 -> true
-    KonanTarget.WATCHOS_ARM64,
-    KonanTarget.WATCHOS_ARM32,
-    KonanTarget.WATCHOS_X86,
-    KonanTarget.IOS_ARM32 -> false
-    KonanTarget.ANDROID_X64,
-    KonanTarget.ANDROID_X86,
-    KonanTarget.ANDROID_ARM32,
-    KonanTarget.ANDROID_ARM64,
-    KonanTarget.LINUX_X64,
-    KonanTarget.MINGW_X86,
-    KonanTarget.MINGW_X64,
-    KonanTarget.LINUX_ARM64,
-    KonanTarget.LINUX_ARM32_HFP,
-    KonanTarget.LINUX_MIPS32,
-    KonanTarget.LINUX_MIPSEL32,
-    KonanTarget.WASM32,
-    is KonanTarget.ZEPHYR -> error("Target $target has no support for NSInteger type.")
-}
-
-internal fun Context.is64BitLong(): Boolean = when (this.config.target) {
-    KonanTarget.IOS_X64,
-    KonanTarget.IOS_ARM64,
-    KonanTarget.TVOS_ARM64,
-    KonanTarget.TVOS_X64,
-    KonanTarget.ANDROID_X64,
-    KonanTarget.ANDROID_ARM64,
-    KonanTarget.LINUX_ARM64,
-    KonanTarget.MINGW_X64,
-    KonanTarget.LINUX_X64,
-    KonanTarget.MACOS_X64,
-    KonanTarget.MACOS_ARM64,
-    KonanTarget.WATCHOS_X64 -> true
-    KonanTarget.WATCHOS_ARM64,
-    KonanTarget.WATCHOS_ARM32,
-    KonanTarget.ANDROID_X86,
-    KonanTarget.ANDROID_ARM32,
-    KonanTarget.WATCHOS_X86,
-    KonanTarget.MINGW_X86,
-    KonanTarget.LINUX_ARM32_HFP,
-    KonanTarget.LINUX_MIPS32,
-    KonanTarget.LINUX_MIPSEL32,
-    KonanTarget.WASM32,
-    is KonanTarget.ZEPHYR,
-    KonanTarget.IOS_ARM32 -> false
+private fun Context.is64BitNSInteger(): Boolean {
+    val configurables = this.config.platform.configurables
+    require(configurables is AppleConfigurables) {
+        "Target ${configurables.target} has no support for NSInteger type."
+    }
+    return llvm.nsIntegerTypeWidth == 64L
 }

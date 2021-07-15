@@ -13,7 +13,11 @@ import org.jetbrains.kotlin.fir.backend.generators.CallAndReferenceGenerator
 import org.jetbrains.kotlin.fir.backend.generators.DataClassMembersGenerator
 import org.jetbrains.kotlin.fir.backend.generators.FakeOverrideGenerator
 import org.jetbrains.kotlin.fir.declarations.*
+import org.jetbrains.kotlin.fir.declarations.utils.isLocal
+import org.jetbrains.kotlin.fir.declarations.utils.isSynthetic
+import org.jetbrains.kotlin.fir.declarations.utils.primaryConstructor
 import org.jetbrains.kotlin.fir.descriptors.FirModuleDescriptor
+import org.jetbrains.kotlin.fir.packageFqName
 import org.jetbrains.kotlin.fir.psi
 import org.jetbrains.kotlin.fir.resolve.ScopeSession
 import org.jetbrains.kotlin.fir.signaturer.FirMangler
@@ -55,10 +59,11 @@ class Fir2IrConverter(
         processClassMembers(regularClass, irClass)
     }
 
-    fun registerFileAndClasses(file: FirFile): IrFile {
+    fun registerFileAndClasses(file: FirFile, moduleFragment: IrModuleFragment) {
         val irFile = IrFileImpl(
             PsiIrFileEntry(file.psi as KtFile),
-            moduleDescriptor.getPackage(file.packageFqName).fragments.first()
+            moduleDescriptor.getPackage(file.packageFqName).fragments.first(),
+            moduleFragment
         )
         declarationStorage.registerFile(file, irFile)
         file.declarations.forEach {
@@ -66,7 +71,7 @@ class Fir2IrConverter(
                 registerClassAndNestedClasses(it, irFile)
             }
         }
-        return irFile
+        moduleFragment.files += irFile
     }
 
     fun processClassHeaders(file: FirFile) {
@@ -196,7 +201,7 @@ class Fir2IrConverter(
 
     private fun processMemberDeclaration(
         declaration: FirDeclaration,
-        containingClass: FirClass<*>?,
+        containingClass: FirClass?,
         parent: IrDeclarationParent
     ): IrDeclaration? {
         val isLocal = containingClass != null &&
@@ -279,12 +284,11 @@ class Fir2IrConverter(
             components.visibilityConverter = visibilityConverter
             components.builtIns = builtIns
             components.annotationGenerator = annotationGenerator
-            val irFiles = mutableListOf<IrFile>()
 
+            val irModuleFragment = IrModuleFragmentImpl(moduleDescriptor, irBuiltIns)
             for (firFile in firFiles) {
-                irFiles += converter.registerFileAndClasses(firFile)
+                converter.registerFileAndClasses(firFile, irModuleFragment)
             }
-            val irModuleFragment = IrModuleFragmentImpl(moduleDescriptor, irBuiltIns, irFiles)
             val irProviders =
                 generateTypicalIrProviderList(irModuleFragment.descriptor, irBuiltIns, symbolTable, extensions = generatorExtensions)
             val externalDependenciesGenerator = ExternalDependenciesGenerator(

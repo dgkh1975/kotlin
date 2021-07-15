@@ -18,9 +18,7 @@ import org.jetbrains.kotlin.ir.builders.declarations.buildTypeParameter
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.descriptors.*
 import org.jetbrains.kotlin.ir.expressions.*
-import org.jetbrains.kotlin.ir.expressions.impl.IrDelegatingConstructorCallImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrGetValueImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrInstanceInitializerCallImpl
+import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.ir.overrides.FakeOverrideBuilderStrategy
 import org.jetbrains.kotlin.ir.overrides.IrOverridingUtil
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
@@ -396,9 +394,13 @@ fun IrClass.createImplicitParameterDeclarationWithWrappedDescriptor() {
 @Suppress("UNCHECKED_CAST")
 fun isElseBranch(branch: IrBranch) = branch is IrElseBranch || ((branch.condition as? IrConst<Boolean>)?.value == true)
 
-fun IrFunction.isMethodOfAny() =
-    ((valueParameters.size == 0 && name.asString().let { it == "hashCode" || it == "toString" }) ||
-            (valueParameters.size == 1 && name.asString() == "equals" && valueParameters[0].type.isNullableAny()))
+fun IrFunction.isMethodOfAny(): Boolean =
+    extensionReceiverParameter == null && dispatchReceiverParameter != null &&
+            when (name.asString()) {
+                "hashCode", "toString" -> valueParameters.isEmpty()
+                "equals" -> valueParameters.singleOrNull()?.type?.isNullableAny() == true
+                else -> false
+            }
 
 fun IrClass.simpleFunctions() = declarations.flatMap {
     when (it) {
@@ -455,11 +457,11 @@ val IrFunction.allParametersCount: Int
 // TODO: merge it with FakeOverrideBuilder.
 private class FakeOverrideBuilderForLowerings : FakeOverrideBuilderStrategy() {
 
-    override fun linkFunctionFakeOverride(declaration: IrFakeOverrideFunction) {
+    override fun linkFunctionFakeOverride(declaration: IrFakeOverrideFunction, compatibilityMode: Boolean) {
         declaration.acquireSymbol(IrSimpleFunctionSymbolImpl())
     }
 
-    override fun linkPropertyFakeOverride(declaration: IrFakeOverrideProperty) {
+    override fun linkPropertyFakeOverride(declaration: IrFakeOverrideProperty, compatibilityMode: Boolean) {
         val propertySymbol = IrPropertySymbolImpl()
         declaration.getter?.let { it.correspondingPropertySymbol = propertySymbol }
         declaration.setter?.let { it.correspondingPropertySymbol = propertySymbol }
@@ -468,18 +470,18 @@ private class FakeOverrideBuilderForLowerings : FakeOverrideBuilderStrategy() {
 
         declaration.getter?.let {
             it.correspondingPropertySymbol = declaration.symbol
-            linkFunctionFakeOverride(it as? IrFakeOverrideFunction ?: error("Unexpected fake override getter: $it"))
+            linkFunctionFakeOverride(it as? IrFakeOverrideFunction ?: error("Unexpected fake override getter: $it"), compatibilityMode)
         }
         declaration.setter?.let {
             it.correspondingPropertySymbol = declaration.symbol
-            linkFunctionFakeOverride(it as? IrFakeOverrideFunction ?: error("Unexpected fake override setter: $it"))
+            linkFunctionFakeOverride(it as? IrFakeOverrideFunction ?: error("Unexpected fake override setter: $it"), compatibilityMode)
         }
     }
 }
 
-fun IrClass.addFakeOverrides(irBuiltIns: IrBuiltIns, implementedMembers: List<IrOverridableMember> = emptyList()) {
-    IrOverridingUtil(irBuiltIns, FakeOverrideBuilderForLowerings())
-        .buildFakeOverridesForClassUsingOverriddenSymbols(this, implementedMembers)
+fun IrClass.addFakeOverrides(typeSystem: IrTypeSystemContext, implementedMembers: List<IrOverridableMember> = emptyList()) {
+    IrOverridingUtil(typeSystem, FakeOverrideBuilderForLowerings())
+        .buildFakeOverridesForClassUsingOverriddenSymbols(this, implementedMembers, compatibilityMode = false)
         .forEach { addChild(it) }
 }
 

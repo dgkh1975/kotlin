@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.native.interop.gen
 
+import org.jetbrains.kotlin.konan.target.Architecture
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.native.interop.indexer.*
 
@@ -16,20 +17,19 @@ import org.jetbrains.kotlin.native.interop.indexer.*
  */
 internal fun Type.isStret(target: KonanTarget): Boolean {
     val unwrappedType = this.unwrapTypedefs()
-    val abiInfo: ObjCAbiInfo = when (target) {
-        KonanTarget.IOS_ARM64,
-        KonanTarget.TVOS_ARM64,
-        KonanTarget.MACOS_ARM64 -> DarwinArm64AbiInfo()
+    val abiInfo: ObjCAbiInfo = when (target.architecture) {
+        Architecture.ARM64 -> {
+            // Currently, cinterop works with watchos_arm64 as with watchos_arm32.
+            // TODO: ABI for watchos_arm64 should be revisited after LLVM update.
+            require(target != KonanTarget.WATCHOS_ARM64)
+            DarwinArm64AbiInfo()
+        }
 
-        KonanTarget.IOS_X64,
-        KonanTarget.MACOS_X64,
-        KonanTarget.WATCHOS_X64,
-        KonanTarget.TVOS_X64 -> DarwinX64AbiInfo()
+        Architecture.X64 -> DarwinX64AbiInfo()
 
-        KonanTarget.WATCHOS_X86 -> DarwinX86AbiInfo()
+        Architecture.X86 -> DarwinX86AbiInfo()
 
-        KonanTarget.IOS_ARM32,
-        KonanTarget.WATCHOS_ARM32 -> DarwinArm32AbiInfo(target)
+        Architecture.ARM32 -> DarwinArm32AbiInfo(target)
 
         else -> error("Cannot generate ObjC stubs for $target.")
     }
@@ -95,22 +95,39 @@ class DarwinArm64AbiInfo : ObjCAbiInfo {
     }
 }
 
+/*
+Consider edge cases with anonymous inner:
+hasIntegerLikeLayout
+1   N   struct X { struct {}; int v1; };                // despite the offset(v1) == 0 and sizeof(X) == 4
+2   N   struct X { struct {}; char v1; };               // same with char
+3   N   struct X { struct {} v1; short v2; };           // same with named empty field; sizeof == 2, offset(v2) == 0
+4   N   struct X { int v1; struct {}; };                // despite there is only one field but empty struct has offset == 4
+5   N   struct X { char v1; struct {}; };               // same, sizeof is 1
+6   N   struct X { char v1; struct {char v2:4;}; };     // despite v2 is bitfield
+7   Y   struct X { char v1; char v2:4; };               // but this is OK (bitfield)
+8   Y   struct X { struct {char v1;}; char v2:4; };     // same,  bitfield is OK
+9   Y   struct X { struct {char v1;} v1; char v2:4; };  // same, OK v2 is bitfield
+10  Y   struct X { struct {} v1; char v2:4; };          // OK, v2 is bitfield
+11  Y   struct X { struct {char v1;}; short v2:16; };   // OK, v2 is bitfield even if it has full size
+
+#1..3: the field offset == 0 but still not eligible for `hasIntegerLikeLayout`
+Looks like we have to use the field' sequential number instead of offset
+ */
+private fun StructDef.hasIntegerLikeLayout(): Boolean {
+    return size <= 4 &&
+            members.mapIndexed { index, it ->
+                // Assuming the member order has not been changed
+                when (it) {
+                    is BitField -> it.type.isIntegerLikeType()
+                    is Field -> index == 0 && it.type.isIntegerLikeType() // assert(offset == 0)
+                    is AnonymousInnerRecord -> index == 0 && it.def.hasIntegerLikeLayout()
+                    is IncompleteField -> false
+                }
+            }.all {it}
+}
+
 private fun Type.isIntegerLikeType(): Boolean = when (this) {
-    is RecordType -> {
-        val def = this.decl.def
-        if (def == null) {
-            false
-        } else {
-            def.size <= 4 &&
-                    def.members.all {
-                        when (it) {
-                            is BitField -> it.type.isIntegerLikeType()
-                            is Field -> it.offset == 0L && it.type.isIntegerLikeType()
-                            is IncompleteField -> false
-                        }
-                    }
-        }
-    }
+    is RecordType -> decl.def?.hasIntegerLikeLayout() ?: false
     is ObjCPointer, is PointerType, CharType, is BoolType -> true
     is IntegerType -> this.size <= 4
     is Typedef -> this.def.aliased.isIntegerLikeType()
@@ -122,7 +139,7 @@ private fun Type.isIntegerLikeType(): Boolean = when (this) {
 private fun Type.hasUnalignedMembers(): Boolean = when (this) {
     is Typedef -> this.def.aliased.hasUnalignedMembers()
     is RecordType -> this.decl.def!!.let { def ->
-        def.fields.any {
+        def.fields.any { // TODO: what about bitfields?
             !it.isAligned ||
                     // Check members of fields too:
                     it.type.hasUnalignedMembers()

@@ -1,4 +1,3 @@
-// !WITH_NEW_INFERENCE
 package bar
 
 
@@ -8,7 +7,7 @@ fun <R> List<R>.a() {}
 
 fun test1(i: Int?) {
     1.<!INAPPLICABLE_CANDIDATE!>a<!>()
-    i<!UNSAFE_CALL!>.<!>a()
+    i.<!INAPPLICABLE_CANDIDATE!>a<!>()
 }
 
 fun <R> test2(c: Collection<R>) {
@@ -19,9 +18,9 @@ fun Int.foo() {}
 
 fun test3(s: String?) {
     "".<!INAPPLICABLE_CANDIDATE!>foo<!>()
-    s<!UNSAFE_CALL!>.<!>foo()
-    "".<!INAPPLICABLE_CANDIDATE!>foo<!>(1)
-    s.<!INAPPLICABLE_CANDIDATE!>foo<!>("a")
+    s.<!INAPPLICABLE_CANDIDATE!>foo<!>()
+    "".foo(<!TOO_MANY_ARGUMENTS!>1<!>)
+    s.foo(<!TOO_MANY_ARGUMENTS!>"a"<!>)
 }
 
 interface A
@@ -52,5 +51,5 @@ fun test7(l: List<String?>) {
 }
 
 fun test8(l: List<Any>?) {
-    l<!UNSAFE_CALL!>.<!>b()
+    l.<!INAPPLICABLE_CANDIDATE!>b<!>()
 }

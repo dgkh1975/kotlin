@@ -35,7 +35,7 @@ fun List<Int>.single(): Int = 2
 
 fun listOf(): List<String> {}
 
-public class LightMember<D> : Member<D>, Light() {
+public open class LightMember<D> : Member<D>, Light() {
     override fun getName(): String = "Light"
 }
 
@@ -44,7 +44,7 @@ public <!ABSTRACT_MEMBER_NOT_IMPLEMENTED!>class LightClassWrapper<!> : Light(), 
 }
 
 public abstract class Light : Field, TypeParametersOwner {
-    fun getTypeParameters() = listOf()
+    fun <!VIRTUAL_MEMBER_HIDDEN!>getTypeParameters<!>() = listOf()
 }
 
 public interface Field : Named

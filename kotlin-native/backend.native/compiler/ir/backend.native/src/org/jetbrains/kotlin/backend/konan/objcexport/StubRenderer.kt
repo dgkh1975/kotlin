@@ -16,15 +16,25 @@ object StubRenderer {
     internal fun render(stub: Stub<*>, shouldExportKDoc: Boolean): List<String> = collect {
         stub.run {
             val kDoc = if (shouldExportKDoc) {
-                this.descriptor?.extractKDocString()
+                descriptor?.extractKDocString()?.let {
+                    if (it.isNotEmpty()) {  // sometimes `findDoc` return empty string; is it a bug?
+                        // Nested comment is allowed inside of preformatted ``` block in kdoc but not in ObjC
+                        val kdocClean =
+                                if (it.startsWith("/**") && it.endsWith("*/"))
+                                    "/**${it.substring(3, it.length - 2).replace("*/", "**").replace("/*", "**")}*/"
+                                else it
+                        +"" // Probably makes the output more readable.
+                        kdocClean.lines().forEach { it.trim().let {
+                                if (it.isNotEmpty() && it[0] == '*') +" $it"
+                                else +"$it"
+                            }
+                        }
+                    } else null
+                }
             } else null
-            kDoc?.let {
-                +"" // Probably makes the output more readable.
-                +it // Let's try to keep non-trivial kdoc formatting intact
-            }
 
-            this.comment?.let { comment ->
-                kDoc?: let { +"" } // Probably makes the output more readable.
+            comment?.let { comment ->
+                kDoc ?: let { +"" } // Probably makes the output more readable.
                 +"/**"
                 comment.contentLines.forEach {
                     +" $it"
@@ -220,4 +230,3 @@ private fun DeclarationDescriptor.extractKDocString(): String? {
     return (this as? DeclarationDescriptorWithSource)?.findKDocString()
             ?: extractSerializedKdocString()
 }
-

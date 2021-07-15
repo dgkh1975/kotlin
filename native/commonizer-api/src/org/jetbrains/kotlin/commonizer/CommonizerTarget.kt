@@ -13,7 +13,7 @@ import java.io.Serializable
 // N.B. TargetPlatform/SimplePlatform are non exhaustive enough to address both target platforms such as
 // JVM, JS and concrete Kotlin/Native targets, e.g. macos_x64, ios_x64, linux_x64.
 public sealed class CommonizerTarget : Serializable {
-    final override fun toString(): String = prettyName
+    final override fun toString(): String = identityString
 }
 
 public data class LeafCommonizerTarget public constructor(val name: String) : CommonizerTarget() {
@@ -24,20 +24,10 @@ public data class LeafCommonizerTarget public constructor(val name: String) : Co
     public val konanTarget: KonanTarget get() = konanTargetOrNull ?: error("Unknown KonanTarget: $name")
 }
 
-public data class SharedCommonizerTarget(val targets: Set<CommonizerTarget>) : CommonizerTarget() {
-    public constructor(vararg targets: CommonizerTarget) : this(targets.toSet())
+public data class SharedCommonizerTarget(val targets: Set<LeafCommonizerTarget>) : CommonizerTarget() {
+    public constructor(vararg targets: LeafCommonizerTarget) : this(targets.toSet())
     public constructor(vararg targets: KonanTarget) : this(targets.toSet())
     public constructor(targets: Iterable<KonanTarget>) : this(targets.map(::LeafCommonizerTarget).toSet())
-
-    public companion object {
-        public fun ifNotEmpty(targets: Set<CommonizerTarget>): SharedCommonizerTarget? {
-            return if (targets.isNotEmpty()) SharedCommonizerTarget(targets) else null
-        }
-    }
-
-    init {
-        require(targets.isNotEmpty()) { "Empty 'SharedCommonizerTarget': Expected at least one target" }
-    }
 }
 
 public fun CommonizerTarget(konanTargets: Iterable<KonanTarget>): CommonizerTarget {
@@ -59,6 +49,17 @@ public fun CommonizerTarget(konanTarget: KonanTarget, vararg konanTargets: Konan
     return SharedCommonizerTarget(targets.map(::LeafCommonizerTarget).toSet())
 }
 
+public fun CommonizerTarget(
+    commonizerTarget: LeafCommonizerTarget,
+    vararg commonizerTargets: LeafCommonizerTarget
+): SharedCommonizerTarget {
+    val targets = mutableListOf<LeafCommonizerTarget>().apply {
+        add(commonizerTarget)
+        addAll(commonizerTargets)
+    }
+    return SharedCommonizerTarget(targets.toSet())
+}
+
 public val CommonizerTarget.identityString: String
     get() = when (this) {
         is LeafCommonizerTarget -> name
@@ -73,22 +74,6 @@ private val SharedCommonizerTarget.identityString: String
         )
     }
 
-public val CommonizerTarget.prettyName: String
-    get() = when (this) {
-        is LeafCommonizerTarget -> "[$name]"
-        is SharedCommonizerTarget -> prettyName(null)
-    }
-
-public fun SharedCommonizerTarget.prettyName(highlightedChild: CommonizerTarget?): String {
-    return targets
-        .sortedWith(compareBy<CommonizerTarget> { it.level }.thenBy { it.identityString }).joinToString(", ", "[", "]") { child ->
-            when (child) {
-                is LeafCommonizerTarget -> child.name
-                is SharedCommonizerTarget -> child.prettyName(highlightedChild)
-            } + if (child == highlightedChild) "(*)" else ""
-        }
-}
-
 public val CommonizerTarget.konanTargets: Set<KonanTarget>
     get() {
         return when (this) {
@@ -97,10 +82,36 @@ public val CommonizerTarget.konanTargets: Set<KonanTarget>
         }
     }
 
+public val Iterable<CommonizerTarget>.konanTargets: Set<KonanTarget> get() = flatMapTo(mutableSetOf()) { it.konanTargets }
+
+// REMOVE
 public val CommonizerTarget.level: Int
     get() {
         return when (this) {
             is LeafCommonizerTarget -> return 0
-            is SharedCommonizerTarget -> targets.maxOf { it.level } + 1
+            is SharedCommonizerTarget -> if (targets.isNotEmpty()) targets.maxOf { it.level } + 1 else 0
         }
     }
+
+
+public fun CommonizerTarget.allLeaves(): Set<LeafCommonizerTarget> {
+    return when (this) {
+        is LeafCommonizerTarget -> setOf(this)
+        is SharedCommonizerTarget -> this.targets
+    }
+}
+
+public fun Iterable<CommonizerTarget>.allLeaves(): Set<LeafCommonizerTarget> {
+    return flatMapTo(mutableSetOf()) { target -> target.allLeaves() }
+}
+
+public fun CommonizerTarget.withAllLeaves(): Set<CommonizerTarget> {
+    return when (this) {
+        is LeafCommonizerTarget -> setOf(this)
+        is SharedCommonizerTarget -> setOf(this) + targets
+    }
+}
+
+public fun Iterable<CommonizerTarget>.withAllLeaves(): Set<CommonizerTarget> {
+    return flatMapTo(mutableSetOf()) { it.withAllLeaves() }
+}

@@ -18,7 +18,7 @@ class InferenceComponents(val session: FirSession) : FirSessionComponent {
             get() = this@InferenceComponents.session
     }
 
-    val approximator: ConeTypeApproximator = ConeTypeApproximator(ctx)
+    val approximator: ConeTypeApproximator = ConeTypeApproximator(ctx, session.languageVersionSettings)
     val trivialConstraintTypeInferenceOracle = TrivialConstraintTypeInferenceOracle.create(ctx)
     private val incorporator = ConstraintIncorporator(approximator, trivialConstraintTypeInferenceOracle, ConeConstraintSystemUtilContext)
     private val injector = ConstraintInjector(
@@ -26,7 +26,7 @@ class InferenceComponents(val session: FirSession) : FirSessionComponent {
         approximator,
         session.languageVersionSettings,
     )
-    val resultTypeResolver = ResultTypeResolver(approximator, trivialConstraintTypeInferenceOracle)
+    val resultTypeResolver = ResultTypeResolver(approximator, trivialConstraintTypeInferenceOracle, session.languageVersionSettings)
     val variableFixationFinder = VariableFixationFinder(trivialConstraintTypeInferenceOracle, session.languageVersionSettings)
     val postponedArgumentInputTypesResolver =
         PostponedArgumentInputTypesResolver(resultTypeResolver, variableFixationFinder, ConeConstraintSystemUtilContext)

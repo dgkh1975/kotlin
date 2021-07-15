@@ -7,10 +7,10 @@ package org.jetbrains.kotlin.fir.backend
 
 import org.jetbrains.kotlin.fir.expressions.FirAnnotationCall
 import org.jetbrains.kotlin.fir.expressions.classId
+import org.jetbrains.kotlin.fir.languageVersionSettings
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
 import org.jetbrains.kotlin.fir.resolve.substitution.AbstractConeSubstitutor
 import org.jetbrains.kotlin.fir.resolve.toSymbol
-import org.jetbrains.kotlin.fir.symbols.StandardClassIds
 import org.jetbrains.kotlin.fir.typeContext
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.types.impl.*
@@ -18,10 +18,12 @@ import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.IrTypeArgument
+import org.jetbrains.kotlin.ir.types.IrTypeProjection
 import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
 import org.jetbrains.kotlin.ir.types.impl.IrStarProjectionImpl
 import org.jetbrains.kotlin.ir.types.impl.makeTypeProjection
 import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.types.TypeApproximatorConfiguration
 import org.jetbrains.kotlin.types.Variance
 
@@ -63,7 +65,15 @@ class Fir2IrTypeConverter(
     private val capturedTypeCache = mutableMapOf<ConeCapturedType, IrType>()
     private val errorTypeForCapturedTypeStub by lazy { createErrorType() }
 
-    private val typeApproximator = ConeTypeApproximator(session.typeContext)
+    private val typeApproximator = ConeTypeApproximator(session.typeContext, session.languageVersionSettings)
+
+    private val typeApproximatorConfiguration =
+        object : TypeApproximatorConfiguration.AllFlexibleSameValue() {
+            override val allFlexible: Boolean get() = true
+            override val errorType: Boolean get() = true
+            override val integerLiteralType: Boolean get() = true
+            override val intersectionTypesInContravariantPositions: Boolean get() = true
+        }
 
     fun FirTypeRef.toIrType(typeContext: ConversionTypeContext = ConversionTypeContext.DEFAULT): IrType {
         capturedTypeCache.clear()
@@ -155,16 +165,16 @@ class Fir2IrTypeConverter(
     }
 
     private fun ConeTypeProjection.toIrTypeArgument(typeContext: ConversionTypeContext): IrTypeArgument {
+        fun toIrTypeArgument(type: ConeKotlinType, variance: Variance): IrTypeProjection {
+            val irType = type.toIrType(typeContext)
+            return makeTypeProjection(irType, if (typeContext.invariantProjection) Variance.INVARIANT else variance)
+        }
+
         return when (this) {
             ConeStarProjection -> IrStarProjectionImpl
-            is ConeKotlinTypeProjectionIn -> {
-                val irType = this.type.toIrType(typeContext)
-                makeTypeProjection(irType, if (typeContext.invariantProjection) Variance.INVARIANT else Variance.IN_VARIANCE)
-            }
-            is ConeKotlinTypeProjectionOut -> {
-                val irType = this.type.toIrType(typeContext)
-                makeTypeProjection(irType, if (typeContext.invariantProjection) Variance.INVARIANT else Variance.OUT_VARIANCE)
-            }
+            is ConeKotlinTypeProjectionIn -> toIrTypeArgument(this.type, Variance.IN_VARIANCE)
+            is ConeKotlinTypeProjectionOut -> toIrTypeArgument(this.type, Variance.OUT_VARIANCE)
+            is ConeKotlinTypeConflictingProjection -> toIrTypeArgument(this.type, Variance.INVARIANT)
             is ConeKotlinType -> {
                 if (this is ConeCapturedType && this in capturedTypeCache && this.isRecursive(mutableSetOf())) {
                     // Recursive captured type, e.g., Recursive<R> where R : Recursive<R>, ...
@@ -220,18 +230,16 @@ class Fir2IrTypeConverter(
 
     private fun approximateType(type: ConeKotlinType): ConeKotlinType {
         if (type is ConeClassLikeType && type.typeArguments.isEmpty()) return type
-        val substitutor = object : AbstractConeSubstitutor() {
+        val substitutor = object : AbstractConeSubstitutor(session.typeContext) {
             override fun substituteType(type: ConeKotlinType): ConeKotlinType? {
                 return if (type is ConeIntersectionType) {
                     type.alternativeType?.let { substituteOrSelf(it) }
                 } else null
             }
         }
-        val typeWithSpecifiedIntersectionTypes = substitutor.substituteOrSelf(type)
-        return typeApproximator.approximateToSuperType(
-            typeWithSpecifiedIntersectionTypes,
-            TypeApproximatorConfiguration.PublicDeclaration
-        ) ?: type
+        return substitutor.substituteOrSelf(type).let {
+            typeApproximator.approximateToSuperType(it, typeApproximatorConfiguration) ?: it
+        }
     }
 }
 

@@ -138,9 +138,8 @@ tasks.withType<KotlinCompile<*>>().configureEach {
     kotlinOptions.freeCompilerArgs += listOf(
         "-Xallow-kotlin-package",
         "-Xallow-result-return-type",
-        "-Xuse-experimental=kotlin.Experimental",
-        "-Xuse-experimental=kotlin.ExperimentalMultiplatform",
-        "-Xuse-experimental=kotlin.contracts.ExperimentalContracts",
+        "-Xopt-in=kotlin.ExperimentalMultiplatform",
+        "-Xopt-in=kotlin.contracts.ExperimentalContracts",
         "-Xinline-classes",
         "-Xopt-in=kotlin.RequiresOptIn",
         "-Xopt-in=kotlin.ExperimentalUnsignedTypes",
@@ -150,8 +149,11 @@ tasks.withType<KotlinCompile<*>>().configureEach {
 
 val compileKotlinJs by tasks.existing(KotlinCompile::class) {
     kotlinOptions.freeCompilerArgs += "-Xir-module-name=kotlin"
-}
 
+    if (!kotlinBuildProperties.disableWerror) {
+        kotlinOptions.allWarningsAsErrors = true
+    }
+}
 
 val compileTestKotlinJs by tasks.existing(KotlinCompile::class) {
     val sources: FileCollection = kotlin.sourceSets["commonTest"].kotlin

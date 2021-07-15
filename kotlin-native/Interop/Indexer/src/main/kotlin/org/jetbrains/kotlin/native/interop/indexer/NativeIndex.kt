@@ -18,6 +18,7 @@ package org.jetbrains.kotlin.native.interop.indexer
 
 enum class Language(val sourceFileExtension: String) {
     C("c"),
+    CPP("cpp"),
     OBJECTIVE_C("m")
 }
 
@@ -61,7 +62,6 @@ data class CompilationWithPCH(
         override val compilerArgs: List<String>,
         override val language: Language
 ) : Compilation {
-
     constructor(compilerArgs: List<String>, precompiledHeader: String, language: Language)
             : this(compilerArgs + listOf("-include-pch", precompiledHeader), language)
 
@@ -120,23 +120,28 @@ interface TypeDeclaration {
     val location: Location
 }
 
-sealed class StructMember(val name: String, val type: Type) {
+sealed class StructMember(val name: String) {
     abstract val offset: Long?
 }
 
 /**
  * C struct field.
  */
-class Field(name: String, type: Type, override val offset: Long, val typeSize: Long, val typeAlign: Long)
-    : StructMember(name, type)
+class Field(name: String, val type: Type, override val offset: Long, val typeSize: Long, val typeAlign: Long)
+    : StructMember(name)
 
 val Field.isAligned: Boolean
     get() = offset % (typeAlign * 8) == 0L
 
-class BitField(name: String, type: Type, override val offset: Long, val size: Int) : StructMember(name, type)
+class BitField(name: String, val type: Type, override val offset: Long, val size: Int) : StructMember(name)
 
-class IncompleteField(name: String, type: Type) : StructMember(name, type) {
+class IncompleteField(name: String) : StructMember(name) {
     override val offset: Long? get() = null
+}
+
+class AnonymousInnerRecord(val def: StructDef) : StructMember("") {
+    override val offset: Long? get() = null
+    val typeSize: Long = def.size
 }
 
 /**
@@ -153,17 +158,36 @@ abstract class StructDecl(val spelling: String) : TypeDeclaration {
  * @param hasNaturalLayout must be `false` if the struct has unnatural layout, e.g. it is `packed`.
  * May be `false` even if the struct has natural layout.
  */
-abstract class StructDef(val size: Long, val align: Int, val decl: StructDecl) {
+abstract class StructDef(val size: Long, val align: Int) {
 
     enum class Kind {
-        STRUCT, UNION
+        STRUCT, UNION, CLASS
     }
 
-    abstract val members: List<StructMember>
     abstract val kind: Kind
+    abstract val members: List<StructMember>
+    abstract val methods: List<FunctionDecl>
+    abstract val staticFields: List<GlobalDecl>
 
-    val fields: List<Field> get() = members.filterIsInstance<Field>()
-    val bitFields: List<BitField> get() = members.filterIsInstance<BitField>()
+    val fields: List<Field>
+        get() = mutableListOf<Field>().apply {
+            members.forEach {
+                when (it) {
+                    is Field -> add(it)
+                    is AnonymousInnerRecord -> addAll(it.def.fields)
+                }
+            }
+        }
+
+    val bitFields: List<BitField>
+        get() = mutableListOf<BitField>().apply {
+            members.forEach {
+                when (it) {
+                    is BitField -> add(it)
+                    is AnonymousInnerRecord -> addAll(it.def.bitFields)
+                }
+            }
+        }
 }
 
 /**
@@ -224,11 +248,48 @@ abstract class ObjCCategory(val name: String, val clazz: ObjCClass) : ObjCContai
  */
 data class Parameter(val name: String?, val type: Type, val nsConsumed: Boolean)
 
+
+enum class CxxMethodKind {
+    None, // not supported yet?
+    Constructor,
+    Destructor,
+    StaticMethod,
+    InstanceMethod  // virtual or non-virtual instance member method (non-static)
+                    // do we need operators here?
+                    // do we need to distinguish virtual and non-virtual? Static? Final?
+}
+
+/**
+ * C++ class method, constructor or destructor details
+ */
+class CxxMethodInfo(val receiverType: PointerType, val kind: CxxMethodKind = CxxMethodKind.InstanceMethod)
+
+fun CxxMethodInfo.isConst() : Boolean = receiverType.pointeeIsConst
+
+
 /**
  * C function declaration.
  */
 class FunctionDecl(val name: String, val parameters: List<Parameter>, val returnType: Type, val binaryName: String,
-                   val isDefined: Boolean, val isVararg: Boolean)
+                   val isDefined: Boolean, val isVararg: Boolean,
+                   val parentName: String? = null, val cxxMethod: CxxMethodInfo? = null) {
+
+    val fullName: String = parentName?.let { "$parentName::$name" } ?: name
+
+    // C++ virtual or non-virtual instance member, i.e. has "this" receiver
+    val isCxxInstanceMethod: Boolean get() = this.cxxMethod?.kind == CxxMethodKind.InstanceMethod
+
+    /**
+     * C++ class or instance member function, i.e. any function in the scope of class/struct: method, static, ctor, dtor, cast operator, etc
+     */
+    val isCxxMethod: Boolean get() = this.cxxMethod != null && this.cxxMethod.kind != CxxMethodKind.None
+
+    val isCxxConstructor: Boolean get() = this.cxxMethod?.kind == CxxMethodKind.Constructor
+    val isCxxDestructor: Boolean get() = this.cxxMethod?.kind == CxxMethodKind.Destructor
+    val cxxReceiverType: PointerType? get() = cxxMethod?.receiverType
+    val cxxReceiverClass: StructDecl?
+        get() = cxxMethod?. let { (this.cxxMethod.receiverType.pointeeType as RecordType).decl }
+}
 
 /**
  * C typedef definition.
@@ -248,7 +309,9 @@ class StringConstantDef(name: String, type: Type, val value: String) : ConstantD
 
 class WrappedMacroDef(name: String, val type: Type) : MacroDef(name)
 
-class GlobalDecl(val name: String, val type: Type, val isConst: Boolean)
+class GlobalDecl(val name: String, val type: Type, val isConst: Boolean, val parentName: String? = null) {
+    val fullName: String get() = parentName?.let { "$it::$name" } ?: name
+}
 
 /**
  * C type.
@@ -277,9 +340,13 @@ object VoidType : Type
 
 data class RecordType(val decl: StructDecl) : Type
 
+data class ManagedType(val decl: StructDecl) : Type
+
 data class EnumType(val def: EnumDef) : Type
 
-data class PointerType(val pointeeType: Type, val pointeeIsConst: Boolean = false) : Type
+// when pointer type is provided by clang we'll use ots correct spelling
+data class PointerType(val pointeeType: Type, val pointeeIsConst: Boolean = false,
+                       val isLVReference: Boolean = false, val spelling: String? = null) : Type
 // TODO: refactor type representation and support type modifiers more generally.
 
 data class FunctionType(val parameterTypes: List<Type>, val returnType: Type) : Type

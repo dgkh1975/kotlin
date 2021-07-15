@@ -204,6 +204,15 @@ open class BuiltinSymbolsBase(protected val irBuiltIns: IrBuiltIns, protected va
     val doubleArray = primitiveArrayClass(PrimitiveType.DOUBLE)
     val booleanArray = primitiveArrayClass(PrimitiveType.BOOLEAN)
 
+    val byteArrayType get() = byteArray.owner.defaultType
+    val charArrayType get() = charArray.owner.defaultType
+    val shortArrayType get() = shortArray.owner.defaultType
+    val intArrayType get() = intArray.owner.defaultType
+    val longArrayType get() = longArray.owner.defaultType
+    val floatArrayType get() = floatArray.owner.defaultType
+    val doubleArrayType get() = doubleArray.owner.defaultType
+    val booleanArrayType get() = booleanArray.owner.defaultType
+
     val unsignedArrays = UnsignedType.values().mapNotNull { unsignedType ->
         unsignedArrayClass(unsignedType)?.let { unsignedType to it }
     }.toMap()
@@ -292,7 +301,6 @@ open class BuiltinSymbolsBase(protected val irBuiltIns: IrBuiltIns, protected va
 abstract class Symbols<out T : CommonBackendContext>(val context: T, irBuiltIns: IrBuiltIns, symbolTable: SymbolTable) :
     BuiltinSymbolsBase(irBuiltIns, context.builtIns, symbolTable) {
     abstract val throwNullPointerException: IrSimpleFunctionSymbol
-    abstract val throwNoWhenBranchMatchedException: IrSimpleFunctionSymbol
     abstract val throwTypeCastException: IrSimpleFunctionSymbol
 
     abstract val throwUninitializedPropertyAccessException: IrSimpleFunctionSymbol
@@ -305,8 +313,6 @@ abstract class Symbols<out T : CommonBackendContext>(val context: T, irBuiltIns:
     abstract val stringBuilder: IrClassSymbol
 
     abstract val defaultConstructorMarker: IrClassSymbol
-
-    abstract val copyRangeTo: Map<ClassDescriptor, IrSimpleFunctionSymbol>
 
     abstract val coroutineImpl: IrClassSymbol
 
@@ -325,6 +331,10 @@ abstract class Symbols<out T : CommonBackendContext>(val context: T, irBuiltIns:
     abstract val functionAdapter: IrClassSymbol
 
     open val unsafeCoerceIntrinsic: IrSimpleFunctionSymbol? = null
+
+    open val getWithoutBoundCheckName: Name? = null
+
+    open val setWithoutBoundCheckName: Name? = null
 
     companion object {
         fun isLateinitIsInitializedPropertyGetter(symbol: IrFunctionSymbol): Boolean =

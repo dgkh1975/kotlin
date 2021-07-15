@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.gradle.targets.native.internal
 
 import org.gradle.api.Project
 import org.gradle.api.Task
+import org.gradle.api.tasks.Delete
 import org.gradle.api.tasks.TaskProvider
 import org.jetbrains.kotlin.gradle.internal.isInIdeaSync
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider
@@ -15,6 +16,9 @@ import org.jetbrains.kotlin.gradle.tasks.locateTask
 import org.jetbrains.kotlin.gradle.tasks.registerTask
 
 internal val Project.isCInteropCommonizationEnabled: Boolean get() = PropertiesProvider(this).enableCInteropCommonization
+
+internal val Project.isIntransitiveMetadataConfigurationEnabled: Boolean
+    get() = PropertiesProvider(this).enableIntransitiveMetadataConfiguration
 
 internal val Project.commonizeTask: TaskProvider<Task>
     get() = locateOrRegisterTask(
@@ -25,7 +29,6 @@ internal val Project.commonizeTask: TaskProvider<Task>
             description = "Aggregator task for all c-interop & Native distribution commonizer tasks"
         }
     )
-
 
 /**
  * Keeping this task/task name for IDE compatibility which is invoking 'runCommonizer' during sync
@@ -46,7 +49,10 @@ internal val Project.commonizeCInteropTask: TaskProvider<CInteropCommonizerTask>
         if (isCInteropCommonizationEnabled) {
             return locateOrRegisterTask(
                 "commonizeCInterop",
-                invokeWhenRegistered = { commonizeTask.dependsOn(this); dependsOn(commonizeNativeDistributionTask) },
+                invokeWhenRegistered = {
+                    commonizeTask.dependsOn(this)
+                    commonizeNativeDistributionTask?.let(this::dependsOn)
+                },
                 configureTask = {
                     group = "interop"
                     description = "Invokes the commonizer on c-interop bindings of the project"
@@ -58,13 +64,14 @@ internal val Project.commonizeCInteropTask: TaskProvider<CInteropCommonizerTask>
 
 internal val Project.copyCommonizeCInteropForIdeTask: TaskProvider<CopyCommonizeCInteropForIdeTask>?
     get() {
-        if (isCInteropCommonizationEnabled) {
+        val commonizeCInteropTask = commonizeCInteropTask
+        if (commonizeCInteropTask != null) {
             return locateOrRegisterTask(
                 "copyCommonizeCInteropForIde",
                 invokeWhenRegistered = { if (isInIdeaSync) commonizeTask.dependsOn(this) },
                 configureTask = {
                     group = "interop"
-                    description = "Copies the output of ${commonizeCInteropTask?.get()?.name} into " +
+                    description = "Copies the output of ${commonizeCInteropTask.get().name} into " +
                             "the root projects .gradle folder for the IDE"
                 }
             )
@@ -72,15 +79,31 @@ internal val Project.copyCommonizeCInteropForIdeTask: TaskProvider<CopyCommonize
         return null
     }
 
-internal val Project.commonizeNativeDistributionTask: TaskProvider<NativeDistributionCommonizerTask>
-    get() = locateOrRegisterTask(
-        "commonizeNativeDistribution",
-        invokeWhenRegistered = { commonizeTask.dependsOn(this) },
-        configureTask = {
-            group = "interop"
-            description = "Invokes the commonizer on the platform libraries provided by the Kotlin/Native distribution"
-        }
-    )
+internal val Project.commonizeNativeDistributionTask: TaskProvider<NativeDistributionCommonizerTask>?
+    get() {
+        if (!isAllowCommonizer()) return null
+        return rootProject.locateOrRegisterTask(
+            "commonizeNativeDistribution",
+            invokeWhenRegistered = { rootProject.commonizeTask.dependsOn(this); cleanNativeDistributionCommonizerTask },
+            configureTask = {
+                group = "interop"
+                description = "Invokes the commonizer on platform libraries provided by the Kotlin/Native distribution"
+            }
+        )
+    }
+
+internal val Project.cleanNativeDistributionCommonizerTask: TaskProvider<Delete>?
+    get() {
+        val commonizeNativeDistributionTask = commonizeNativeDistributionTask ?: return null
+        return rootProject.locateOrRegisterTask(
+            "cleanNativeDistributionCommonization",
+            configureTask = {
+                group = "interop"
+                description = "Deletes all previously commonized klib's from the Kotlin/Native distribution"
+                delete(commonizeNativeDistributionTask.map { it.getRootOutputDirectory() })
+            }
+        )
+    }
 
 private inline fun <reified T : Task> Project.locateOrRegisterTask(
     name: String,

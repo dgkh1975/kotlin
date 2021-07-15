@@ -58,10 +58,8 @@ import org.jetbrains.kotlin.idea.completion.test.handlers.AbstractSmartCompletio
 import org.jetbrains.kotlin.idea.completion.test.weighers.AbstractBasicCompletionWeigherTest
 import org.jetbrains.kotlin.idea.completion.test.weighers.AbstractSmartCompletionWeigherTest
 import org.jetbrains.kotlin.idea.configuration.AbstractGradleConfigureProjectByChangingFileTest
-import org.jetbrains.kotlin.idea.conversion.copy.AbstractJavaToKotlinCopyPasteConversionTest
 import org.jetbrains.kotlin.idea.conversion.copy.AbstractLiteralKotlinToKotlinCopyPasteTest
 import org.jetbrains.kotlin.idea.conversion.copy.AbstractLiteralTextToKotlinCopyPasteTest
-import org.jetbrains.kotlin.idea.conversion.copy.AbstractTextJavaToKotlinCopyPasteConversionTest
 import org.jetbrains.kotlin.idea.coverage.AbstractKotlinCoverageOutputFilesTest
 import org.jetbrains.kotlin.idea.debugger.evaluate.*
 import org.jetbrains.kotlin.idea.debugger.test.sequence.exec.AbstractSequenceTraceTestCase
@@ -132,9 +130,6 @@ import org.jetbrains.kotlin.idea.stubs.AbstractMultiFileHighlightingTest
 import org.jetbrains.kotlin.idea.stubs.AbstractResolveByStubTest
 import org.jetbrains.kotlin.idea.stubs.AbstractStubBuilderTest
 import org.jetbrains.kotlin.incremental.*
-import org.jetbrains.kotlin.j2k.AbstractJavaToKotlinConverterForWebDemoTest
-import org.jetbrains.kotlin.j2k.AbstractJavaToKotlinConverterMultiFileTest
-import org.jetbrains.kotlin.j2k.AbstractJavaToKotlinConverterSingleFileTest
 //import org.jetbrains.kotlin.jps.build.*
 //import org.jetbrains.kotlin.jps.incremental.AbstractJsProtoComparisonTest
 //import org.jetbrains.kotlin.jps.incremental.AbstractJvmProtoComparisonTest
@@ -142,6 +137,7 @@ import org.jetbrains.kotlin.kapt.cli.test.AbstractArgumentParsingTest
 import org.jetbrains.kotlin.kapt.cli.test.AbstractKaptToolIntegrationTest
 import org.jetbrains.kotlin.kapt3.test.AbstractClassFileToSourceStubConverterTest
 import org.jetbrains.kotlin.kapt3.test.AbstractKotlinKaptContextTest
+import org.jetbrains.kotlin.lombok.AbstractLombokCompileTest
 import org.jetbrains.kotlin.nj2k.AbstractNewJavaToKotlinConverterMultiFileTest
 import org.jetbrains.kotlin.nj2k.AbstractNewJavaToKotlinConverterSingleFileTest
 import org.jetbrains.kotlin.nj2k.AbstractNewJavaToKotlinCopyPasteConversionTest
@@ -603,14 +599,6 @@ fun main(args: Array<String>) {
             model("dataFlowValueRendering")
         }
 
-        testClass<AbstractJavaToKotlinCopyPasteConversionTest> {
-            model("copyPaste/conversion", pattern = """^([^\.]+)\.java$""")
-        }
-
-        testClass<AbstractTextJavaToKotlinCopyPasteConversionTest> {
-            model("copyPaste/plainTextConversion", pattern = """^([^\.]+)\.txt$""")
-        }
-
         testClass<AbstractLiteralTextToKotlinCopyPasteTest> {
             model("copyPaste/plainTextLiteral", pattern = """^([^\.]+)\.txt$""")
         }
@@ -898,7 +886,7 @@ fun main(args: Array<String>) {
         }
 
         testClass<AbstractIdeCompiledLightClassTest> {
-            model("asJava/lightClasses", excludeDirs = listOf("local", "compilationErrors", "ideRegression"), pattern = KT_OR_KTS_WITHOUT_DOTS_IN_NAME)
+            model("asJava/lightClasses", excludeDirs = listOf("local", "compilationErrors", "ideRegression", "script"), pattern = KT_WITHOUT_DOTS_IN_NAME)
         }
     }
 
@@ -997,21 +985,8 @@ fun main(args: Array<String>) {
         }
     }
 
-    testGroup("j2k/tests", "j2k/testData") {
-        testClass<AbstractJavaToKotlinConverterSingleFileTest> {
-            model("fileOrElement", extension = "java")
-        }
-    }
-    testGroup("j2k/tests", "j2k/testData") {
-        testClass<AbstractJavaToKotlinConverterMultiFileTest> {
-            model("multiFile", extension = null, recursive = false)
-        }
-    }
-    testGroup("j2k/tests", "j2k/testData") {
-        testClass<AbstractJavaToKotlinConverterForWebDemoTest> {
-            model("fileOrElement", extension = "java")
-        }
-    }
+
+
 
     testGroup("nj2k/tests", "nj2k/testData") {
         testClass<AbstractNewJavaToKotlinConverterSingleFileTest> {
@@ -1164,6 +1139,12 @@ fun main(args: Array<String>) {
         }
         testClass<AbstractSerializationQuickFixTest> {
             model("quickfix", pattern = "^([\\w\\-_]+)\\.kt$", filenameStartsLowerCase = true)
+        }
+    }
+
+    testGroup("plugins/lombok/lombok-compiler-plugin/tests", "plugins/lombok/lombok-compiler-plugin/testData") {
+        testClass<AbstractLombokCompileTest> {
+            model("compile")
         }
     }
 /*

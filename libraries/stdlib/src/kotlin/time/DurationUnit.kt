@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2021 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -52,6 +52,16 @@ public expect enum class DurationUnit {
 @ExperimentalTime
 internal expect fun convertDurationUnit(value: Double, sourceUnit: DurationUnit, targetUnit: DurationUnit): Double
 
+// overflown result is unspecified
+@SinceKotlin("1.5")
+@ExperimentalTime
+internal expect fun convertDurationUnitOverflow(value: Long, sourceUnit: DurationUnit, targetUnit: DurationUnit): Long
+
+// overflown result is coerced in the Long range boundaries
+@SinceKotlin("1.5")
+@ExperimentalTime
+internal expect fun convertDurationUnit(value: Long, sourceUnit: DurationUnit, targetUnit: DurationUnit): Long
+
 
 @SinceKotlin("1.3")
 @ExperimentalTime
@@ -66,3 +76,36 @@ internal fun DurationUnit.shortName(): String = when (this) {
     DurationUnit.DAYS -> "d"
     else -> error("Unknown unit: $this")
 }
+
+@SinceKotlin("1.5")
+@ExperimentalTime
+internal fun durationUnitByShortName(shortName: String): DurationUnit = when (shortName) {
+    "ns" -> DurationUnit.NANOSECONDS
+    "us" -> DurationUnit.MICROSECONDS
+    "ms" -> DurationUnit.MILLISECONDS
+    "s" -> DurationUnit.SECONDS
+    "m" -> DurationUnit.MINUTES
+    "h" -> DurationUnit.HOURS
+    "d" -> DurationUnit.DAYS
+    else -> throw IllegalArgumentException("Unknown duration unit short name: $shortName")
+}
+
+@SinceKotlin("1.5")
+@ExperimentalTime
+internal fun durationUnitByIsoChar(isoChar: Char, isTimeComponent: Boolean): DurationUnit =
+    when {
+        !isTimeComponent -> {
+            when (isoChar) {
+                'D' -> DurationUnit.DAYS
+                else -> throw IllegalArgumentException("Invalid or unsupported duration ISO non-time unit: $isoChar")
+            }
+        }
+        else -> {
+            when (isoChar) {
+                'H' -> DurationUnit.HOURS
+                'M' -> DurationUnit.MINUTES
+                'S' -> DurationUnit.SECONDS
+                else -> throw IllegalArgumentException("Invalid duration ISO time unit: $isoChar")
+            }
+        }
+    }

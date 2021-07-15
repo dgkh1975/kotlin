@@ -10,9 +10,9 @@ import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.FirRegularClass
-import org.jetbrains.kotlin.fir.declarations.collectEnumEntries
-import org.jetbrains.kotlin.fir.declarations.isStatic
-import org.jetbrains.kotlin.fir.declarations.modality
+import org.jetbrains.kotlin.fir.declarations.utils.collectEnumEntries
+import org.jetbrains.kotlin.fir.declarations.utils.isStatic
+import org.jetbrains.kotlin.fir.declarations.utils.modality
 import org.jetbrains.kotlin.fir.expressions.FirAnnotationCall
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.builder.buildConstExpression
@@ -109,7 +109,7 @@ private fun ConeKotlinType.enhanceConeKotlinType(
 }
 
 private fun ConeKotlinType.subtreeSize(): Int {
-    return 1 + typeArguments.sumBy { ((it as? ConeKotlinType)?.subtreeSize() ?: 0) + 1 }
+    return 1 + typeArguments.sumOf { ((it as? ConeKotlinType)?.subtreeSize() ?: 0) + 1 }
 }
 
 private fun coneFlexibleOrSimpleType(
@@ -128,7 +128,11 @@ private fun coneFlexibleOrSimpleType(
                     type is ConeTypeParameterType || type.isNullable
                 }
             ) {
-                return ConeDefinitelyNotNullType.create(lowerBound) ?: lowerBound
+                return ConeDefinitelyNotNullType.create(
+                    lowerBound,
+                    session.typeContext,
+                    useCorrectedNullabilityForFlexibleTypeParameters = true
+                ) ?: lowerBound
             }
         }
         return lowerBound

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2021 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -15,6 +15,31 @@ expect class Regex {
 
     fun matchEntire(input: CharSequence): MatchResult?
     infix fun matches(input: CharSequence): Boolean
+
+    /**
+     * Attempts to match a regular expression exactly at the specified [index] in the [input] char sequence.
+     *
+     * Unlike [matchEntire] function, it doesn't require the match to span to the end of [input].
+     *
+     * @return An instance of [MatchResult] if the input matches this [Regex] at the specified [index] or `null` otherwise.
+     * @throws IndexOutOfBoundsException if [index] is less than zero or greater than the length of the [input] char sequence.
+     */
+    @SinceKotlin("1.5")
+    @ExperimentalStdlibApi
+    fun matchAt(input: CharSequence, index: Int): MatchResult?
+
+    /**
+     * Checks if a regular expression matches a part of the specified [input] char sequence
+     * exactly at the specified [index].
+     *
+     * Unlike [matches] function, it doesn't require the match to span to the end of [input].
+     *
+     * @throws IndexOutOfBoundsException if [index] is less than zero or greater than the length of the [input] char sequence.
+     */
+    @SinceKotlin("1.5")
+    @ExperimentalStdlibApi
+    fun matchesAt(input: CharSequence, index: Int): Boolean
+
     fun containsMatchIn(input: CharSequence): Boolean
     fun replace(input: CharSequence, replacement: String): String
     fun replace(input: CharSequence, transform: (MatchResult) -> CharSequence): String
@@ -25,12 +50,15 @@ expect class Regex {
      *
      * @param startIndex An index to start search with, by default 0. Must be not less than zero and not greater than `input.length()`
      * @return An instance of [MatchResult] if match was found or `null` otherwise.
+     * @throws IndexOutOfBoundsException if [startIndex] is less than zero or greater than the length of the [input] char sequence.
      * @sample samples.text.Regexps.find
      */
     fun find(input: CharSequence, startIndex: Int = 0): MatchResult?
 
     /**
      * Returns a sequence of all occurrences of a regular expression within the [input] string, beginning at the specified [startIndex].
+     *
+     * @throws IndexOutOfBoundsException if [startIndex] is less than zero or greater than the length of the [input] char sequence.
      *
      * @sample samples.text.Regexps.findAll
      */
@@ -74,6 +102,7 @@ expect fun Char.isLowSurrogate(): Boolean
  */
 @SinceKotlin("1.2")
 @Deprecated("Use CharArray.concatToString() instead", ReplaceWith("chars.concatToString()"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5")
 public expect fun String(chars: CharArray): String
 
 /**
@@ -84,6 +113,7 @@ public expect fun String(chars: CharArray): String
  */
 @SinceKotlin("1.2")
 @Deprecated("Use CharArray.concatToString(startIndex, endIndex) instead", ReplaceWith("chars.concatToString(offset, offset + length)"))
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5")
 public expect fun String(chars: CharArray, offset: Int, length: Int): String
 
 /**
@@ -190,6 +220,11 @@ internal expect fun String.nativeLastIndexOf(str: String, fromIndex: Int): Int
 public expect fun String.substring(startIndex: Int): String
 public expect fun String.substring(startIndex: Int, endIndex: Int): String
 
+/**
+ * Returns a string containing this char sequence repeated [n] times.
+ * @throws [IllegalArgumentException] when n < 0.
+ * @sample samples.text.Strings.repeat
+ */
 public expect fun CharSequence.repeat(n: Int): String
 
 

@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.fir.types
 
-import org.jetbrains.kotlin.fir.symbols.StandardClassIds
+import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.types.Variance
@@ -64,6 +64,9 @@ val ConeKotlinType.isNullableNothing: Boolean get() = isBuiltinType(StandardClas
 val ConeKotlinType.isUnit: Boolean get() = isBuiltinType(StandardClassIds.Unit, false)
 val ConeKotlinType.isBoolean: Boolean get() = isBuiltinType(StandardClassIds.Boolean, false)
 val ConeKotlinType.isEnum: Boolean get() = isBuiltinType(StandardClassIds.Enum, false)
+val ConeKotlinType.isString: Boolean get() = isBuiltinType(StandardClassIds.String, false)
+val ConeKotlinType.isPrimitiveOrNullablePrimitive: Boolean get() = isAnyOfBuiltinType(StandardClassIds.primitiveTypes)
+val ConeKotlinType.isPrimitive: Boolean get() = isPrimitiveOrNullablePrimitive && nullability == ConeNullability.NOT_NULL
 val ConeKotlinType.isArrayType: Boolean
     get() {
         return isBuiltinType(StandardClassIds.Array, false) ||
@@ -73,8 +76,14 @@ val ConeKotlinType.isArrayType: Boolean
 val ConeKotlinType.isNonPrimitiveArray: Boolean
     get() = this is ConeClassLikeType && lookupTag.classId == StandardClassIds.Array
 
-private val builtinUnsignedTypes = setOf(StandardClassIds.UInt, StandardClassIds.UByte, StandardClassIds.ULong, StandardClassIds.UShort)
-val ConeKotlinType.isUnsignedTypeOrNullableUnsignedType: Boolean get() = isAnyOfBuiltinType(builtinUnsignedTypes)
+val ConeKotlinType.isPrimitiveArray: Boolean
+    get() = this is ConeClassLikeType && lookupTag.classId in StandardClassIds.primitiveArrayTypeByElementType.values
+
+val ConeKotlinType.isUnsignedTypeOrNullableUnsignedType: Boolean get() = isAnyOfBuiltinType(StandardClassIds.unsignedTypes)
+val ConeKotlinType.isUnsignedType: Boolean get() = isUnsignedTypeOrNullableUnsignedType && nullability == ConeNullability.NOT_NULL
+
+private val builtinIntegerTypes = setOf(StandardClassIds.Int, StandardClassIds.Byte, StandardClassIds.Long, StandardClassIds.Short)
+val ConeKotlinType.isIntegerTypeOrNullableIntegerTypeOfAnySize: Boolean get() = isAnyOfBuiltinType(builtinIntegerTypes)
 
 private fun ConeKotlinType.isBuiltinType(classId: ClassId, isNullable: Boolean): Boolean {
     if (this !is ConeClassLikeType) return false

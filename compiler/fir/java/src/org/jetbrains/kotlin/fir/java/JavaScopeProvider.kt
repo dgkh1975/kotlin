@@ -7,22 +7,28 @@ package org.jetbrains.kotlin.fir.java
 
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.fir.FirSession
-import org.jetbrains.kotlin.fir.declarations.*
+import org.jetbrains.kotlin.fir.declarations.FirClass
+import org.jetbrains.kotlin.fir.declarations.FirRegularClass
+import org.jetbrains.kotlin.fir.declarations.utils.classId
+import org.jetbrains.kotlin.fir.declarations.utils.isJava
+import org.jetbrains.kotlin.fir.declarations.utils.superConeTypes
 import org.jetbrains.kotlin.fir.java.declarations.FirJavaClass
 import org.jetbrains.kotlin.fir.java.scopes.*
 import org.jetbrains.kotlin.fir.resolve.*
-import org.jetbrains.kotlin.fir.scopes.*
+import org.jetbrains.kotlin.fir.scopes.FirScope
+import org.jetbrains.kotlin.fir.scopes.FirScopeProvider
+import org.jetbrains.kotlin.fir.scopes.FirTypeScope
 import org.jetbrains.kotlin.fir.scopes.impl.*
-import org.jetbrains.kotlin.fir.symbols.StandardClassIds
+import org.jetbrains.kotlin.fir.scopes.scopeForSupertype
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
+import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.utils.DFS
-import org.jetbrains.kotlin.utils.addToStdlib.firstNotNullResult
 
 class JavaScopeProvider(
     val symbolProvider: JavaSymbolProvider
 ) : FirScopeProvider() {
     override fun getUseSiteMemberScope(
-        klass: FirClass<*>,
+        klass: FirClass,
         useSiteSession: FirSession,
         scopeSession: ScopeSession
     ): FirTypeScope {
@@ -63,12 +69,12 @@ class JavaScopeProvider(
         }
     }
 
-    private fun buildDeclaredMemberScope(regularClass: FirRegularClass): FirScope {
-        return if (regularClass is FirJavaClass) declaredMemberScopeWithLazyNestedScope(
+    private fun buildDeclaredMemberScope(useSiteSession: FirSession, regularClass: FirRegularClass): FirScope {
+        return if (regularClass is FirJavaClass) useSiteSession.declaredMemberScopeWithLazyNestedScope(
             regularClass,
             existingNames = regularClass.existingNestedClassifierNames,
             symbolProvider = symbolProvider
-        ) else declaredMemberScope(regularClass)
+        ) else useSiteSession.declaredMemberScope(regularClass)
     }
 
     private fun buildUseSiteMemberScopeWithJavaTypes(
@@ -77,7 +83,7 @@ class JavaScopeProvider(
         scopeSession: ScopeSession,
     ): JavaClassUseSiteMemberScope {
         return scopeSession.getOrBuild(regularClass.symbol, JAVA_USE_SITE) {
-            val declaredScope = buildDeclaredMemberScope(regularClass)
+            val declaredScope = buildDeclaredMemberScope(useSiteSession, regularClass)
             val superTypes =
                 if (regularClass.isThereLoopInSupertypes(useSiteSession))
                     listOf(StandardClassIds.Any.toConeKotlinType(emptyArray(), isNullable = false))
@@ -85,7 +91,7 @@ class JavaScopeProvider(
                     lookupSuperTypes(regularClass, lookupInterfaces = true, deep = false, useSiteSession = useSiteSession)
 
             val superTypeScopes = superTypes.mapNotNull {
-                it.scopeForSupertype(useSiteSession, scopeSession, subClass = regularClass, declaredScope, delegateFields = null)
+                it.scopeForSupertype(useSiteSession, scopeSession, subClass = regularClass)
             }
 
             JavaClassUseSiteMemberScope(
@@ -104,7 +110,7 @@ class JavaScopeProvider(
     }
 
     override fun getStaticMemberScopeForCallables(
-        klass: FirClass<*>,
+        klass: FirClass,
         useSiteSession: FirSession,
         scopeSession: ScopeSession
     ): FirScope? {
@@ -113,7 +119,7 @@ class JavaScopeProvider(
     }
 
     private fun getStaticMemberScopeForCallables(
-        klass: FirClass<*>,
+        klass: FirClass,
         useSiteSession: FirSession,
         scopeSession: ScopeSession,
         visitedClasses: MutableSet<FirRegularClass>
@@ -122,14 +128,14 @@ class JavaScopeProvider(
         if (!visitedClasses.add(klass)) return null
 
         return scopeSession.getOrBuild(klass.symbol, JAVA_ENHANCEMENT_FOR_STATIC) {
-            val declaredScope = buildDeclaredMemberScope(klass)
+            val declaredScope = buildDeclaredMemberScope(useSiteSession, klass)
 
-            val superClassScope = klass.findJavaSuperClass()?.let {
+            val superClassScope = klass.findJavaSuperClass(useSiteSession)?.let {
                 (it.scopeProvider as? JavaScopeProvider)
                     ?.getStaticMemberScopeForCallables(it, useSiteSession, scopeSession, visitedClasses)
             } ?: FirTypeScope.Empty
 
-            val superTypesScopes = klass.findClosestJavaSuperTypes().mapNotNull {
+            val superTypesScopes = klass.findClosestJavaSuperTypes(useSiteSession).mapNotNull {
                 (it.scopeProvider as? JavaScopeProvider)
                     ?.getStaticMemberScopeForCallables(it, useSiteSession, scopeSession, visitedClasses)
             }
@@ -149,24 +155,24 @@ class JavaScopeProvider(
         }
     }
 
-    private tailrec fun FirRegularClass.findJavaSuperClass(): FirRegularClass? {
-        val superClass = superConeTypes.firstNotNullResult {
-            (it.lookupTag.toSymbol(session)?.fir as? FirRegularClass)?.takeIf { superClass ->
+    private tailrec fun FirRegularClass.findJavaSuperClass(useSiteSession: FirSession): FirRegularClass? {
+        val superClass = superConeTypes.firstNotNullOfOrNull {
+            (it.lookupTag.toSymbol(useSiteSession)?.fir as? FirRegularClass)?.takeIf { superClass ->
                 superClass.classKind == ClassKind.CLASS
             }
         } ?: return null
 
-        if (superClass.origin is FirDeclarationOrigin.Java) return superClass
+        if (superClass.isJava) return superClass
 
-        return superClass.findJavaSuperClass()
+        return superClass.findJavaSuperClass(useSiteSession)
     }
 
-    private fun FirRegularClass.findClosestJavaSuperTypes(): Collection<FirRegularClass> {
+    private fun FirRegularClass.findClosestJavaSuperTypes(useSiteSession: FirSession): Collection<FirRegularClass> {
         val result = mutableListOf<FirRegularClass>()
         DFS.dfs(listOf(this),
                 { regularClass ->
                     regularClass.superConeTypes.mapNotNull {
-                        it.lookupTag.toSymbol(session)?.fir as? FirRegularClass
+                        it.lookupTag.toSymbol(useSiteSession)?.fir as? FirRegularClass
                     }
                 },
                 object : DFS.AbstractNodeHandler<FirRegularClass, Unit>() {
@@ -188,7 +194,7 @@ class JavaScopeProvider(
         return result
     }
 
-    override fun getNestedClassifierScope(klass: FirClass<*>, useSiteSession: FirSession, scopeSession: ScopeSession): FirScope? {
+    override fun getNestedClassifierScope(klass: FirClass, useSiteSession: FirSession, scopeSession: ScopeSession): FirScope? {
         return lazyNestedClassifierScope(
             klass.classId,
             (klass as FirJavaClass).existingNestedClassifierNames,

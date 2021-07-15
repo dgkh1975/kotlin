@@ -16,6 +16,10 @@ import org.jetbrains.kotlin.ir.declarations.MetadataSource
 import org.jetbrains.kotlin.ir.declarations.persistent.carriers.Carrier
 import org.jetbrains.kotlin.ir.declarations.persistent.carriers.PropertyCarrier
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
+import org.jetbrains.kotlin.ir.symbols.IrFieldSymbol
+import org.jetbrains.kotlin.ir.symbols.IrPropertySymbol
+import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
+import org.jetbrains.kotlin.ir.util.IdSignature
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedContainerSource
 
@@ -39,6 +43,8 @@ internal abstract class PersistentIrPropertyCommon(
     PersistentIrDeclarationBase<PropertyCarrier>,
     PropertyCarrier {
 
+    override var signature: IdSignature? = factory.currentSignature(this)
+
     override var lastModified: Int = factory.stageController.currentStage
     override var loweredUpTo: Int = factory.stageController.currentStage
     override var values: Array<Carrier>? = null
@@ -51,6 +57,12 @@ internal abstract class PersistentIrPropertyCommon(
 
     override var backingFieldField: IrField? = null
 
+    override var backingFieldSymbolField: IrFieldSymbol?
+        get() = backingFieldField?.symbol
+        set(v) {
+            backingFieldField = v?.owner
+        }
+
     override var backingField: IrField?
         get() = getCarrier().backingFieldField
         set(v) {
@@ -61,6 +73,12 @@ internal abstract class PersistentIrPropertyCommon(
         }
 
     override var getterField: IrSimpleFunction? = null
+
+    override var getterSymbolField: IrSimpleFunctionSymbol?
+        get() = getterField?.symbol
+        set(v) {
+            getterField = v?.owner
+        }
 
     override var getter: IrSimpleFunction?
         get() = getCarrier().getterField
@@ -73,6 +91,12 @@ internal abstract class PersistentIrPropertyCommon(
 
     override var setterField: IrSimpleFunction? = null
 
+    override var setterSymbolField: IrSimpleFunctionSymbol?
+        get() = setterField?.symbol
+        set(v) {
+            setterField = v?.owner
+        }
+
     override var setter: IrSimpleFunction?
         get() = getCarrier().setterField
         set(v) {
@@ -82,26 +106,19 @@ internal abstract class PersistentIrPropertyCommon(
             }
         }
 
-    override var metadataField: MetadataSource? = null
+    override var overriddenSymbolsField: List<IrPropertySymbol> = emptyList()
 
-    override var metadata: MetadataSource?
-        get() = getCarrier().metadataField
+    override var overriddenSymbols: List<IrPropertySymbol>
+        get() = getCarrier().overriddenSymbolsField
         set(v) {
-            if (metadata !== v) {
+            if (overriddenSymbols !== v) {
                 setCarrier()
-                metadataField = v
+                overriddenSymbolsField = v
             }
         }
+
+    override var metadata: MetadataSource? = null
 
     @Suppress("LeakingThis")
-    override var attributeOwnerIdField: IrAttributeContainer = this
-
-    override var attributeOwnerId: IrAttributeContainer
-        get() = getCarrier().attributeOwnerIdField
-        set(v) {
-            if (attributeOwnerId !== v) {
-                setCarrier()
-                attributeOwnerIdField = v
-            }
-        }
+    override var attributeOwnerId: IrAttributeContainer = this
 }

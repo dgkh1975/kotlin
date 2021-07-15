@@ -15,9 +15,11 @@ KtFirValueParameterSymbol:
   annotations: []
   callableIdIfNonLocal: null
   hasDefaultValue: false
+  isExtension: false
   isVararg: false
   name: x
   origin: SOURCE
+  receiverType: null
   symbolKind: LOCAL
 
 KtFirFunctionSymbol:
@@ -28,9 +30,11 @@ KtFirFunctionSymbol:
   dispatchType: null
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: false
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: FINAL
   name: foo

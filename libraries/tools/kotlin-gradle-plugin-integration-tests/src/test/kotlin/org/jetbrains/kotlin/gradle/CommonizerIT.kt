@@ -16,12 +16,36 @@ import kotlin.test.fail
 class CommonizerIT : BaseGradleIT() {
     override val defaultGradleVersion: GradleVersionRequired = GradleVersionRequired.FOR_MPP_SUPPORT
 
+    companion object {
+        private const val commonizerOutput = "Preparing commonized Kotlin/Native libraries"
+    }
+
     @Test
     fun `test commonizeNativeDistributionWithIosLinuxWindows`() {
         with(Project("commonizeNativeDistributionWithIosLinuxWindows")) {
-            build(":p1:commonize") {
-                assertTasksExecuted(":p1:commonizeNativeDistribution")
+            build(":cleanNativeDistributionCommonization") {
+                assertSuccessful()
+            }
+
+            build("commonize", "-Pkotlin.mpp.enableNativeDistributionCommonizationCache=false") {
+                assertTasksExecuted(":commonizeNativeDistribution")
                 assertContains(DISABLED_NATIVE_TARGETS_REPORTER_WARNING_PREFIX)
+                assertContains(commonizerOutput)
+                assertSuccessful()
+            }
+
+            build("commonize", "--rerun-tasks", "-Pkotlin.mpp.enableNativeDistributionCommonizationCache=true") {
+                assertTasksExecuted(":commonizeNativeDistribution")
+                assertContains("Native Distribution Commonization: Cache hit")
+                assertContains("Native Distribution Commonization: All available targets are commonized already")
+                assertNotContains(commonizerOutput)
+                assertSuccessful()
+            }
+
+            build("commonize", "--rerun-tasks", "-Pkotlin.mpp.enableNativeDistributionCommonizationCache=false") {
+                assertTasksExecuted(":commonizeNativeDistribution")
+                assertContains("Native Distribution Commonization: Cache disabled")
+                assertContains(commonizerOutput)
                 assertSuccessful()
             }
         }
@@ -223,6 +247,104 @@ class CommonizerIT : BaseGradleIT() {
                 assertTasksUpToDate(":cinteropWithPosixTargetB")
                 assertTasksUpToDate(":commonizeNativeDistribution")
                 assertTasksUpToDate(":commonizeCInterop")
+            }
+        }
+    }
+
+    @Test
+    fun `test KT-46234 intermediate source set with only one native target`() {
+        `test single native platform`("commonize-kt-46234-singleNativeTarget")
+    }
+
+    @Test
+    fun `test KT-46142 standalone native source set`() {
+        `test single native platform`("commonize-kt-46142-singleNativeTarget")
+    }
+
+    private fun `test single native platform`(project: String) {
+        val posixInImplementationMetadataConfigurationRegex = Regex(""".*implementationMetadataConfiguration:.*([pP])osix""")
+        val posixInIntransitiveMetadataConfigurationRegex = Regex(""".*intransitiveMetadataConfiguration:.*([pP])osix""")
+
+        fun CompiledProject.containsPosixInImplementationMetadataConfiguration(): Boolean =
+            output.lineSequence().any { line ->
+                line.matches(posixInImplementationMetadataConfigurationRegex)
+            }
+
+        fun CompiledProject.containsPosixInIntransitiveMetadataConfiguration(): Boolean =
+            output.lineSequence().any { line ->
+                line.matches(posixInIntransitiveMetadataConfigurationRegex)
+            }
+
+        with(Project(project)) {
+            build(":p1:listNativePlatformMainDependencies", "-Pkotlin.mpp.enableIntransitiveMetadataConfiguration=false") {
+                assertSuccessful()
+
+                assertTrue(
+                    containsPosixInImplementationMetadataConfiguration(),
+                    "Expected dependency on posix in implementationMetadataConfiguration"
+                )
+
+                assertFalse(
+                    containsPosixInIntransitiveMetadataConfiguration(),
+                    "Expected **no** dependency on posix in intransitiveMetadataConfiguration"
+                )
+            }
+
+            build(":p1:listNativePlatformMainDependencies", "-Pkotlin.mpp.enableIntransitiveMetadataConfiguration=true") {
+                assertSuccessful()
+
+                assertFalse(
+                    containsPosixInImplementationMetadataConfiguration(),
+                    "Expected **no** posix dependency in implementationMetadataConfiguration"
+                )
+
+                assertTrue(
+                    containsPosixInIntransitiveMetadataConfiguration(),
+                    "Expected dependency on posix in intransitiveMetadataConfiguration"
+                )
+            }
+
+            build("assemble") {
+                assertSuccessful()
+            }
+        }
+    }
+
+    @Test
+    fun `test KT-46248 single supported native target dependency propagation`() {
+        fun CompiledProject.containsPosixDependency(): Boolean = output.lineSequence().any { line ->
+            line.matches(Regex(""".*Dependency:.*[pP]osix"""))
+        }
+
+        with(Project("commonize-kt-46248-singleNativeTargetPropagation")) {
+            build(":p1:listNativeMainDependencies") {
+                assertSuccessful()
+                assertTrue(containsPosixDependency(), "Expected dependency on posix in nativeMain")
+            }
+
+            build(":p1:listNativeMainParentDependencies") {
+                assertSuccessful()
+                assertTrue(containsPosixDependency(), "Expected dependency on posix in nativeMainParent")
+            }
+
+            build(":p1:listCommonMainDependencies") {
+                assertSuccessful()
+                assertFalse(containsPosixDependency(), "Expected **no** dependency on posix in commonMain (because of jvm target)")
+            }
+
+            build("assemble") {
+                assertSuccessful()
+                assertTasksExecuted(":p1:compileCommonMainKotlinMetadata")
+                assertTasksExecuted(":p1:compileKotlinNativePlatform")
+            }
+        }
+    }
+
+    @Test
+    fun `test KT-46856 filename too long - all native targets configured`() {
+        with(Project("commonize-kt-46856-all-targets")) {
+            build(":commonize", options = BuildOptions(forceOutputToStdout = true)) {
+                assertSuccessful()
             }
         }
     }

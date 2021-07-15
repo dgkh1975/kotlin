@@ -42,10 +42,14 @@ public:
 #ifdef KONAN_OBJC_INTEROP
     void** GetAssociatedObjectLocation() noexcept { return &associatedObject_; }
 #endif
+    void DetachAssociatedObject() noexcept;
 
     ObjHeader** GetWeakCounterLocation() noexcept { return &weakReferenceCounter_; }
 
     std::atomic<Flags>& flags() noexcept { return flags_; }
+
+    bool HasWeakReferenceCounter() noexcept;
+    void ClearWeakReferenceCounter() noexcept;
 
 private:
     explicit ExtraObjectData(const TypeInfo* typeInfo) noexcept : typeInfo_(typeInfo) {}
@@ -60,7 +64,6 @@ private:
     void* associatedObject_ = nullptr;
 #endif
 
-    // TODO: Need to respect when marking.
     ObjHeader* weakReferenceCounter_ = nullptr;
 };
 

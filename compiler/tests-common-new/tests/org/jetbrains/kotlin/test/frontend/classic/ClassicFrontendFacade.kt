@@ -47,13 +47,11 @@ import org.jetbrains.kotlin.resolve.TopDownAnalysisMode
 import org.jetbrains.kotlin.resolve.jvm.JavaDescriptorResolver
 import org.jetbrains.kotlin.resolve.lazy.KotlinCodeAnalyzer
 import org.jetbrains.kotlin.resolve.lazy.declarations.FileBasedDeclarationProviderFactory
+import org.jetbrains.kotlin.resolve.multiplatform.isCommonSource
 import org.jetbrains.kotlin.serialization.deserialization.MetadataPartProvider
 import org.jetbrains.kotlin.storage.StorageManager
 import org.jetbrains.kotlin.test.directives.JvmEnvironmentConfigurationDirectives
-import org.jetbrains.kotlin.test.model.DependencyKind
-import org.jetbrains.kotlin.test.model.FrontendFacade
-import org.jetbrains.kotlin.test.model.FrontendKinds
-import org.jetbrains.kotlin.test.model.TestModule
+import org.jetbrains.kotlin.test.model.*
 import org.jetbrains.kotlin.test.services.*
 import org.jetbrains.kotlin.test.util.KtTestUtil
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
@@ -76,29 +74,37 @@ class ClassicFrontendFacade(
         val ktFilesMap = testServices.sourceFileProvider.getKtFilesForSourceFiles(module.files, project).toMutableMap()
         val languageVersionSettings = module.languageVersionSettings
 
-        val sourceDependencies = module.dependencies.filter { it.kind == DependencyKind.Source }
-        val dependentDescriptors = sourceDependencies.map {
+        val sourceDependencies = module.allDependencies.filter { it.kind == DependencyKind.Source }
+        val dependentDescriptors = sourceDependencies.mapNotNull {
             val testModule = dependencyProvider.getTestModule(it.moduleName)
+            if (testModule.targetPlatform.isCommon()) return@mapNotNull null
             moduleDescriptorProvider.getModuleDescriptor(testModule)
         }
 
-        val friendDescriptors = module.friends.filter { it.kind == DependencyKind.Source }.map {
+        val friendDescriptors = module.friendDependencies.filter { it.kind == DependencyKind.Source }.map {
             moduleDescriptorProvider.getModuleDescriptor(dependencyProvider.getTestModule(it.moduleName))
         }
 
         var hasCommonModules = false
-        sourceDependencies.forEach {
-            val dependencyModule = dependencyProvider.getTestModule(it.moduleName)
-            if (dependencyModule.targetPlatform.isCommon()) {
+
+        fun addDependsOnSources(dependencies: List<DependencyDescription>) {
+            if (dependencies.isEmpty()) return
+            hasCommonModules = true
+            for (dependency in dependencies) {
+                val dependencyModule = dependencyProvider.getTestModule(dependency.moduleName)
                 val artifact = dependencyProvider.getArtifact(dependencyModule, FrontendKinds.ClassicFrontend)
                 /*
                  * We need create KtFiles again with new project because otherwise we can access to some caches using
                  *   old project as key which may leads to missing services in core environment
                  */
-                ktFilesMap.putAll(testServices.sourceFileProvider.getKtFilesForSourceFiles(artifact.allKtFiles.keys, project))
-                hasCommonModules = true
+                val ktFiles = testServices.sourceFileProvider.getKtFilesForSourceFiles(artifact.allKtFiles.keys, project)
+                ktFiles.values.forEach { ktFile -> ktFile.isCommonSource = true }
+                ktFilesMap.putAll(ktFiles)
+                addDependsOnSources(dependencyModule.dependsOnDependencies)
             }
         }
+
+        addDependsOnSources(module.dependsOnDependencies)
 
         val ktFiles = ktFilesMap.values.toList()
         setupJavacIfNeeded(module, ktFiles, configuration)
@@ -219,7 +225,8 @@ class ClassicFrontendFacade(
                 listOf(
                     container.get<KotlinCodeAnalyzer>().packageFragmentProvider,
                     container.get<JavaDescriptorResolver>().packageFragmentProvider
-                )
+                ),
+                "CompositeProvider@ClassicFrontendFacade for $moduleDescriptor"
             )
         )
 

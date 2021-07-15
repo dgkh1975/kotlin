@@ -91,9 +91,6 @@ abstract class AbstractTypeCheckerContextForConstraintSystem(override val typeSy
         val typeMarker = type.asSimpleType()?.asCapturedType() ?: return null
 
         val projection = typeMarker.typeConstructorProjection()
-        if (projection.isStarProjection()) return null
-
-
         return when (projection.getVariance()) {
             TypeVariance.IN -> if (!out) typeMarker.lowerType() ?: projection.getType() else null
             TypeVariance.OUT -> if (out) projection.getType() else null
@@ -240,11 +237,7 @@ abstract class AbstractTypeCheckerContextForConstraintSystem(override val typeSy
                 when (subType) {
                     is SimpleTypeMarker ->
                         // Foo <: T! -- (Foo!! .. Foo) <: T
-                        if (subType.isMarkedNullable()) {
-                            subType // prefer nullable type to flexible one: `Foo? <: (T..T?)` => lowerConstraint = `Foo?`
-                        } else {
-                            createFlexibleType(subType, subType.withNullability(true))
-                        }
+                        subType.createConstraintPartForLowerBoundAndFlexibleTypeVariable()
 
                     is FlexibleTypeMarker ->
                         // (Foo..Bar) <: T! -- (Foo!! .. Bar) <: T

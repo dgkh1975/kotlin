@@ -11,4 +11,4 @@ fun foo(i: Inv<@Ann(unresolved_reference) String>) {}
 fun test(vararg a: @Ann(unresolved_reference) Any) {}
 
 // TESTCASE NUMBER: 3
-class A<T>(a: @Ann(unresolved_reference) T)
+class A<T>(a: @Ann(<!UNRESOLVED_REFERENCE!>unresolved_reference<!>) T)

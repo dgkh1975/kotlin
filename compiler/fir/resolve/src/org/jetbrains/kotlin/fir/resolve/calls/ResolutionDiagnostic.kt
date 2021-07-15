@@ -5,11 +5,14 @@
 
 package org.jetbrains.kotlin.fir.resolve.calls
 
-import org.jetbrains.kotlin.resolve.ForbiddenNamedArgumentsTarget
 import org.jetbrains.kotlin.fir.declarations.FirFunction
 import org.jetbrains.kotlin.fir.declarations.FirValueParameter
 import org.jetbrains.kotlin.fir.expressions.FirExpression
+import org.jetbrains.kotlin.fir.expressions.FirExpressionWithSmartcast
+import org.jetbrains.kotlin.fir.expressions.FirNamedArgumentExpression
+import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
+import org.jetbrains.kotlin.resolve.ForbiddenNamedArgumentsTarget
 import org.jetbrains.kotlin.resolve.calls.tower.CandidateApplicability
 import org.jetbrains.kotlin.resolve.calls.tower.CandidateApplicability.*
 
@@ -23,12 +26,12 @@ class MixingNamedAndPositionArguments(override val argument: FirExpression) : In
 
 class TooManyArguments(
     val argument: FirExpression,
-    val function: FirFunction<*>
+    val function: FirFunction
 ) : ResolutionDiagnostic(INAPPLICABLE_ARGUMENTS_MAPPING_ERROR)
 
 class NamedArgumentNotAllowed(
     override val argument: FirExpression,
-    val function: FirFunction<*>,
+    val function: FirFunction,
     val forbiddenNamedArgumentsTarget: ForbiddenNamedArgumentsTarget
 ) : InapplicableArgumentDiagnostic()
 
@@ -47,13 +50,13 @@ class NonVarargSpread(override val argument: FirExpression) : InapplicableArgume
 
 class NoValueForParameter(
     val valueParameter: FirValueParameter,
-    val function: FirFunction<*>
+    val function: FirFunction
 ) : ResolutionDiagnostic(INAPPLICABLE_ARGUMENTS_MAPPING_ERROR)
 
 class NameNotFound(
-    override val argument: FirExpression,
-    val function: FirFunction<*>
-) : InapplicableArgumentDiagnostic()
+    val argument: FirNamedArgumentExpression,
+    val function: FirFunction
+) : ResolutionDiagnostic(INAPPLICABLE_ARGUMENTS_MAPPING_ERROR)
 
 object InapplicableCandidate : ResolutionDiagnostic(INAPPLICABLE)
 
@@ -66,28 +69,28 @@ class InapplicableWrongReceiver(
     val actualType: ConeKotlinType? = null,
 ) : ResolutionDiagnostic(INAPPLICABLE_WRONG_RECEIVER)
 
+class UnsafeCall(val actualType: ConeKotlinType) : ResolutionDiagnostic(UNSAFE_CALL)
+
 object LowerPriorityToPreserveCompatibilityDiagnostic : ResolutionDiagnostic(RESOLVED_NEED_PRESERVE_COMPATIBILITY)
 
 object CandidateChosenUsingOverloadResolutionByLambdaAnnotation : ResolutionDiagnostic(RESOLVED)
 
-sealed class UnstableSmartCast(
-    val argument: FirExpression,
-    val targetType: ConeKotlinType,
-    applicability: CandidateApplicability
-) : ResolutionDiagnostic(applicability) {
-    class ResolutionError(
-        argument: FirExpression,
-        targetType: ConeKotlinType,
-    ) : UnstableSmartCast(argument, targetType, MAY_THROW_RUNTIME_ERROR)
-
-    class DiagnosticError(
-        argument: FirExpression,
-        targetType: ConeKotlinType,
-    ) : UnstableSmartCast(argument, targetType, RESOLVED_WITH_ERROR)
-}
+class UnstableSmartCast(val argument: FirExpressionWithSmartcast, val targetType: ConeKotlinType) : ResolutionDiagnostic(UNSTABLE_SMARTCAST)
 
 class ArgumentTypeMismatch(
     val expectedType: ConeKotlinType,
     val actualType: ConeKotlinType,
+    val argument: FirExpression,
+    val isMismatchDueToNullability: Boolean,
+) : ResolutionDiagnostic(INAPPLICABLE)
+
+class NullForNotNullType(
     val argument: FirExpression
-) : ResolutionDiagnostic(MAY_THROW_RUNTIME_ERROR)
+) : ResolutionDiagnostic(INAPPLICABLE)
+
+class ManyLambdaExpressionArguments(
+    val argument: FirExpression
+) : ResolutionDiagnostic(INAPPLICABLE_ARGUMENTS_MAPPING_ERROR)
+
+class InfixCallOfNonInfixFunction(val function: FirNamedFunctionSymbol) : ResolutionDiagnostic(INAPPLICABLE_MODIFIER)
+class OperatorCallOfNonOperatorFunction(val function: FirNamedFunctionSymbol) : ResolutionDiagnostic(INAPPLICABLE_MODIFIER)

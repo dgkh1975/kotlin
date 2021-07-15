@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.gradle.logging.kotlinInfo
 import org.jetbrains.kotlin.gradle.targets.native.internal.NativeDistributionType
 import org.jetbrains.kotlin.gradle.targets.native.internal.NativeDistributionTypeProvider
 import org.jetbrains.kotlin.konan.CompilerVersion
+import org.jetbrains.kotlin.konan.CompilerVersionImpl
 import org.jetbrains.kotlin.konan.MetaVersion
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.util.DependencyDirectories
@@ -45,7 +46,20 @@ class NativeCompilerDownloader(
         get() = NativeDistributionTypeProvider(project).getDistributionType(compilerVersion)
 
     private val simpleOsName: String
-        get() = HostManager.simpleOsName()
+        get() {
+            fun CompilerVersion.isAtLeast(compilerVersion: CompilerVersion): Boolean {
+                if (this.major != compilerVersion.major) return this.major > compilerVersion.major
+                if (this.minor != compilerVersion.minor) return this.minor > compilerVersion.minor
+                if (this.maintenance != compilerVersion.maintenance) return this.maintenance > compilerVersion.maintenance
+                if (this.meta.ordinal != compilerVersion.meta.ordinal) return this.meta.ordinal > compilerVersion.meta.ordinal
+                return this.build >= compilerVersion.build
+            }
+            return if (compilerVersion.isAtLeast(CompilerVersionImpl(major = 1, minor = 5, maintenance = 30, build = 1466))) {
+                HostManager.platformName()
+            } else {
+                HostManager.simpleOsName()
+            }
+        }
 
     private val dependencyName: String
         get() {
@@ -57,14 +71,8 @@ class NativeCompilerDownloader(
             }
         }
 
-    val versionStringRepresentation = compilerVersion.toStringPre1_5_20(
-        compilerVersion.meta != MetaVersion.RELEASE,
-        compilerVersion.meta != MetaVersion.RELEASE
-    )
-
-
     private val dependencyNameWithVersion: String
-        get() = "$dependencyName-$versionStringRepresentation"
+        get() = "$dependencyName-$compilerVersion"
 
     private val dependencyFileName: String
         get() = "$dependencyNameWithVersion.$archiveExtension"
@@ -106,7 +114,7 @@ class NativeCompilerDownloader(
         val repoUrl = buildString {
             append("$BASE_DOWNLOAD_URL/")
             append(if (compilerVersion.meta == MetaVersion.DEV) "dev/" else "releases/")
-            append("$versionStringRepresentation/")
+            append("$compilerVersion/")
             append(simpleOsName)
         }
         val dependencyUrl = "$repoUrl/$dependencyFileName"
@@ -116,7 +124,7 @@ class NativeCompilerDownloader(
         val compilerDependency = project.dependencies.create(
             mapOf(
                 "name" to dependencyName,
-                "version" to versionStringRepresentation,
+                "version" to compilerVersion.toString(),
                 "ext" to archiveExtension
             )
         )
@@ -164,35 +172,3 @@ class NativeCompilerDownloader(
         }
     }
 }
-/**
- * Once we've decide to make K/N version like K one (with droppable maintenance 0), but this breaks old publications,
- * when did merging kotlin with kotlin/native after 1.5.0 release.
- * older 1.5.20?
- */
-fun CompilerVersion.toStringPre1_5_20(showMeta: Boolean = meta != MetaVersion.RELEASE, showBuild: Boolean = meta != MetaVersion.RELEASE) =
-    buildString {
-        if (major > 1
-            || minor > 5
-            || maintenance > 20
-        )
-            return toString(showMeta, showBuild)
-        append(major)
-        append('.')
-        append(minor)
-        if (maintenance != 0) {
-            append('.')
-            append(maintenance)
-        }
-        if (milestone != -1) {
-            append("-M")
-            append(milestone)
-        }
-        if (showMeta) {
-            append('-')
-            append(meta.metaString)
-        }
-        if (showBuild && build != -1) {
-            append('-')
-            append(build)
-        }
-    }

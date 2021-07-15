@@ -6,11 +6,35 @@
 package org.jetbrains.kotlin.ir.persistentIrGenerator
 
 internal fun PersistentIrGenerator.generateProperty() {
-    val backingFieldField = Field("backingField", irDeclaration("IrField") + "?")
-    val getterField = Field("getter", irDeclaration("IrSimpleFunction") + "?")
-    val setterField = Field("setter", irDeclaration("IrSimpleFunction") + "?")
-    val metadataField = Field("metadata", MetadataSource + "?")
-    val attributeOwnerIdField = Field("attributeOwnerId", IrAttributeContainer)
+    val backingFieldField = Field(
+        "backingField",
+        IrField + "?",
+        fieldProto,
+        propSymbolType = IrFieldSymbol + "?",
+        symbolToDeclaration = +"?.owner",
+        declarationToSymbol = +"?.symbol"
+    )
+    val getterField = Field(
+        "getter",
+        IrSimpleFunction + "?",
+        simpleFunctionProto,
+        propSymbolType = IrSimpleFunctionSymbol + "?",
+        symbolToDeclaration = +"?.owner",
+        declarationToSymbol = +"?.symbol"
+    )
+    val setterField = Field(
+        "setter",
+        IrSimpleFunction + "?",
+        simpleFunctionProto,
+        propSymbolType = IrSimpleFunctionSymbol + "?",
+        symbolToDeclaration = +"?.owner",
+        declarationToSymbol = +"?.symbol"
+    )
+    val overriddenSymbolsField = Field(
+        "overriddenSymbols",
+        +"List<" + IrPropertySymbol + ">",
+        propertySymbolListProto
+    )
 
     writeFile("PersistentIrPropertyCommon.kt", renderFile("org.jetbrains.kotlin.ir.declarations.persistent") {
         lines(
@@ -36,10 +60,11 @@ internal fun PersistentIrGenerator.generateProperty() {
                 backingFieldField.toPersistentField(+"null"),
                 getterField.toPersistentField(+"null"),
                 setterField.toPersistentField(+"null"),
-                metadataField.toPersistentField(+"null"),
+                overriddenSymbolsField.toPersistentField(+"emptyList()"),
+                +"override var metadata: " + MetadataSource + "? = null",
                 lines(
                     +"@Suppress(\"LeakingThis\")",
-                    attributeOwnerIdField.toPersistentField(+"this"),
+                    +"override var attributeOwnerId: " + IrAttributeContainer + " = this",
                 ),
             ),
             id,
@@ -52,8 +77,15 @@ internal fun PersistentIrGenerator.generateProperty() {
             backingFieldField,
             getterField,
             setterField,
-            metadataField,
-            attributeOwnerIdField,
+            overriddenSymbolsField,
         )()
     })
+
+    addCarrierProtoMessage(
+        "Property",
+        backingFieldField,
+        getterField,
+        setterField,
+        overriddenSymbolsField,
+    )
 }

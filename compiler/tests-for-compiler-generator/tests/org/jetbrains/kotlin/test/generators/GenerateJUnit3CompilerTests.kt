@@ -9,7 +9,7 @@ import org.jetbrains.kotlin.asJava.AbstractCompilerLightClassTest
 import org.jetbrains.kotlin.cfg.AbstractControlFlowTest
 import org.jetbrains.kotlin.cfg.AbstractDataFlowTest
 import org.jetbrains.kotlin.cfg.AbstractPseudoValueTest
-import org.jetbrains.kotlin.checkers.*
+import org.jetbrains.kotlin.checkers.AbstractDiagnosticsTestWithJsStdLibAndBackendCompilation
 import org.jetbrains.kotlin.cli.AbstractCliTest
 import org.jetbrains.kotlin.codegen.*
 import org.jetbrains.kotlin.codegen.debugInformation.AbstractIrLocalVariableTest
@@ -19,8 +19,8 @@ import org.jetbrains.kotlin.codegen.debugInformation.AbstractSteppingTest
 import org.jetbrains.kotlin.codegen.defaultConstructor.AbstractDefaultArgumentsReflectionTest
 import org.jetbrains.kotlin.codegen.flags.AbstractWriteFlagsTest
 import org.jetbrains.kotlin.codegen.ir.*
-import org.jetbrains.kotlin.fir.*
-import org.jetbrains.kotlin.fir.builder.AbstractPartialRawFirBuilderTestCase
+import org.jetbrains.kotlin.fir.AbstractFirLoadCompiledKotlin
+import org.jetbrains.kotlin.fir.AbstractLazyBodyIsNotTouchedTilContractsPhaseTest
 import org.jetbrains.kotlin.fir.builder.AbstractRawFirBuilderLazyBodiesTestCase
 import org.jetbrains.kotlin.fir.builder.AbstractRawFirBuilderSourceElementMappingTestCase
 import org.jetbrains.kotlin.fir.builder.AbstractRawFirBuilderTestCase
@@ -32,9 +32,7 @@ import org.jetbrains.kotlin.generators.impl.generateTestGroupSuite
 import org.jetbrains.kotlin.generators.util.TestGeneratorUtil.KT_OR_KTS_WITHOUT_DOTS_IN_NAME
 import org.jetbrains.kotlin.generators.util.TestGeneratorUtil.KT_WITHOUT_DOTS_IN_NAME
 import org.jetbrains.kotlin.integration.AbstractAntTaskTest
-import org.jetbrains.kotlin.ir.AbstractIrCfgTestCase
-import org.jetbrains.kotlin.ir.AbstractIrJsTextTestCase
-import org.jetbrains.kotlin.ir.AbstractIrSourceRangesTestCase
+import org.jetbrains.kotlin.ir.*
 import org.jetbrains.kotlin.jvm.compiler.*
 import org.jetbrains.kotlin.jvm.compiler.ir.AbstractIrCompileJavaAgainstKotlinTest
 import org.jetbrains.kotlin.jvm.compiler.ir.AbstractIrCompileKotlinAgainstJavaTest
@@ -45,8 +43,6 @@ import org.jetbrains.kotlin.lexer.kotlin.AbstractKotlinLexerTest
 import org.jetbrains.kotlin.modules.xml.AbstractModuleXmlParserTest
 import org.jetbrains.kotlin.multiplatform.AbstractMultiPlatformIntegrationTest
 import org.jetbrains.kotlin.parsing.AbstractParsingTest
-import org.jetbrains.kotlin.renderer.AbstractDescriptorRendererTest
-import org.jetbrains.kotlin.renderer.AbstractFunctionDescriptorInExpressionRendererTest
 import org.jetbrains.kotlin.repl.AbstractReplInterpreterTest
 import org.jetbrains.kotlin.resolve.AbstractResolveTest
 import org.jetbrains.kotlin.resolve.annotation.AbstractAnnotationParameterTest
@@ -138,16 +134,20 @@ fun generateJUnit3CompilerTests(args: Array<String>) {
                 model("ir/irJsText", pattern = "^(.+)\\.kt(s)?\$")
             }
 
+            testClass<AbstractKlibJsTextTestCase> {
+                model("ir/irJsText", pattern = "^(.+)\\.kt\$", targetBackend = TargetBackend.JS_IR)
+            }
+
+            testClass<AbstractKlibTextTestCase> {
+                model("ir/irText", pattern = "^(.+)\\.kt\$", targetBackend = TargetBackend.JS_IR)
+            }
+
             testClass<AbstractIrCfgTestCase> {
                 model("ir/irCfg")
             }
 
             testClass<AbstractIrSourceRangesTestCase> {
                 model("ir/sourceRanges")
-            }
-
-            testClass<AbstractBytecodeListingTest> {
-                model("codegen/bytecodeListing", targetBackend = TargetBackend.JVM)
             }
 
             testClass<AbstractTopLevelMembersInvocationTest> {
@@ -263,14 +263,6 @@ fun generateJUnit3CompilerTests(args: Array<String>) {
 
             testClass<AbstractIrCompileKotlinAgainstKotlinJdk15Test> {
                 model("compileKotlinAgainstKotlinJdk15", targetBackend = TargetBackend.JVM_IR)
-            }
-
-            testClass<AbstractDescriptorRendererTest> {
-                model("renderer")
-            }
-
-            testClass<AbstractFunctionDescriptorInExpressionRendererTest> {
-                model("renderFunctionDescriptorInExpression")
             }
 
             testClass<AbstractModuleXmlParserTest> {
@@ -389,10 +381,6 @@ fun generateJUnit3CompilerTests(args: Array<String>) {
                 )
             }
 
-            testClass<AbstractIrBytecodeListingTest> {
-                model("codegen/bytecodeListing", targetBackend = TargetBackend.JVM_IR)
-            }
-
             testClass<AbstractIrCheckLocalVariablesTableTest> {
                 model("checkLocalVariablesTable", targetBackend = TargetBackend.JVM_IR)
             }
@@ -469,12 +457,6 @@ fun generateJUnit3CompilerTests(args: Array<String>) {
 
             testClass<AbstractRawFirBuilderSourceElementMappingTestCase> {
                 model("sourceElementMapping", testMethod = "doRawFirTest")
-            }
-        }
-
-        testGroup("compiler/fir/raw-fir/psi2fir/tests-gen", "compiler/fir/raw-fir/psi2fir/testData") {
-            testClass<AbstractPartialRawFirBuilderTestCase> {
-                model("partialRawBuilder", testMethod = "doRawFirTest")
             }
         }
 

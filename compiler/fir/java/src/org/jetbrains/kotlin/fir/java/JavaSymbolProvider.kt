@@ -10,21 +10,28 @@ import com.intellij.openapi.project.Project
 import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.kotlin.builtins.jvm.JavaToKotlinClassMap
 import org.jetbrains.kotlin.descriptors.ClassKind
+import org.jetbrains.kotlin.descriptors.EffectiveVisibility
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.fir.*
-import org.jetbrains.kotlin.fir.caches.*
+import org.jetbrains.kotlin.fir.caches.createCache
+import org.jetbrains.kotlin.fir.caches.firCachesFactory
+import org.jetbrains.kotlin.fir.caches.getValue
 import org.jetbrains.kotlin.fir.declarations.*
-import org.jetbrains.kotlin.fir.declarations.builder.*
+import org.jetbrains.kotlin.fir.declarations.builder.FirTypeParameterBuilder
+import org.jetbrains.kotlin.fir.declarations.builder.buildConstructedClassTypeParameterRef
+import org.jetbrains.kotlin.fir.declarations.builder.buildEnumEntry
+import org.jetbrains.kotlin.fir.declarations.builder.buildOuterClassTypeParameterRef
 import org.jetbrains.kotlin.fir.declarations.impl.FirResolvedDeclarationStatusImpl
+import org.jetbrains.kotlin.fir.declarations.utils.addDefaultBoundIfNecessary
+import org.jetbrains.kotlin.fir.declarations.utils.effectiveVisibility
+import org.jetbrains.kotlin.fir.declarations.utils.modality
 import org.jetbrains.kotlin.fir.expressions.FirExpression
-import org.jetbrains.kotlin.fir.expressions.builder.*
 import org.jetbrains.kotlin.fir.java.declarations.*
 import org.jetbrains.kotlin.fir.resolve.constructType
 import org.jetbrains.kotlin.fir.resolve.defaultType
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProvider
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProviderInternals
-import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.ConeClassLikeType
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
@@ -35,17 +42,18 @@ import org.jetbrains.kotlin.load.java.JvmAnnotationNames
 import org.jetbrains.kotlin.load.java.structure.*
 import org.jetbrains.kotlin.load.java.structure.impl.JavaElementImpl
 import org.jetbrains.kotlin.load.kotlin.KotlinClassFinder
+import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.jvm.KotlinJavaPsiFacade
 import org.jetbrains.kotlin.types.Variance.INVARIANT
 import org.jetbrains.kotlin.util.OperatorNameConventions
-import org.jetbrains.kotlin.utils.addIfNotNull
 
 @ThreadSafeMutableState
 class JavaSymbolProvider(
     session: FirSession,
+    val baseModuleData: FirModuleData,
     val project: Project,
     private val searchScope: GlobalSearchScope,
 ) : FirSymbolProvider(session) {
@@ -56,7 +64,7 @@ class JavaSymbolProvider(
     private val classCache =
         session.firCachesFactory.createCacheWithPostCompute(
             createValue = ::findAndConvertJavaClass,
-            postCompute = { _, classSymbol, javaClass, ->
+            postCompute = { _, classSymbol, javaClass ->
                 if (classSymbol != null && javaClass != null) {
                     convertJavaClassToFir(classSymbol, javaClass)
                 }
@@ -69,6 +77,7 @@ class JavaSymbolProvider(
 
     private val facade: KotlinJavaPsiFacade get() = KotlinJavaPsiFacade.getInstance(project)
     private val parentClassTypeParameterStackCache = mutableMapOf<FirRegularClassSymbol, JavaTypeParameterStack>()
+    private val parentClassEffectiveVisibilityCache = mutableMapOf<FirRegularClassSymbol, EffectiveVisibility>()
 
     private fun findClass(
         classId: ClassId,
@@ -102,8 +111,9 @@ class JavaSymbolProvider(
         javaTypeParameterStack: JavaTypeParameterStack
     ): FirTypeParameter {
         return FirTypeParameterBuilder().apply {
-            this.session = this@JavaSymbolProvider.session
+            moduleData = this@JavaSymbolProvider.baseModuleData
             origin = FirDeclarationOrigin.Java
+            resolvePhase = FirResolvePhase.ANALYZED_DEPENDENCIES
             this.name = this@toFirTypeParameter.name
             symbol = firSymbol
             variance = INVARIANT
@@ -149,10 +159,13 @@ class JavaSymbolProvider(
         return classCache.getValue(classId, content)
     }
 
-    private fun findAndConvertJavaClass(classId: ClassId, content: KotlinClassFinder.Result.ClassFileContent?): Pair<FirRegularClassSymbol?, JavaClass?> {
+    private fun findAndConvertJavaClass(
+        classId: ClassId,
+        content: KotlinClassFinder.Result.ClassFileContent?
+    ): Pair<FirRegularClassSymbol?, JavaClass?> {
         val foundClass = findClass(classId, content)
         return if (foundClass == null ||
-            foundClass.hasDifferentRelativeClassName(classId) ||
+            foundClass.hasDifferentClassId(classId) ||
             foundClass.hasMetadataAnnotation()
         ) {
             null to null
@@ -162,13 +175,8 @@ class JavaSymbolProvider(
         }
     }
 
-
-    /**
-     * We do not check the package because we can look for the class in the same package by class name without package specified.
-     * In this case, found [JavaClass] may have different `packageFqName`, but not `relativeClassName`.
-     */
-    private fun JavaClass.hasDifferentRelativeClassName(lookupClassId: ClassId): Boolean =
-        classId?.relativeClassName != lookupClassId.relativeClassName
+    private fun JavaClass.hasDifferentClassId(lookupClassId: ClassId): Boolean =
+        classId != lookupClassId
 
     private fun JavaClass.hasMetadataAnnotation(): Boolean =
         annotations.any { it.classId?.asSingleFqName() == JvmAnnotationNames.METADATA_FQ_NAME }
@@ -202,8 +210,10 @@ class JavaSymbolProvider(
         parentClassTypeParameterStackCache[classSymbol] = javaTypeParameterStack
         val firJavaClass = createFirJavaClass(javaClass, classSymbol, outerClassId, parentClassSymbol, classId, javaTypeParameterStack)
         parentClassTypeParameterStackCache.remove(classSymbol)
+        parentClassEffectiveVisibilityCache.remove(classSymbol)
         firJavaClass.convertSuperTypes(javaClass, javaTypeParameterStack)
         firJavaClass.addAnnotationsFrom(this@JavaSymbolProvider.session, javaClass, javaTypeParameterStack)
+        firJavaClass.replaceDeprecation(firJavaClass.getDeprecationInfos(session.languageVersionSettings.apiVersion))
         return firJavaClass
     }
 
@@ -230,10 +240,11 @@ class JavaSymbolProvider(
         val classIsAnnotation = javaClass.classKind == ClassKind.ANNOTATION_CLASS
         return buildJavaClass {
             source = (javaClass as? JavaElementImpl<*>)?.psi?.toFirPsiSourceElement()
-            session = this@JavaSymbolProvider.session
+            moduleData = this@JavaSymbolProvider.baseModuleData
             symbol = classSymbol
             name = javaClass.name
-            visibility = javaClass.visibility
+            val visibility = javaClass.visibility
+            this@buildJavaClass.visibility = visibility
             modality = javaClass.modality
             classKind = javaClass.classKind
             this.isTopLevel = outerClassId == null
@@ -241,6 +252,14 @@ class JavaSymbolProvider(
             this.javaTypeParameterStack = javaTypeParameterStack
             existingNestedClassifierNames += javaClass.innerClassNames
             scopeProvider = this@JavaSymbolProvider.scopeProvider
+
+            val selfEffectiveVisibility = visibility.toEffectiveVisibility(parentClassSymbol?.toLookupTag(), forClass = true)
+            val parentEffectiveVisibility = parentClassSymbol?.let {
+                parentClassEffectiveVisibilityCache[it] ?: it.fir.effectiveVisibility
+            } ?: EffectiveVisibility.Public
+            val effectiveVisibility = parentEffectiveVisibility.lowerBound(selfEffectiveVisibility, session.typeContext)
+            parentClassEffectiveVisibilityCache[classSymbol] = effectiveVisibility
+
             val classTypeParameters = javaClass.typeParameters.convertTypeParameters(javaTypeParameterStack)
             typeParameters += classTypeParameters
             if (!isStatic && parentClassSymbol != null) {
@@ -252,8 +271,9 @@ class JavaSymbolProvider(
             val dispatchReceiver = classId.defaultType(typeParameters.map { it.symbol })
 
             status = FirResolvedDeclarationStatusImpl(
-                javaClass.visibility,
-                javaClass.modality
+                visibility,
+                javaClass.modality,
+                effectiveVisibility
             ).apply {
                 this.isInner = !isTopLevel && !this@buildJavaClass.isStatic
                 isCompanion = false
@@ -315,11 +335,11 @@ class JavaSymbolProvider(
 
             if (classKind == ClassKind.ENUM_CLASS) {
                 generateValuesFunction(
-                    session,
+                    baseModuleData,
                     classId.packageFqName,
                     classId.relativeClassName
                 )
-                generateValueOfFunction(session, classId.packageFqName, classId.relativeClassName)
+                generateValueOfFunction(baseModuleData, classId.packageFqName, classId.relativeClassName)
             }
             if (classIsAnnotation) {
                 declarations +=
@@ -332,10 +352,11 @@ class JavaSymbolProvider(
             }
         }.apply {
             if (modality == Modality.SEALED) {
-                sealedInheritors = javaClass.permittedTypes.mapNotNull { classifierType ->
+                val inheritors = javaClass.permittedTypes.mapNotNull { classifierType ->
                     val classifier = classifierType.classifier as? JavaClass
                     classifier?.let { JavaToKotlinClassMap.mapJavaToKotlin(it.fqName!!) }
                 }
+                setSealedClassInheritors(inheritors)
             }
 
             if (classIsAnnotation) {
@@ -362,12 +383,13 @@ class JavaSymbolProvider(
         return when {
             javaField.isEnumEntry -> buildEnumEntry {
                 source = (javaField as? JavaElementImpl<*>)?.psi?.toFirPsiSourceElement()
-                session = this@JavaSymbolProvider.session
-                symbol = FirVariableSymbol(fieldId)
+                moduleData = this@JavaSymbolProvider.baseModuleData
+                symbol = FirEnumEntrySymbol(fieldId)
                 name = fieldName
                 status = FirResolvedDeclarationStatusImpl(
                     javaField.visibility,
-                    javaField.modality
+                    javaField.modality,
+                    javaField.visibility.toEffectiveVisibility(dispatchReceiver.lookupTag)
                 ).apply {
                     isStatic = javaField.isStatic
                     isExpect = false
@@ -383,12 +405,13 @@ class JavaSymbolProvider(
             }
             else -> buildJavaField {
                 source = (javaField as? JavaElementImpl<*>)?.psi?.toFirPsiSourceElement()
-                session = this@JavaSymbolProvider.session
+                moduleData = this@JavaSymbolProvider.baseModuleData
                 symbol = FirFieldSymbol(fieldId)
                 name = fieldName
                 status = FirResolvedDeclarationStatusImpl(
                     javaField.visibility,
-                    javaField.modality
+                    javaField.modality,
+                    javaField.visibility.toEffectiveVisibility(dispatchReceiver.lookupTag)
                 ).apply {
                     isStatic = javaField.isStatic
                     isExpect = false
@@ -430,24 +453,23 @@ class JavaSymbolProvider(
         val methodSymbol = FirNamedFunctionSymbol(methodId)
         val returnType = javaMethod.returnType
         return buildJavaMethod {
-            session = this@JavaSymbolProvider.session
+            moduleData = this@JavaSymbolProvider.baseModuleData
             source = (javaMethod as? JavaElementImpl<*>)?.psi?.toFirPsiSourceElement()
             symbol = methodSymbol
             name = methodName
-            visibility = javaMethod.visibility
-            modality = javaMethod.modality
             returnTypeRef = returnType.toFirJavaTypeRef(this@JavaSymbolProvider.session, javaTypeParameterStack)
             isStatic = javaMethod.isStatic
             typeParameters += javaMethod.typeParameters.convertTypeParameters(javaTypeParameterStack)
             for ((index, valueParameter) in javaMethod.valueParameters.withIndex()) {
                 valueParameters += valueParameter.toFirValueParameter(
-                    this@JavaSymbolProvider.session, index, javaTypeParameterStack,
+                    this@JavaSymbolProvider.session, moduleData, index, javaTypeParameterStack,
                 )
             }
             annotationBuilder = { javaMethod.annotations.map { it.toFirAnnotationCall(session, javaTypeParameterStack) } }
             status = FirResolvedDeclarationStatusImpl(
                 javaMethod.visibility,
-                javaMethod.modality
+                javaMethod.modality,
+                javaMethod.visibility.toEffectiveVisibility(dispatchReceiver.lookupTag)
             ).apply {
                 isStatic = javaMethod.isStatic
                 isExpect = false
@@ -475,8 +497,9 @@ class JavaSymbolProvider(
 
     private fun convertJavaAnnotationMethodToValueParameter(javaMethod: JavaMethod, firJavaMethod: FirJavaMethod): FirJavaValueParameter =
         buildJavaValueParameter {
-            source = (javaMethod as? JavaElementImpl<*>)?.psi?.toFirPsiSourceElement(FirFakeSourceElementKind.ImplicitJavaAnnotationConstructor)
-            session = this@JavaSymbolProvider.session
+            source = (javaMethod as? JavaElementImpl<*>)?.psi
+                ?.toFirPsiSourceElement(FirFakeSourceElementKind.ImplicitJavaAnnotationConstructor)
+            moduleData = this@JavaSymbolProvider.baseModuleData
             returnTypeRef = firJavaMethod.returnTypeRef
             name = javaMethod.name
             isVararg = javaMethod.returnType is JavaArrayType && javaMethod.name == VALUE_METHOD_NAME
@@ -494,14 +517,15 @@ class JavaSymbolProvider(
         val constructorSymbol = FirConstructorSymbol(constructorId)
         return buildJavaConstructor {
             source = (javaConstructor as? JavaElementImpl<*>)?.psi?.toFirPsiSourceElement()
-            session = this@JavaSymbolProvider.session
+            moduleData = this@JavaSymbolProvider.baseModuleData
             symbol = constructorSymbol
             isInner = javaClass.outerClass != null && !javaClass.isStatic
             val isThisInner = this.isInner
             val visibility = javaConstructor?.visibility ?: ownerClassBuilder.visibility
             status = FirResolvedDeclarationStatusImpl(
                 visibility,
-                Modality.FINAL
+                Modality.FINAL,
+                visibility.toEffectiveVisibility(ownerClassBuilder.symbol)
             ).apply {
                 isExpect = false
                 isActual = false
@@ -520,7 +544,7 @@ class JavaSymbolProvider(
                 annotationBuilder = { javaConstructor.annotations.map { it.toFirAnnotationCall(session, javaTypeParameterStack) } }
                 for ((index, valueParameter) in javaConstructor.valueParameters.withIndex()) {
                     valueParameters += valueParameter.toFirValueParameter(
-                        this@JavaSymbolProvider.session, index, javaTypeParameterStack,
+                        this@JavaSymbolProvider.session, moduleData, index, javaTypeParameterStack,
                     )
                 }
             } else {
@@ -532,16 +556,16 @@ class JavaSymbolProvider(
     }
 
     private fun buildConstructorForAnnotationClass(
-        classSource: FirFakeSourceElement<*>?,
+        classSource: FirFakeSourceElement?,
         constructorId: CallableId,
         ownerClassBuilder: FirJavaClassBuilder,
         valueParametersForAnnotationConstructor: ValueParametersForAnnotationConstructor
     ): FirJavaConstructor {
         return buildJavaConstructor {
             source = classSource
-            session = this@JavaSymbolProvider.session
+            moduleData = this@JavaSymbolProvider.baseModuleData
             symbol = FirConstructorSymbol(constructorId)
-            status = FirResolvedDeclarationStatusImpl(Visibilities.Public, Modality.FINAL)
+            status = FirResolvedDeclarationStatusImpl(Visibilities.Public, Modality.FINAL, EffectiveVisibility.Public)
             returnTypeRef = buildResolvedTypeRef {
                 type = ownerClassBuilder.buildSelfTypeRef()
             }

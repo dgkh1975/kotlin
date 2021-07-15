@@ -238,6 +238,11 @@ data class CompilerId(
         get() = listOf(PropMapper(this, CompilerId::compilerClasspath, toString = { it.joinToString(File.pathSeparator) }, fromString = { it.trimQuotes().split(File.pathSeparator) }),
                        StringPropMapper(this, CompilerId::compilerVersion))
 
+    fun digest(): String = compilerClasspath
+        .map { File(it).absolutePath }
+        .distinctStringsDigest()
+        .toHexString()
+
     companion object {
         @JvmStatic
         fun makeCompilerId(vararg paths: File): CompilerId = makeCompilerId(paths.asIterable())
@@ -307,6 +312,8 @@ fun configureDaemonJVMOptions(opts: DaemonJVMOptions,
     if (inheritAdditionalProperties) {
         CompilerSystemProperties.COMPILE_DAEMON_LOG_PATH_PROPERTY.value?.let { opts.jvmParams.add("D${CompilerSystemProperties.COMPILE_DAEMON_LOG_PATH_PROPERTY.property}=\"$it\"") }
         CompilerSystemProperties.KOTLIN_COMPILER_ENVIRONMENT_KEEPALIVE_PROPERTY.value?.let { opts.jvmParams.add("D${CompilerSystemProperties.KOTLIN_COMPILER_ENVIRONMENT_KEEPALIVE_PROPERTY.property}") }
+        //Temporary solution to test abi snapshot
+        CompilerSystemProperties.COMPILE_INCREMENTAL_WITH_CLASSPATH_SHAPSHOTS.value?.let { opts.jvmParams.add("D${CompilerSystemProperties.COMPILE_INCREMENTAL_WITH_CLASSPATH_SHAPSHOTS.property}") }
     }
 
     if (opts.jvmParams.none { it.matches(jvmAssertArgsRegex) }) {
@@ -352,7 +359,7 @@ private val humanizedMemorySizeRegex = "(\\d+)([kmg]?)".toRegex()
 
 private fun String.memToBytes(): Long? =
         humanizedMemorySizeRegex
-            .matchEntire(this.trim().toLowerCase())
+            .matchEntire(this.trim().lowercase())
             ?.groups?.let { match ->
                 match[1]?.value?.let {
                     it.toLong() *

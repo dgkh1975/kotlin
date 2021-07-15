@@ -18,15 +18,15 @@ fun test(l : List<Int>) {
 
   val f : java.io.File? = null
 
-  Collections.<error descr="[UNRESOLVED_REFERENCE] Unresolved reference: emptyList">emptyList</error>
-  Collections.<error descr="[UNRESOLVED_REFERENCE] Unresolved reference: emptyList">emptyList</error><Int>
+  Collections.<error descr="[FUNCTION_CALL_EXPECTED] Function invocation 'emptyList()' expected">emptyList</error>
+  Collections.<error descr="[FUNCTION_CALL_EXPECTED] Function invocation 'emptyList()' expected">emptyList</error><<error descr="[CANNOT_INFER_PARAMETER_TYPE] cannot infer a type for this parameter. Please specify it explicitly.">Int</error>>
   Collections.emptyList<Int>()
-  Collections.emptyList()
+  Collections.<error descr="[NEW_INFERENCE_NO_INFORMATION_FOR_PARAMETER] T">emptyList</error>()
 
   checkSubtype<Set<Int>?>(Collections.singleton<Int>(1))
-  Collections.<error descr="[INAPPLICABLE_CANDIDATE] Inapplicable candidate(s): java/util/Collections.singleton">singleton</error><Int>(1.0)
+  Collections.singleton<Int>(<error descr="[ARGUMENT_TYPE_MISMATCH] Argument type mismatch: actual type is kotlin/Double but ft<TypeVariable(T), TypeVariable(T)?> was expected">1.0</error>)
 
-  List<Int>
+  <error descr="[NO_COMPANION_OBJECT] Classifier 'kotlin/collections/List' does not have a companion object, and thus must be initialized here">List</error><Int>
 
 
   val o = "sdf" as Object

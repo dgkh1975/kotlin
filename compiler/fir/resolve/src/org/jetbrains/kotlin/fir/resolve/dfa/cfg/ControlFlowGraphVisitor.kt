@@ -46,9 +46,17 @@ abstract class ControlFlowGraphVisitor<out R, in D> {
         return visitNode(node, data)
     }
 
+    open fun visitAnonymousFunctionExpressionExitNode(node: AnonymousFunctionExpressionExitNode, data: D): R {
+        return visitNode(node, data)
+    }
+
     // ----------------------------------- Classes -----------------------------------
 
     open fun visitAnonymousObjectExitNode(node: AnonymousObjectExitNode, data: D): R {
+        return visitNode(node, data)
+    }
+
+    open fun visitAnonymousObjectExpressionExitNode(node: AnonymousObjectExpressionExitNode, data: D): R {
         return visitNode(node, data)
     }
 
@@ -292,6 +300,10 @@ abstract class ControlFlowGraphVisitor<out R, in D> {
     }
 
     open fun visitDelegatedConstructorCallNode(node: DelegatedConstructorCallNode, data: D): R {
+        return visitNode(node, data)
+    }
+
+    open fun visitStringConcatenationCallNode(node: StringConcatenationCallNode, data: D): R {
         return visitNode(node, data)
     }
 

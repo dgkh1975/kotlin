@@ -6,7 +6,6 @@
 package org.jetbrains.kotlin.commonizer
 
 import com.intellij.openapi.Disposable
-import com.intellij.testFramework.PlatformTestUtil.lowercaseFirstLetter
 import org.jetbrains.kotlin.analyzer.ModuleInfo
 import org.jetbrains.kotlin.analyzer.common.CommonDependenciesContainer
 import org.jetbrains.kotlin.analyzer.common.CommonPlatformAnalyzerServices
@@ -16,15 +15,15 @@ import org.jetbrains.kotlin.backend.common.serialization.metadata.impl.ExportedF
 import org.jetbrains.kotlin.builtins.DefaultBuiltIns
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
+import org.jetbrains.kotlin.commonizer.ResultsConsumer.ModuleResult
+import org.jetbrains.kotlin.commonizer.ResultsConsumer.Status
+import org.jetbrains.kotlin.commonizer.SourceModuleRoot.Companion.SHARED_TARGET_NAME
+import org.jetbrains.kotlin.commonizer.konan.NativeManifestDataProvider
+import org.jetbrains.kotlin.commonizer.utils.*
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.descriptors.*
-import org.jetbrains.kotlin.commonizer.ResultsConsumer.ModuleResult
-import org.jetbrains.kotlin.commonizer.ResultsConsumer.Status
-import org.jetbrains.kotlin.commonizer.SourceModuleRoot.Companion.SHARED_TARGET_NAME
-import org.jetbrains.kotlin.commonizer.konan.TargetedNativeManifestDataProvider
-import org.jetbrains.kotlin.commonizer.utils.*
 import org.jetbrains.kotlin.descriptors.impl.DeclarationDescriptorVisitorEmptyBodies
 import org.jetbrains.kotlin.descriptors.impl.FunctionDescriptorImpl
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
@@ -84,17 +83,6 @@ abstract class AbstractCommonizationFromSourcesTest : KtUsefulTestCase() {
             (results.modulesByTargets.getValue(sharedTarget).single() as ModuleResult.Commonized).metadata
 
         assertModulesAreEqual(sharedModuleAsExpected, sharedModuleByCommonizer, sharedTarget)
-
-        val leafTargets: Set<LeafCommonizerTarget> = analyzedModules.leafTargets
-        assertEquals(leafTargets, results.leafTargets)
-
-        for (leafTarget in leafTargets) {
-            val leafTargetModuleAsExpected: SerializedMetadata = analyzedModules.commonizedModules.getValue(leafTarget)
-            val leafTargetModuleByCommonizer: SerializedMetadata =
-                (results.modulesByTargets.getValue(leafTarget).single() as ModuleResult.Commonized).metadata
-
-            assertModulesAreEqual(leafTargetModuleAsExpected, leafTargetModuleByCommonizer, leafTarget)
-        }
     }
 }
 
@@ -135,7 +123,7 @@ private class SourceModuleRoots(
         check(sharedTarget.targets == leafTargets)
 
         val allTargets = leafTargets + sharedTarget
-        check(commonizedRoots.keys == allTargets)
+        check(commonizedRoots.keys.single() == sharedTarget)
         check(allTargets.containsAll(dependencyRoots.keys))
     }
 
@@ -200,28 +188,30 @@ private class AnalyzedModules(
         sharedTarget = SharedCommonizerTarget(leafTargets)
         val allTargets = leafTargets + sharedTarget
 
-        check(commonizedModules.keys == allTargets)
+        check(commonizedModules.keys.single() == sharedTarget)
         check(allTargets.containsAll(dependencyModules.keys))
     }
 
     fun toCommonizerParameters(
-        resultsConsumer: ResultsConsumer, manifestDataProvider: TargetedNativeManifestDataProvider = MockNativeManifestDataProvider()
+        resultsConsumer: ResultsConsumer,
+        manifestDataProvider: (CommonizerTarget) -> NativeManifestDataProvider = { MockNativeManifestDataProvider(it) }
     ) = CommonizerParameters(
-        resultsConsumer, manifestDataProvider, commonDependencyModulesProvider = dependencyModules[sharedTarget]?.let(MockModulesProvider::create)
-    ).also { parameters ->
-
-        leafTargets.forEach { leafTarget ->
-            val originalModule = originalModules.getValue(leafTarget)
-
-            parameters.addTarget(
-                TargetProvider(
-                    target = leafTarget,
-                    modulesProvider = MockModulesProvider.create(originalModule),
-                    dependencyModulesProvider = dependencyModules[leafTarget]?.let(MockModulesProvider::create)
-                )
+        outputTargets = setOf(SharedCommonizerTarget(leafTargets.toSet())),
+        manifestProvider = TargetDependent(sharedTarget.withAllLeaves(), manifestDataProvider),
+        dependenciesProvider = TargetDependent(sharedTarget.withAllLeaves()) { target ->
+            dependencyModules
+                .filter { (registeredTarget, _) -> target in registeredTarget.withAllLeaves() }
+                .values.flatten()
+                .let(MockModulesProvider::create)
+        },
+        targetProviders = TargetDependent(leafTargets) { leafTarget ->
+            TargetProvider(
+                target = leafTarget,
+                modulesProvider = MockModulesProvider.create(originalModules.getValue(leafTarget))
             )
-        }
-    }
+        },
+        resultsConsumer = resultsConsumer,
+    )
 
     companion object {
         fun create(

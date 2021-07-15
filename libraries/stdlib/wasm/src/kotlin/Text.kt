@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2021 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -19,6 +19,9 @@ actual class Regex {
     actual fun replace(input: CharSequence, replacement: String): String = TODO("Wasm stdlib: Text")
     actual fun replace(input: CharSequence, transform: (MatchResult) -> CharSequence): String = TODO("Wasm stdlib: Text")
     actual fun replaceFirst(input: CharSequence, replacement: String): String = TODO("Wasm stdlib: Text")
+
+    actual fun matchAt(input: CharSequence, index: Int): MatchResult? = TODO("Wasm stdlib: Text")
+    actual fun matchesAt(input: CharSequence, index: Int): Boolean = TODO("Wasm stdlib: Text")
 
     /**
      * Returns the first match of a regular expression in the [input], beginning at the specified [startIndex].
@@ -80,8 +83,7 @@ public actual fun Char.toLowerCase(): Char = TODO("Wasm stdlib: Text")
  *
  * @sample samples.text.Chars.lowercase
  */
-@SinceKotlin("1.4")
-@ExperimentalStdlibApi
+@SinceKotlin("1.5")
 public actual fun Char.lowercaseChar(): Char = TODO("Wasm stdlib: Text")
 
 /**
@@ -94,8 +96,7 @@ public actual fun Char.lowercaseChar(): Char = TODO("Wasm stdlib: Text")
  *
  * @sample samples.text.Chars.lowercase
  */
-@SinceKotlin("1.4")
-@ExperimentalStdlibApi
+@SinceKotlin("1.5")
 public actual fun Char.lowercase(): String = TODO("Wasm stdlib: Text")
 
 /**
@@ -112,8 +113,7 @@ public actual fun Char.toUpperCase(): Char = TODO("Wasm stdlib: Text")
  *
  * @sample samples.text.Chars.uppercase
  */
-@SinceKotlin("1.4")
-@ExperimentalStdlibApi
+@SinceKotlin("1.5")
 public actual fun Char.uppercaseChar(): Char = TODO("Wasm stdlib: Text")
 
 /**
@@ -126,8 +126,7 @@ public actual fun Char.uppercaseChar(): Char = TODO("Wasm stdlib: Text")
  *
  * @sample samples.text.Chars.uppercase
  */
-@SinceKotlin("1.4")
-@ExperimentalStdlibApi
+@SinceKotlin("1.5")
 public actual fun Char.uppercase(): String = TODO("Wasm stdlib: Text")
 
 /**
@@ -140,7 +139,6 @@ public actual fun Char.uppercase(): String = TODO("Wasm stdlib: Text")
  * @sample samples.text.Chars.titlecase
  */
 @SinceKotlin("1.5")
-@ExperimentalStdlibApi
 public actual fun Char.titlecaseChar(): Char = TODO("Wasm stdlib: Text")
 
 
@@ -373,8 +371,7 @@ public actual fun String.toUpperCase(): String = TODO("Wasm stdlib: Text")
  *
  * @sample samples.text.Strings.uppercase
  */
-@SinceKotlin("1.4")
-@ExperimentalStdlibApi
+@SinceKotlin("1.5")
 public actual fun String.uppercase(): String = TODO("Wasm stdlib: Text")
 
 /**
@@ -390,8 +387,7 @@ public actual fun String.toLowerCase(): String = TODO("Wasm stdlib: Text")
  *
  * @sample samples.text.Strings.lowercase
  */
-@SinceKotlin("1.4")
-@ExperimentalStdlibApi
+@SinceKotlin("1.5")
 public actual fun String.lowercase(): String = TODO("Wasm stdlib: Text")
 
 public actual fun String.capitalize(): String = TODO("Wasm stdlib: Text")

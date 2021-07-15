@@ -24,6 +24,8 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrFieldImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrFunctionImpl
 import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.types.IrTypeSystemContext
+import org.jetbrains.kotlin.ir.types.IrTypeSystemContextImpl
 import org.jetbrains.kotlin.builtins.konan.KonanBuiltIns
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.ir.symbols.impl.IrSimpleFunctionSymbolImpl
@@ -103,6 +105,15 @@ internal class SpecialDeclarationsFactory(val context: Context) {
                 parent = innerClass
             }
         }
+
+    fun getLoweredEnumOrNull(enumClass: IrClass): LoweredEnumAccess? {
+        assert(enumClass.kind == ClassKind.ENUM_CLASS) { "Expected enum class but was: ${enumClass.descriptor}" }
+        return if (!context.llvmModuleSpecification.containsDeclaration(enumClass)) {
+            externalLoweredEnums[enumClass]
+        } else {
+            internalLoweredEnums[enumClass]
+        }
+    }
 
     fun getLoweredEnum(enumClass: IrClass): LoweredEnumAccess {
         assert(enumClass.kind == ClassKind.ENUM_CLASS) { "Expected enum class but was: ${enumClass.descriptor}" }
@@ -249,6 +260,18 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
         lazyValues[member] = newValue
     }
 
+    private val localClassNames = mutableMapOf<IrAttributeContainer, String>()
+
+    fun getLocalClassName(container: IrAttributeContainer): String? = localClassNames[container.attributeOwnerId]
+
+    fun putLocalClassName(container: IrAttributeContainer, name: String) {
+        localClassNames[container.attributeOwnerId] = name
+    }
+
+    fun copyLocalClassName(source: IrAttributeContainer, destination: IrAttributeContainer) {
+        getLocalClassName(source)?.let { name -> putLocalClassName(destination, name) }
+    }
+
     val reflectionTypes: KonanReflectionTypes by lazy(PUBLICATION) {
         KonanReflectionTypes(moduleDescriptor, KonanFqNames.internalPackageName)
     }
@@ -308,6 +331,9 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
 
     override val irBuiltIns
         get() = ir.irModule.irBuiltins
+
+    override val typeSystem: IrTypeSystemContext
+        get() = IrTypeSystemContextImpl(irBuiltIns)
 
     val interopBuiltIns by lazy {
         InteropBuiltIns(this.builtIns)

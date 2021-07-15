@@ -35,7 +35,15 @@ class KaptOptions(
     val flags: KaptFlags,
 
     val mode: AptMode,
-    val detectMemoryLeaks: DetectMemoryLeaksMode
+    val detectMemoryLeaks: DetectMemoryLeaksMode,
+
+    //these two config can be replaced with single function-like interface (ProcessorName -> ClassLoader),
+    // but it is hard to pass function between different classloaders
+    //if defined use it to run processors instead of creating new one
+    val processingClassLoader: ClassLoader?,
+    //construct new classloader for these processors instead of using one defined in processingClassLoader
+    val separateClassloaderForProcessors: Set<String>,
+    val processorsPerfReportFile: File?
 ) : KaptFlags {
     override fun get(flag: KaptFlag) = flags[flag]
 
@@ -65,6 +73,7 @@ class KaptOptions(
 
         var mode: AptMode = AptMode.WITH_COMPILATION
         var detectMemoryLeaks: DetectMemoryLeaksMode = DetectMemoryLeaksMode.DEFAULT
+        var processorsPerfReportFile: File? = null
 
         fun build(): KaptOptions {
             val sourcesOutputDir = this.sourcesOutputDir ?: error("'sourcesOutputDir' must be set")
@@ -76,7 +85,10 @@ class KaptOptions(
                 changedFiles, compiledSources, incrementalCache, classpathChanges,
                 sourcesOutputDir, classesOutputDir, stubsOutputDir, incrementalDataOutputDir,
                 processingClasspath, processors, processingOptions, javacOptions, KaptFlags.fromSet(flags),
-                mode, detectMemoryLeaks
+                mode, detectMemoryLeaks,
+                processingClassLoader = null,
+                separateClassloaderForProcessors = emptySet(),
+                processorsPerfReportFile = processorsPerfReportFile
             )
         }
     }

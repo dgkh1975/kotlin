@@ -76,7 +76,8 @@ object BOUND_RECEIVER_PARAMETER : IrDeclarationOriginImpl("BOUND_RECEIVER_PARAME
 class LocalDeclarationsLowering(
     val context: CommonBackendContext,
     val localNameProvider: LocalNameProvider = LocalNameProvider.DEFAULT,
-    val visibilityPolicy: VisibilityPolicy = VisibilityPolicy.DEFAULT
+    val visibilityPolicy: VisibilityPolicy = VisibilityPolicy.DEFAULT,
+    val suggestUniqueNames: Boolean = true, // When `true` appends a `-#index` suffix to lifted declaration names
 ) :
     BodyLoweringPass {
 
@@ -89,9 +90,6 @@ class LocalDeclarationsLowering(
 
     object DECLARATION_ORIGIN_FIELD_FOR_CROSSINLINE_CAPTURED_VALUE :
         IrDeclarationOriginImpl("FIELD_FOR_CROSSINLINE_CAPTURED_VALUE", isSynthetic = true)
-
-    private object STATEMENT_ORIGIN_INITIALIZER_OF_FIELD_FOR_CAPTURED_VALUE :
-        IrStatementOriginImpl("INITIALIZER_OF_FIELD_FOR_CAPTURED_VALUE")
 
     override fun lower(irBody: IrBody, container: IrDeclaration) {
         LocalDeclarationsTransformer(irBody, container, null).lowerLocalDeclarations()
@@ -490,7 +488,7 @@ class LocalDeclarationsLowering(
                             IrGetValueImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, irClass.thisReceiver!!.symbol),
                             constructorContext.irGet(UNDEFINED_OFFSET, UNDEFINED_OFFSET, capturedValue)!!,
                             context.irBuiltIns.unitType,
-                            STATEMENT_ORIGIN_INITIALIZER_OF_FIELD_FOR_CAPTURED_VALUE
+                            LoweredStatementOrigins.STATEMENT_ORIGIN_INITIALIZER_OF_FIELD_FOR_CAPTURED_VALUE
                         )
                     }
                 )
@@ -565,7 +563,7 @@ class LocalDeclarationsLowering(
             localFunctions[declaration]?.let {
                 val baseName = if (declaration.name.isSpecial) "lambda" else declaration.name
                 if (it.index >= 0)
-                    return "$baseName-${it.index}"
+                    return if (suggestUniqueNames) "$baseName-${it.index}" else "$baseName"
             }
 
             return localNameProvider.localName(declaration)
@@ -785,9 +783,6 @@ class LocalDeclarationsLowering(
             }
         }
 
-        private fun Name.stripSpecialMarkers(): String =
-            if (isSpecial) asString().substring(1, asString().length - 1) else asString()
-
         private fun suggestNameForCapturedValue(declaration: IrValueDeclaration, usedNames: MutableSet<String>, isExplicitLocalFunction: Boolean = false): Name {
             if (declaration is IrValueParameter) {
                 if (declaration.name.asString() == "<this>" && declaration.isDispatchReceiver()) {
@@ -808,7 +803,7 @@ class LocalDeclarationsLowering(
             }
 
             val base = if (declaration.name.isSpecial) {
-                declaration.name.stripSpecialMarkers()
+                declaration.name.asStringStripSpecialMarkers()
             } else {
                 declaration.name.asString()
             }
@@ -859,9 +854,9 @@ class LocalDeclarationsLowering(
                 val correspondingProperty = parentFun.safeAs<IrSimpleFunction>()?.correspondingPropertySymbol?.owner
                 return when {
                     correspondingProperty != null ->
-                        correspondingProperty.name.stripSpecialMarkers()
+                        correspondingProperty.name.asStringStripSpecialMarkers()
                     else ->
-                        parentFun.name.stripSpecialMarkers()
+                        parentFun.name.asStringStripSpecialMarkers()
                 }
             }
 

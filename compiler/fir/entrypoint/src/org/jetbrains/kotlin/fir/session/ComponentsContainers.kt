@@ -9,13 +9,18 @@ import com.intellij.psi.PsiFile
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.analysis.CheckersComponent
+import org.jetbrains.kotlin.fir.analysis.FirOverridesBackwardCompatibilityHelper
 import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirNameConflictsTracker
+import org.jetbrains.kotlin.fir.analysis.jvm.FirJvmOverridesBackwardCompatibilityHelper
 import org.jetbrains.kotlin.fir.caches.FirCachesFactory
 import org.jetbrains.kotlin.fir.caches.FirThreadUnsafeCachesFactory
+import org.jetbrains.kotlin.fir.declarations.SealedClassInheritorsProvider
+import org.jetbrains.kotlin.fir.declarations.SealedClassInheritorsProviderImpl
 import org.jetbrains.kotlin.fir.extensions.FirExtensionService
 import org.jetbrains.kotlin.fir.extensions.FirPredicateBasedProvider
 import org.jetbrains.kotlin.fir.extensions.FirRegisteredPluginAnnotations
 import org.jetbrains.kotlin.fir.java.FirJavaVisibilityChecker
+import org.jetbrains.kotlin.fir.java.enhancement.FirJavaTypeEnhancementStateComponent
 import org.jetbrains.kotlin.fir.java.enhancement.FirJsr305StateContainer
 import org.jetbrains.kotlin.fir.resolve.*
 import org.jetbrains.kotlin.fir.resolve.calls.ConeCallConflictResolverFactory
@@ -24,10 +29,13 @@ import org.jetbrains.kotlin.fir.resolve.calls.jvm.JvmCallConflictResolverFactory
 import org.jetbrains.kotlin.fir.resolve.inference.InferenceComponents
 import org.jetbrains.kotlin.fir.resolve.providers.impl.FirQualifierResolverImpl
 import org.jetbrains.kotlin.fir.resolve.providers.impl.FirTypeResolverImpl
+import org.jetbrains.kotlin.fir.resolve.transformers.FirPhaseCheckingPhaseManager
+import org.jetbrains.kotlin.fir.symbols.FirPhaseManager
 import org.jetbrains.kotlin.fir.resolve.transformers.plugin.GeneratedClassIndex
 import org.jetbrains.kotlin.fir.scopes.impl.FirDeclaredMemberScopeProvider
 import org.jetbrains.kotlin.fir.types.FirCorrespondingSupertypesCache
 import org.jetbrains.kotlin.incremental.components.LookupTracker
+import org.jetbrains.kotlin.load.java.JavaTypeEnhancementState
 
 // -------------------------- Required components --------------------------
 
@@ -36,7 +44,7 @@ fun FirSession.registerCommonComponents(languageVersionSettings: LanguageVersion
     register(FirLanguageSettingsComponent::class, FirLanguageSettingsComponent(languageVersionSettings))
     register(InferenceComponents::class, InferenceComponents(this))
 
-    register(FirDeclaredMemberScopeProvider::class, FirDeclaredMemberScopeProvider())
+    register(FirDeclaredMemberScopeProvider::class, FirDeclaredMemberScopeProvider(this))
     register(FirCorrespondingSupertypesCache::class, FirCorrespondingSupertypesCache(this))
     register(FirDefaultParametersResolver::class, FirDefaultParametersResolver())
 
@@ -47,10 +55,16 @@ fun FirSession.registerCommonComponents(languageVersionSettings: LanguageVersion
 }
 
 @OptIn(SessionConfiguration::class)
-fun FirSession.registerThreadUnsafeCaches() {
+fun FirSession.registerCliCompilerOnlyComponents() {
     register(FirCachesFactory::class, FirThreadUnsafeCachesFactory)
+    register(SealedClassInheritorsProvider::class, SealedClassInheritorsProviderImpl)
+    register(FirPhaseManager::class, FirPhaseCheckingPhaseManager)
 }
 
+@OptIn(SessionConfiguration::class)
+fun FirSession.registerCommonJavaComponents() {
+    register(FirJavaTypeEnhancementStateComponent::class, FirJavaTypeEnhancementStateComponent(JavaTypeEnhancementState.DEFAULT))
+}
 
 // -------------------------- Resolve components --------------------------
 
@@ -63,9 +77,10 @@ fun FirSession.registerResolveComponents(lookupTracker: LookupTracker? = null) {
     register(FirTypeResolver::class, FirTypeResolverImpl(this))
     register(CheckersComponent::class, CheckersComponent())
     register(FirNameConflictsTrackerComponent::class, FirNameConflictsTracker())
+    register(FirModuleVisibilityChecker::class, FirModuleVisibilityChecker.Standard(this))
     if (lookupTracker != null) {
         val firFileToPath: (FirSourceElement) -> String = {
-            val psiSource = (it as? FirPsiSourceElement<*>) ?: TODO("Not implemented for non-FirPsiSourceElement")
+            val psiSource = (it as? FirPsiSourceElement) ?: TODO("Not implemented for non-FirPsiSourceElement")
             ((psiSource.psi as? PsiFile) ?: psiSource.psi.containingFile).virtualFile.path
         }
         register(
@@ -81,10 +96,14 @@ fun FirSession.registerResolveComponents(lookupTracker: LookupTracker? = null) {
 @OptIn(SessionConfiguration::class)
 fun FirSession.registerJavaSpecificResolveComponents() {
     register(FirVisibilityChecker::class, FirJavaVisibilityChecker)
-    register(FirModuleVisibilityChecker::class, FirJvmModuleVisibilityChecker(this))
     register(ConeCallConflictResolverFactory::class, JvmCallConflictResolverFactory)
-    register(FirEffectiveVisibilityResolver::class, FirJvmEffectiveVisibilityResolver(this))
     register(FirPlatformClassMapper::class, FirJavaClassMapper(this))
     register(FirSyntheticNamesProvider::class, FirJavaSyntheticNamesProvider)
     register(FirJsr305StateContainer::class, FirJsr305StateContainer.Default)
+    register(FirOverridesBackwardCompatibilityHelper::class, FirJvmOverridesBackwardCompatibilityHelper)
+}
+
+@OptIn(SessionConfiguration::class)
+fun FirSession.registerModuleData(moduleData: FirModuleData) {
+    register(FirModuleData::class, moduleData)
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2021 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -9,14 +9,15 @@ import org.jetbrains.kotlin.backend.common.phaser.AnyNamedPhase
 import org.jetbrains.kotlin.backend.common.phaser.PhaseConfig
 import org.jetbrains.kotlin.backend.common.phaser.toPhaseMap
 import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
-import org.jetbrains.kotlin.cli.common.messages.MessageCollector
-import org.jetbrains.kotlin.cli.js.messageCollectorLogger
 import org.jetbrains.kotlin.ir.backend.js.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrFactoryImpl
+import org.jetbrains.kotlin.ir.declarations.persistent.PersistentIrFactory
 import org.jetbrains.kotlin.js.config.JSConfigurationKeys
 import org.jetbrains.kotlin.js.config.JsConfig
+import org.jetbrains.kotlin.js.config.RuntimeDiagnostic
 import org.jetbrains.kotlin.js.facade.MainCallParameters
 import org.jetbrains.kotlin.js.facade.TranslationUnit
+import org.jetbrains.kotlin.library.KotlinAbiVersion
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.parsing.parseBoolean
 import org.jetbrains.kotlin.test.TargetBackend
@@ -48,11 +49,13 @@ abstract class BasicIrBoxTest(
 
     private fun getBoolean(s: String, default: Boolean) = System.getProperty(s)?.let { parseBoolean(it) } ?: default
 
+    private val lowerPerModule: Boolean = getBoolean("kotlin.js.ir.lowerPerModule")
+
     override val skipRegularMode: Boolean = getBoolean("kotlin.js.ir.skipRegularMode")
 
-    override val runIrDce: Boolean = getBoolean("kotlin.js.ir.dce", true)
+    override val runIrDce: Boolean = !lowerPerModule && getBoolean("kotlin.js.ir.dce", true)
 
-    override val runIrPir: Boolean = getBoolean("kotlin.js.ir.pir", true)
+    override val runIrPir: Boolean = !lowerPerModule && getBoolean("kotlin.js.ir.pir", true)
 
     val runEs6Mode: Boolean = getBoolean("kotlin.js.ir.es6", false)
 
@@ -92,6 +95,10 @@ abstract class BasicIrBoxTest(
         skipDceDriven: Boolean,
         splitPerModule: Boolean,
         propertyLazyInitialization: Boolean,
+        safeExternalBoolean: Boolean,
+        safeExternalBooleanDiagnostic: RuntimeDiagnostic?,
+        skipMangleVerification: Boolean,
+        abiVersion: KotlinAbiVersion
     ) {
         val filesToCompile = units.map { (it as TranslationUnit.SourceFile).file }
 
@@ -102,8 +109,6 @@ abstract class BasicIrBoxTest(
         val allKlibPaths = (runtimeKlibs + transitiveLibraries.map {
             compilationCache[it] ?: error("Can't find compiled module for dependency $it")
         }).map { File(it).absolutePath }
-
-        val resolvedLibraries = jsResolveLibraries(allKlibPaths, emptyList(), messageCollectorLogger(MessageCollector.NONE))
 
         val actualOutputFile = outputFile.absolutePath.let {
             if (!isMainModule) it.replace("_v5.js", "/") else it
@@ -130,13 +135,15 @@ abstract class BasicIrBoxTest(
             }
 
             if (!skipRegularMode) {
+                val irFactory = if (lowerPerModule) PersistentIrFactory() else IrFactoryImpl
                 val compiledModule = compile(
                     project = config.project,
                     mainModule = MainModule.SourceFiles(filesToCompile),
                     analyzer = AnalyzerWithCompilerReport(config.configuration),
                     configuration = config.configuration,
                     phaseConfig = phaseConfig,
-                    allDependencies = resolvedLibraries,
+                    irFactory = irFactory,
+                    dependencies = allKlibPaths,
                     friendDependencies = emptyList(),
                     mainArguments = mainCallParameters.run { if (shouldBeGenerated()) arguments() else null },
                     exportedDeclarations = setOf(FqName.fromSegments(listOfNotNull(testPackage, testFunction))),
@@ -145,11 +152,15 @@ abstract class BasicIrBoxTest(
                     es6mode = runEs6Mode,
                     multiModule = splitPerModule || perModule,
                     propertyLazyInitialization = propertyLazyInitialization,
+                    lowerPerModule = lowerPerModule,
+                    safeExternalBoolean = safeExternalBoolean,
+                    safeExternalBooleanDiagnostic = safeExternalBooleanDiagnostic,
+                    verifySignatures = !skipMangleVerification
                 )
 
-                compiledModule.jsCode!!.writeTo(outputFile, config)
+                compiledModule.outputs!!.writeTo(outputFile, config)
 
-                compiledModule.dceJsCode?.writeTo(dceOutputFile, config)
+                compiledModule.outputsAfterDce?.writeTo(dceOutputFile, config)
 
                 if (generateDts) {
                     val dtsFile = outputFile.withReplacedExtensionOrNull("_v5.js", ".d.ts")!!
@@ -165,15 +176,19 @@ abstract class BasicIrBoxTest(
                     analyzer = AnalyzerWithCompilerReport(config.configuration),
                     configuration = config.configuration,
                     phaseConfig = phaseConfig,
-                    allDependencies = resolvedLibraries,
+                    irFactory = PersistentIrFactory(),
+                    dependencies = allKlibPaths,
                     friendDependencies = emptyList(),
                     mainArguments = mainCallParameters.run { if (shouldBeGenerated()) arguments() else null },
                     exportedDeclarations = setOf(FqName.fromSegments(listOfNotNull(testPackage, testFunction))),
                     dceDriven = true,
                     es6mode = runEs6Mode,
                     multiModule = splitPerModule || perModule,
-                    propertyLazyInitialization = propertyLazyInitialization
-                ).jsCode!!.writeTo(pirOutputFile, config)
+                    propertyLazyInitialization = propertyLazyInitialization,
+                    safeExternalBoolean = safeExternalBoolean,
+                    safeExternalBooleanDiagnostic = safeExternalBooleanDiagnostic,
+                    verifySignatures = !skipMangleVerification
+                ).outputs!!.writeTo(pirOutputFile, config)
             }
         } else {
             generateKLib(
@@ -181,11 +196,14 @@ abstract class BasicIrBoxTest(
                 files = filesToCompile,
                 analyzer = AnalyzerWithCompilerReport(config.configuration),
                 configuration = config.configuration,
-                allDependencies = resolvedLibraries,
+                dependencies = allKlibPaths,
                 friendDependencies = emptyList(),
                 irFactory = IrFactoryImpl,
                 outputKlibPath = actualOutputFile,
-                nopack = true
+                nopack = true,
+                verifySignatures = !skipMangleVerification,
+                abiVersion = abiVersion,
+                null
             )
 
             logger.logFile("Output klib", File(actualOutputFile))
@@ -201,15 +219,15 @@ abstract class BasicIrBoxTest(
         return all.filter { it.name in phases }.toSet()
     }
 
-    private fun JsCode.writeTo(outputFile: File, config: JsConfig) {
+    private fun CompilationOutputs.writeTo(outputFile: File, config: JsConfig) {
         val wrappedCode =
-            wrapWithModuleEmulationMarkers(mainModule, moduleId = config.moduleId, moduleKind = config.moduleKind)
+            wrapWithModuleEmulationMarkers(jsCode, moduleId = config.moduleId, moduleKind = config.moduleKind)
         outputFile.write(wrappedCode)
 
         val dependencyPaths = mutableListOf<String>()
 
-        dependencies.forEach { (moduleId, code) ->
-            val wrappedCode = wrapWithModuleEmulationMarkers(code, config.moduleKind, moduleId)
+        dependencies.forEach { (moduleId, outputs) ->
+            val wrappedCode = wrapWithModuleEmulationMarkers(outputs.jsCode, config.moduleKind, moduleId)
             val dependencyPath = outputFile.absolutePath.replace("_v5.js", "-${moduleId}_v5.js")
             dependencyPaths += dependencyPath
             File(dependencyPath).write(wrappedCode)

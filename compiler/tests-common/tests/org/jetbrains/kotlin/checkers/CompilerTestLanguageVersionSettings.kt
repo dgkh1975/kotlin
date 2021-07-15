@@ -60,7 +60,6 @@ fun parseLanguageVersionSettings(directives: Directives): CompilerTestLanguageVe
     val languageFeaturesString = directives[LANGUAGE_DIRECTIVE]
 
     val analysisFlags = listOfNotNull(
-        analysisFlag(AnalysisFlags.experimental, directives[EXPERIMENTAL_DIRECTIVE]?.split(' ')),
         analysisFlag(AnalysisFlags.useExperimental, directives[USE_EXPERIMENTAL_DIRECTIVE]?.split(' ')),
         analysisFlag(JvmAnalysisFlags.jvmDefaultMode, directives[JVM_DEFAULT_MODE]?.let { JvmDefaultMode.fromStringOrNull(it) }),
         analysisFlag(AnalysisFlags.ignoreDataFlowInAssert, if (IGNORE_DATA_FLOW_IN_ASSERT_DIRECTIVE in directives) true else null),
@@ -113,7 +112,7 @@ fun setupLanguageVersionSettingsForCompilerTests(originalFileText: String, envir
     environment.configuration.languageVersionSettings = languageVersionSettings
 }
 
-@Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+@Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE", "HIDDEN")
 private fun <T : Any> analysisFlag(flag: AnalysisFlag<T>, value: @kotlin.internal.NoInfer T?): Pair<AnalysisFlag<T>, T>? =
     value?.let(flag::to)
 

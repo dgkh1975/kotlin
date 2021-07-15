@@ -21,6 +21,7 @@ import org.jetbrains.kotlin.gradle.tasks.AbstractKotlinCompile
 import org.jetbrains.kotlin.gradle.tasks.Kotlin2JsCompile
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlin.gradle.utils.SingleWarningPerBuild
+import org.jetbrains.kotlin.gradle.utils.getSystemProperty
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.target.presetName
 import org.jetbrains.kotlin.statistics.metrics.StringMetrics
@@ -28,7 +29,6 @@ import java.io.File
 import java.util.*
 
 internal fun PropertiesProvider.mapKotlinTaskProperties(task: AbstractKotlinCompile<*>) {
-    coroutines?.let { task.coroutinesFromGradleProperties = it }
     useFallbackCompilerSearch?.let { task.useFallbackCompilerSearch = it }
 
     if (task is KotlinCompile) {
@@ -36,11 +36,13 @@ internal fun PropertiesProvider.mapKotlinTaskProperties(task: AbstractKotlinComp
         usePreciseJavaTracking?.let {
             task.usePreciseJavaTracking = it
         }
+        task.useClasspathSnapshot.value(useClasspathSnapshot).disallowChanges()
         useFir?.let {
             if (it == true) {
                 task.kotlinOptions.useFir = true
             }
         }
+        task.jvmTargetValidationMode.set(jvmTargetValidationMode)
     }
 
     if (task is Kotlin2JsCompile) {
@@ -88,11 +90,24 @@ internal class PropertiesProvider private constructor(private val project: Proje
     val incrementalJsKlib: Boolean?
         get() = booleanProperty("kotlin.incremental.js.klib")
 
+    val incrementalJsIr: Boolean
+        get() = booleanProperty("kotlin.incremental.js.ir") ?: false
+
     val incrementalMultiplatform: Boolean?
         get() = booleanProperty("kotlin.incremental.multiplatform")
 
     val usePreciseJavaTracking: Boolean?
         get() = booleanProperty("kotlin.incremental.usePreciseJavaTracking")
+
+    val useClasspathSnapshot: Boolean
+        get() {
+            // The feature should be controlled by a Gradle property.
+            // Currently, we also allow it to be controlled by a system property to make it easier to test the feature during development.
+            // TODO: Remove the system property later.
+            val gradleProperty = booleanProperty("kotlin.incremental.useClasspathSnapshot") ?: false
+            val systemProperty = project.getSystemProperty("kotlin.incremental.useClasspathSnapshot")?.toBoolean() ?: false
+            return gradleProperty || systemProperty
+        }
 
     val useFir: Boolean?
         get() = booleanProperty("kotlin.useFir")
@@ -120,6 +135,9 @@ internal class PropertiesProvider private constructor(private val project: Proje
     val setJvmTargetFromAndroidCompileOptions: Boolean?
         get() = booleanProperty("kotlin.setJvmTargetFromAndroidCompileOptions")
 
+    val keepAndroidBuildTypeAttribute: Boolean
+        get() = booleanProperty("kotlin.android.buildTypeAttribute.keep") ?: false
+
     val enableGranularSourceSetsMetadata: Boolean?
         get() = booleanProperty("kotlin.mpp.enableGranularSourceSetsMetadata")
 
@@ -127,7 +145,7 @@ internal class PropertiesProvider private constructor(private val project: Proje
         get() = booleanProperty("kotlin.mpp.enableCompatibilityMetadataVariant") ?: true
 
     val enableKotlinToolingMetadataArtifact: Boolean
-        get() = booleanProperty("kotlin.mpp.enableKotlinToolingMetadataArtifact") ?: false
+        get() = booleanProperty("kotlin.mpp.enableKotlinToolingMetadataArtifact") ?: true
 
     val mppStabilityNoWarn: Boolean?
         get() = booleanProperty(KotlinMultiplatformPlugin.STABILITY_NOWARN_FLAG)
@@ -138,13 +156,28 @@ internal class PropertiesProvider private constructor(private val project: Proje
     val ignoreIncorrectNativeDependencies: Boolean?
         get() = booleanProperty(KOTLIN_NATIVE_IGNORE_INCORRECT_DEPENDENCIES)
 
+    private val parallelTasksInProjectPropName = "kotlin.parallel.tasks.in.project"
+
     /**
      * Enables parallel tasks execution within a project with Workers API.
      * Does not enable using actual worker proccesses
      * (Kotlin Daemon can be shared which uses less memory)
      */
     val parallelTasksInProject: Boolean?
-        get() = booleanProperty("kotlin.parallel.tasks.in.project")
+        get() {
+            return if (property(parallelTasksInProjectPropName) != null) {
+                SingleWarningPerBuild.show(
+                    project,
+                    """
+                    Project property '$parallelTasksInProjectPropName' is deprecated.
+                    By default it depends on Gradle parallel project execution option value.
+                    """.trimIndent()
+                )
+                booleanProperty(parallelTasksInProjectPropName)
+            } else {
+                return project.gradle.startParameter.isParallelProjectExecutionEnabled
+            }
+        }
 
     /**
      * Enables individual test task reporting for aggregated test tasks.
@@ -224,6 +257,16 @@ internal class PropertiesProvider private constructor(private val project: Proje
     val enableCInteropCommonization: Boolean
         get() = booleanProperty("kotlin.mpp.enableCInteropCommonization") ?: false
 
+
+    val commonizerLogLevel: String?
+        get() = property("kotlin.mpp.commonizerLogLevel")
+
+    val enableNativeDistributionCommonizationCache: Boolean
+        get() = booleanProperty("kotlin.mpp.enableNativeDistributionCommonizationCache") ?: true
+
+    val enableIntransitiveMetadataConfiguration: Boolean
+        get() = booleanProperty("kotlin.mpp.enableIntransitiveMetadataConfiguration") ?: false
+
     /**
      * Dependencies caching strategy for all targets that support caches.
      */
@@ -298,6 +341,13 @@ internal class PropertiesProvider private constructor(private val project: Proje
     val kotlinTestInferJvmVariant: Boolean
         get() = booleanProperty("kotlin.test.infer.jvm.variant") ?: true
 
+    enum class JvmTargetValidationMode {
+        IGNORE, WARNING, ERROR
+    }
+
+    val jvmTargetValidationMode: JvmTargetValidationMode
+        get() = enumProperty("kotlin.jvm.target.validation.mode", JvmTargetValidationMode.WARNING)
+
     private fun propertyWithDeprecatedVariant(propName: String, deprecatedPropName: String): String? {
         val deprecatedProperty = property(deprecatedPropName)
         if (deprecatedProperty != null) {
@@ -308,6 +358,11 @@ internal class PropertiesProvider private constructor(private val project: Proje
 
     private fun booleanProperty(propName: String): Boolean? =
         property(propName)?.toBoolean()
+
+    private inline fun <reified T : Enum<T>> enumProperty(
+        propName: String,
+        defaultValue: T
+    ): T = property(propName)?.let { enumValueOf<T>(it.toUpperCase()) } ?: defaultValue
 
     private fun property(propName: String): String? =
         if (project.hasProperty(propName)) {

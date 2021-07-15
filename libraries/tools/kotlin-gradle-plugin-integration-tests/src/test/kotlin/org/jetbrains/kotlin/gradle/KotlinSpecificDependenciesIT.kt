@@ -163,6 +163,21 @@ class KotlinSpecificDependenciesIT : BaseGradleIT() {
                     "jvmAndJsTestCompileOnlyDependenciesMetadata" to listOf("kotlin-test-common"),
                     "jvmAndJsTestImplementationDependenciesMetadata" to listOf("!kotlin-test-common"),
                 )
+            ),
+            TestCase(
+                /**
+                 * Check that in a single-platform project the common metadata configurations resolve the
+                 * framework-specific dependency (inferred as JUnit) correctly to the common artifact
+                 * KTIJ-6098
+                 */
+                Project("mpp-single-jvm-target"),
+                listOf("commonTestImplementation"),
+                mapOf(
+                    "compileTestKotlinJvm" to listOf("kotlin-test-junit"),
+                ),
+                mapOf(
+                    "commonTestImplementationDependenciesMetadata" to listOf("kotlin-test-common", "kotlin-test-annotations-common")
+                )
             )
         ).forEach { testCase ->
             with(testCase) {
@@ -256,22 +271,24 @@ class KotlinSpecificDependenciesIT : BaseGradleIT() {
 
     @Test
     fun testNoFailureIfConfigurationIsObserved() = with(jvmProject()) {
-        lateinit var originalScript: String
-        try {
-            gradleBuildScript().modify {
-                originalScript = it
-                """
-                    configurations.create("api")
-                    dependencies {
-                        api("org.jetbrains.kotlin:kotlin-reflect")
-                    }
-                    println(configurations.api.incoming.dependencies.toList())
-                """.trimIndent() + "\n" + it
+        gradleBuildScript().modify {
+            //language=Groovy
+            """
+            $it
+            
+            configurations {
+                 apiTest
+                 api.extendsFrom(apiTest)
             }
-            checkTaskCompileClasspath("compileKotlin", listOf("kotlin-reflect"))
-        } finally {
-            gradleBuildScript().writeText(originalScript)
+            
+            dependencies {
+                apiTest("org.jetbrains.kotlin:kotlin-reflect")
+            }
+            println(configurations.apiTest.incoming.resolutionResult.allDependencies)
+            println(configurations.apiTest.incoming.dependencies.toList())
+            """.trimIndent()
         }
+        checkTaskCompileClasspath("compileKotlin", listOf("kotlin-reflect"))
     }
 
     private fun Project.checkConfigurationContent(

@@ -13,6 +13,7 @@ import org.jdom.output.XMLOutputter
 import org.jetbrains.kotlin.gradle.model.ModelContainer
 import org.jetbrains.kotlin.gradle.model.ModelFetcherBuildAction
 import org.jetbrains.kotlin.gradle.plugin.KotlinJsCompilerType
+import org.jetbrains.kotlin.gradle.testbase.enableCacheRedirector
 import org.jetbrains.kotlin.gradle.util.*
 import org.jetbrains.kotlin.test.RunnerWithMuteInDatabase
 import org.jetbrains.kotlin.test.util.trimTrailingWhitespaces
@@ -240,14 +241,18 @@ abstract class BaseGradleIT {
         val kotlinVersion: String = KOTLIN_VERSION,
         val kotlinDaemonDebugPort: Int? = null,
         val usePreciseJavaTracking: Boolean? = null,
+        val useClasspathSnapshot: Boolean? = null,
         val withBuildCache: Boolean = false,
         val kaptOptions: KaptOptions? = null,
-        val parallelTasksInProject: Boolean? = null,
+        val parallelTasksInProject: Boolean = false,
         val jsCompilerType: KotlinJsCompilerType? = null,
         val configurationCache: Boolean = false,
         val configurationCacheProblems: ConfigurationCacheProblems = ConfigurationCacheProblems.FAIL,
         val warningMode: WarningMode = WarningMode.Fail,
-        val useFir: Boolean = false
+        val useFir: Boolean = false,
+        val customEnvironmentVariables: Map<String, String> = mapOf(),
+        val dryRun: Boolean = false,
+        val abiSnapshot: Boolean = false,
     )
 
     enum class ConfigurationCacheProblems {
@@ -258,7 +263,8 @@ abstract class BaseGradleIT {
         val verbose: Boolean,
         val useWorkers: Boolean,
         val incrementalKapt: Boolean = false,
-        val includeCompileClasspath: Boolean = true
+        val includeCompileClasspath: Boolean = true,
+        val classLoadersCacheSize: Int? = null
     )
 
     open inner class Project(
@@ -274,12 +280,14 @@ abstract class BaseGradleIT {
         open val resourcesRoot = File(resourcesRootFile, "testProject/$resourceDirName")
         val projectDir = File(workingDir.canonicalFile, projectName)
 
-        open fun setupWorkingDir() {
+        open fun setupWorkingDir(enableCacheRedirector: Boolean = true) {
             if (!projectDir.isDirectory || projectDir.listFiles().isEmpty()) {
                 copyRecursively(this.resourcesRoot, workingDir)
                 if (addHeapDumpOptions) {
                     addHeapDumpOptionsToPropertiesFile()
                 }
+
+                if (enableCacheRedirector) projectDir.toPath().enableCacheRedirector()
             }
         }
 
@@ -512,8 +520,9 @@ abstract class BaseGradleIT {
         assertNull(regex.find(output), "Output should not contain '$regex'")
     }
 
-    fun CompiledProject.assertNoWarnings() {
-        val warnings = "w: .*".toRegex().findAll(output).map { it.groupValues[0] }
+    fun CompiledProject.assertNoWarnings(sanitize: (String) -> String = { it }) {
+        val clearedOutput = sanitize(output)
+        val warnings = "w: .*".toRegex().findAll(clearedOutput).map { it.groupValues[0] }
 
         if (warnings.any()) {
             val message = (listOf("Output should not contain any warnings:") + warnings).joinToString(SYSTEM_LINE_SEPARATOR)
@@ -661,6 +670,12 @@ abstract class BaseGradleIT {
         }
     }
 
+    fun CompiledProject.assertTasksNotRegistered(vararg tasks: String) {
+        for (task in tasks) {
+            assertNotContains("'Register task $task'")
+        }
+    }
+
     fun CompiledProject.assertTasksRegisteredByPrefix(taskPrefixes: Iterable<String>) {
         for (prefix in taskPrefixes) {
             assertContainsRegex("'Register task $prefix\\w*'".toRegex())
@@ -769,6 +784,15 @@ Finished executing task ':$taskName'|
 
     fun CompiledProject.javaClassesDir(subproject: String? = null, sourceSet: String = "main"): String =
         project.classesDir(subproject, sourceSet, language = "java")
+
+    fun CompiledProject.compilerArgs(taskName: String): String {
+        val pattern = "$taskName Kotlin compiler args: "
+        return output
+            .lineSequence()
+            .firstOrNull { it.contains(pattern) }
+            ?.substringAfter(pattern)
+            ?: throw AssertionError("Cant find compiler args for task: $taskName")
+    }
 
     private fun Project.createBuildCommand(wrapperDir: File, params: Array<out String>, options: BuildOptions): List<String> =
         createGradleCommand(wrapperDir, createGradleTailParameters(options, params))
@@ -890,6 +914,7 @@ Finished executing task ':$taskName'|
             options.incrementalJsKlib?.let { add("-Pkotlin.incremental.js.klib=$it") }
             options.jsIrBackend?.let { add("-Pkotlin.js.useIrBackend=$it") }
             options.usePreciseJavaTracking?.let { add("-Pkotlin.incremental.usePreciseJavaTracking=$it") }
+            options.useClasspathSnapshot?.let { add("-Pkotlin.incremental.useClasspathSnapshot=$it") }
             options.androidGradlePluginVersion?.let { add("-Pandroid_tools_version=$it") }
             if (options.debug) {
                 add("-Dorg.gradle.debug=true")
@@ -913,11 +938,12 @@ Finished executing task ':$taskName'|
                 add("-Pkapt.use.worker.api=${kaptOptions.useWorkers}")
                 add("-Pkapt.incremental.apt=${kaptOptions.incrementalKapt}")
                 add("-Pkapt.include.compile.classpath=${kaptOptions.includeCompileClasspath}")
+                kaptOptions.classLoadersCacheSize?.also { cacheSize ->
+                    add("-Pkapt.classloaders.cache.size=$cacheSize")
+                }
             }
 
-            options.parallelTasksInProject?.let {
-                add("-Pkotlin.parallel.tasks.in.project=$it")
-            }
+            if (options.parallelTasksInProject) add("--parallel") else add("--no-parallel")
 
             options.jsCompilerType?.let {
                 add("-Pkotlin.js.compiler=$it")
@@ -925,6 +951,13 @@ Finished executing task ':$taskName'|
 
             if (options.useFir) {
                 add("-Pkotlin.useFir=true")
+            }
+
+            if (options.dryRun) {
+                add("--dry-run")
+            }
+            if (options.abiSnapshot) {
+                add("-Dkotlin.incremental.classpath.snapshot.enabled=true")
             }
 
             add("-Dorg.gradle.unsafe.configuration-cache=${options.configurationCache}")
@@ -959,6 +992,7 @@ Finished executing task ':$taskName'|
             options.gradleUserHome?.let {
                 put("GRADLE_USER_HOME", it.canonicalPath)
             }
+            putAll(options.customEnvironmentVariables)
         }
 
     private fun String.normalize() = this.lineSequence().joinToString(SYSTEM_LINE_SEPARATOR)

@@ -19,9 +19,12 @@ import org.jetbrains.kotlin.ir.declarations.persistent.carriers.ConstructorCarri
 import org.jetbrains.kotlin.ir.expressions.IrBody
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.symbols.IrConstructorSymbol
+import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
+import org.jetbrains.kotlin.ir.symbols.IrValueParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.impl.IrUninitializedType
 import org.jetbrains.kotlin.ir.types.impl.ReturnTypeIsNotInitializedException
+import org.jetbrains.kotlin.ir.util.IdSignature
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedContainerSource
 
@@ -48,6 +51,8 @@ internal class PersistentIrConstructor(
     init {
         symbol.bind(this)
     }
+
+    override var signature: IdSignature? = factory.currentSignature(this)
 
     override var lastModified: Int = factory.stageController.currentStage
     override var loweredUpTo: Int = factory.stageController.currentStage
@@ -80,6 +85,12 @@ internal class PersistentIrConstructor(
 
     override var typeParametersField: List<IrTypeParameter> = emptyList()
 
+    override var typeParametersSymbolField: List<IrTypeParameterSymbol>
+        get() = typeParametersField.map { it.symbol }
+        set(v) {
+            typeParametersField = v.map { it.owner }
+        }
+
     override var typeParameters: List<IrTypeParameter>
         get() = getCarrier().typeParametersField
         set(v) {
@@ -90,6 +101,12 @@ internal class PersistentIrConstructor(
         }
 
     override var dispatchReceiverParameterField: IrValueParameter? = null
+
+    override var dispatchReceiverParameterSymbolField: IrValueParameterSymbol?
+        get() = dispatchReceiverParameterField?.symbol
+        set(v) {
+            dispatchReceiverParameterField = v?.owner
+        }
 
     override var dispatchReceiverParameter: IrValueParameter?
         get() = getCarrier().dispatchReceiverParameterField
@@ -102,6 +119,12 @@ internal class PersistentIrConstructor(
 
     override var extensionReceiverParameterField: IrValueParameter? = null
 
+    override var extensionReceiverParameterSymbolField: IrValueParameterSymbol?
+        get() = extensionReceiverParameterField?.symbol
+        set(v) {
+            extensionReceiverParameterField = v?.owner
+        }
+
     override var extensionReceiverParameter: IrValueParameter?
         get() = getCarrier().extensionReceiverParameterField
         set(v) {
@@ -112,6 +135,12 @@ internal class PersistentIrConstructor(
         }
 
     override var valueParametersField: List<IrValueParameter> = emptyList()
+
+    override var valueParametersSymbolField: List<IrValueParameterSymbol>
+        get() = valueParametersField.map { it.symbol }
+        set(v) {
+            valueParametersField = v.map { it.owner }
+        }
 
     override var valueParameters: List<IrValueParameter>
         get() = getCarrier().valueParametersField
@@ -136,16 +165,7 @@ internal class PersistentIrConstructor(
             }
         }
 
-    override var metadataField: MetadataSource? = null
-
-    override var metadata: MetadataSource?
-        get() = getCarrier().metadataField
-        set(v) {
-            if (metadata !== v) {
-                setCarrier()
-                metadataField = v
-            }
-        }
+    override var metadata: MetadataSource? = null
 
     override var visibilityField: DescriptorVisibility = visibility
 

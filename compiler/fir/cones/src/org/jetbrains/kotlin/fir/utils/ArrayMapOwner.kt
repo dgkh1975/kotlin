@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.fir.utils
 
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.properties.ReadOnlyProperty
@@ -15,11 +14,8 @@ import kotlin.reflect.KProperty
 @RequiresOptIn
 annotation class Protected
 
-@OptIn(Protected::class)
-abstract class AbstractArrayMapOwner<K : Any, V : Any> {
-    // TODO: make [arrayMap] protected and remove annotation after KT-19306 fix
-    @get:Protected
-    abstract val arrayMap: ArrayMap<V>
+abstract class AbstractArrayMapOwner<K : Any, V : Any> : Iterable<V> {
+    protected abstract val arrayMap: ArrayMap<V>
     protected abstract val typeRegistry: TypeRegistry<K, V>
 
     abstract class AbstractArrayMapAccessor<K : Any, V : Any, T : V>(
@@ -33,6 +29,14 @@ abstract class AbstractArrayMapOwner<K : Any, V : Any> {
     }
 
     protected abstract fun registerComponent(tClass: KClass<out K>, value: V)
+
+    final override fun iterator(): Iterator<V> = arrayMap.iterator()
+
+    fun isEmpty(): Boolean = arrayMap.size == 0
+
+    fun isNotEmpty(): Boolean = arrayMap.size != 0
+
+    operator fun get(index: Int): V? = arrayMap[index]
 }
 
 class ArrayMapAccessor<K : Any, V : Any, T : V>(
@@ -63,6 +67,10 @@ abstract class TypeRegistry<K : Any, V : Any> {
     }
 
     fun <T : V, KK : K> generateNullableAccessor(kClass: KClass<KK>): NullableArrayMapAccessor<K, V, T> {
+        return NullableArrayMapAccessor(kClass, getId(kClass))
+    }
+
+    fun <KK : K> generateAnyNullableAccessor(kClass: KClass<KK>): NullableArrayMapAccessor<K, V, *> {
         return NullableArrayMapAccessor(kClass, getId(kClass))
     }
 

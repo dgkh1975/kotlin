@@ -33,19 +33,13 @@ internal val Project.nativeBenchResults: String
 
 // Gradle property to add flags to benchmarks run from command line.
 internal val Project.compilerArgs: List<String>
-    get() = (findProperty("compilerArgs") as String?)?.split("\\s").orEmpty()
+    get() = (findProperty("compilerArgs") as String?)?.split("\\s".toRegex()).orEmpty()
 
 internal val Project.kotlinVersion: String
     get() = property("kotlinVersion") as String
 
 internal val Project.konanVersion: String
     get() = property("konanVersion") as String
-
-internal val Project.kotlinStdlibVersion: String
-    get() = property("kotlinStdlibVersion") as String
-
-internal val Project.kotlinStdlibRepo: String
-    get() = property("kotlinStdlibRepo") as String
 
 internal val Project.nativeJson: String
     get() = project.property("nativeJson") as String

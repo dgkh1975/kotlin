@@ -52,7 +52,7 @@ internal fun ObjCExportCodeGeneratorBase.generateBlockToKotlinFunctionConverter(
         )
 
         val invoke = loadBlockInvoke(blockPtr, bridge)
-        val result = callFromBridge(invoke, listOf(blockPtr) + args)
+        val result = callFromBridge(invoke, listOf(blockPtr) + args, toNative = true)
 
         val kotlinResult = if (bridge.returnsVoid) {
             theUnitInstanceRef.llvm
@@ -154,7 +154,8 @@ internal class BlockGenerator(private val codegen: CodeGenerator) {
     val disposeHelper = generateFunction(
             codegen,
             functionType(voidType, false, int8TypePtr),
-            "blockDisposeHelper"
+            "blockDisposeHelper",
+            switchToRunnable = true
     ) {
         val blockPtr = bitcast(pointerType(blockLiteralType), param(0))
         val refHolder = structGep(blockPtr, 1)
@@ -194,7 +195,11 @@ internal class BlockGenerator(private val codegen: CodeGenerator) {
     }
 
     fun org.jetbrains.kotlin.backend.konan.Context.LongInt(value: Long) =
-            if (is64BitLong()) Int64(value) else Int32(value.toInt())
+            when (val longWidth = llvm.longTypeWidth) {
+                32L -> Int32(value.toInt())
+                64L -> Int64(value)
+                else -> error("Unexpected width of long type: $longWidth")
+            }
 
     private fun generateDescriptorForBlock(blockType: BlockType): ConstValue {
         val numberOfParameters = blockType.numberOfParameters
@@ -230,7 +235,7 @@ internal class BlockGenerator(private val codegen: CodeGenerator) {
             invokeName: String,
             genBody: FunctionGenerationContext.(LLVMValueRef, List<LLVMValueRef>) -> Unit
     ): ConstPointer {
-        val result = generateFunction(codegen, blockType.blockInvokeLlvmType, invokeName) {
+        val result = generateFunction(codegen, blockType.blockInvokeLlvmType, invokeName, switchToRunnable = true) {
             val blockPtr = bitcast(pointerType(blockLiteralType), param(0))
             val kotlinObject = call(
                     context.llvm.kRefSharedHolderRef,

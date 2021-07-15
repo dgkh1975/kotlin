@@ -35,11 +35,11 @@ import org.jetbrains.kotlin.load.java.typeEnhancement.SignatureEnhancement
 import org.jetbrains.kotlin.load.kotlin.DeserializedDescriptorResolver
 import org.jetbrains.kotlin.load.kotlin.KotlinClassFinder
 import org.jetbrains.kotlin.load.kotlin.PackagePartProvider
+import org.jetbrains.kotlin.resolve.jvm.SyntheticJavaPartsProvider
 import org.jetbrains.kotlin.resolve.sam.SamConversionResolver
 import org.jetbrains.kotlin.serialization.deserialization.ErrorReporter
 import org.jetbrains.kotlin.storage.StorageManager
 import org.jetbrains.kotlin.types.checker.NewKotlinTypeChecker
-import org.jetbrains.kotlin.utils.JavaTypeEnhancementState
 
 class JavaResolverComponents(
     val storageManager: StorageManager,
@@ -63,7 +63,9 @@ class JavaResolverComponents(
     val javaClassesTracker: JavaClassesTracker,
     val settings: JavaResolverSettings,
     val kotlinTypeChecker: NewKotlinTypeChecker,
-    val javaTypeEnhancementState: JavaTypeEnhancementState
+    val javaTypeEnhancementState: JavaTypeEnhancementState,
+    val javaModuleResolver: JavaModuleAnnotationsProvider,
+    val syntheticPartsProvider: SyntheticJavaPartsProvider = SyntheticJavaPartsProvider.EMPTY
 ) {
     fun replace(
         javaResolverCache: JavaResolverCache = this.javaResolverCache
@@ -73,8 +75,7 @@ class JavaResolverComponents(
         javaPropertyInitializerEvaluator, samConversionResolver, sourceElementFactory,
         moduleClassResolver, packagePartProvider, supertypeLoopChecker, lookupTracker, module, reflectionTypes,
         annotationTypeQualifierResolver, signatureEnhancement, javaClassesTracker, settings,
-        kotlinTypeChecker,
-        javaTypeEnhancementState
+        kotlinTypeChecker, javaTypeEnhancementState, javaModuleResolver
     )
 }
 

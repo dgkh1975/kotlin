@@ -23,9 +23,9 @@ import org.jetbrains.kotlin.ir.util.patchDeclarationParents
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
-import org.jetbrains.kotlin.resolve.checkers.ExpectedActualDeclarationChecker
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.resolve.multiplatform.ExpectedActualResolver
+import org.jetbrains.kotlin.resolve.multiplatform.OptionalAnnotationUtil
 
 /**
  * This pass removes all declarations with `isExpect == true`.
@@ -71,11 +71,7 @@ internal class ExpectToActualDefaultValueCopier(private val irModule: IrModuleFr
                 val index = declaration.index
                 assert(function.valueParameters[index] == declaration)
 
-                if (function is IrConstructor &&
-                        ExpectedActualDeclarationChecker.isOptionalAnnotationClass(
-                                function.descriptor.constructedClass
-                        )
-                ) {
+                if (function is IrConstructor && OptionalAnnotationUtil.isOptionalAnnotationClass(function.descriptor.constructedClass)) {
                     return
                 }
 
@@ -89,8 +85,11 @@ internal class ExpectToActualDefaultValueCopier(private val irModule: IrModuleFr
         })
     }
 
-    private inline fun <reified T: IrFunction> T.findActualForExpected(): T =
+    private inline fun <reified T : IrFunction> T.findActualForExpected(): T =
             moduleIndex.functions[descriptor.findActualForExpect()] as T
+
+    private fun IrProperty.findActualForExpected(): IrProperty =
+            moduleIndex.properties[descriptor.findActualForExpect()]!!
 
     private fun IrClass.findActualForExpected(): IrClass =
             moduleIndex.classes[descriptor.findActualForExpect()]!!
@@ -146,6 +145,12 @@ internal class ExpectToActualDefaultValueCopier(private val irModule: IrModuleFr
 
                 else -> super.getReferencedSimpleFunction(symbol)
             }
+
+            override fun getReferencedProperty(symbol: IrPropertySymbol) =
+                    if (symbol.descriptor.isExpect)
+                        symbol.owner.findActualForExpected().symbol
+                    else
+                        super.getReferencedProperty(symbol)
 
             override fun getReferencedValue(symbol: IrValueSymbol) =
                     remapExpectValue(symbol)?.symbol ?: super.getReferencedValue(symbol)

@@ -11,18 +11,16 @@ import org.jetbrains.kotlin.fir.isPrimitiveNumberOrUnsignedNumberType
 import org.jetbrains.kotlin.fir.resolve.*
 import org.jetbrains.kotlin.fir.resolve.calls.NoSubstitutor
 import org.jetbrains.kotlin.fir.resolve.inference.isBuiltinFunctionalType
-import org.jetbrains.kotlin.fir.resolve.inference.isFunctionalType
 import org.jetbrains.kotlin.fir.resolve.inference.isSuspendFunctionType
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProvider
 import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutor
 import org.jetbrains.kotlin.fir.resolve.substitution.createTypeSubstitutorByTypeConstructor
 import org.jetbrains.kotlin.fir.symbols.ConeClassLikeLookupTag
 import org.jetbrains.kotlin.fir.symbols.ConeTypeParameterLookupTag
-import org.jetbrains.kotlin.fir.symbols.StandardClassIds
 import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
 import org.jetbrains.kotlin.fir.types.impl.ConeTypeParameterTypeImpl
+import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.types.AbstractTypeChecker
-import org.jetbrains.kotlin.types.AbstractTypeCheckerContext
 import org.jetbrains.kotlin.types.model.*
 import org.jetbrains.kotlin.utils.DFS
 import org.jetbrains.kotlin.utils.addToStdlib.cast
@@ -230,12 +228,12 @@ interface ConeInferenceContext : TypeSystemInferenceExtensionContext, ConeTypeCo
 
     override fun KotlinTypeMarker.makeDefinitelyNotNullOrNotNull(): KotlinTypeMarker {
         require(this is ConeKotlinType)
-        return makeConeTypeDefinitelyNotNullOrNotNull()
+        return makeConeTypeDefinitelyNotNullOrNotNull(this@ConeInferenceContext)
     }
 
     override fun SimpleTypeMarker.makeSimpleTypeDefinitelyNotNullOrNotNull(): SimpleTypeMarker {
         require(this is ConeKotlinType)
-        return makeConeTypeDefinitelyNotNullOrNotNull() as SimpleTypeMarker
+        return makeConeTypeDefinitelyNotNullOrNotNull(this@ConeInferenceContext) as SimpleTypeMarker
     }
 
     override fun createCapturedType(
@@ -253,19 +251,28 @@ interface ConeInferenceContext : TypeSystemInferenceExtensionContext, ConeTypeCo
         )
     }
 
-    override fun createStubType(typeVariable: TypeVariableMarker): StubTypeMarker {
+    override fun createStubTypeForBuilderInference(typeVariable: TypeVariableMarker): StubTypeMarker {
         require(typeVariable is ConeTypeVariable) { "$typeVariable should subtype of ${ConeTypeVariable::class.qualifiedName}" }
         return ConeStubType(typeVariable, ConeNullability.create(typeVariable.defaultType().isMarkedNullable()))
     }
 
+    // TODO
+    override fun createStubTypeForTypeVariablesInSubtyping(typeVariable: TypeVariableMarker) =
+        createStubTypeForBuilderInference(typeVariable)
+
     override fun KotlinTypeMarker.removeAnnotations(): KotlinTypeMarker {
         require(this is ConeKotlinType)
-        return withAttributes(ConeAttributes.Empty)
+        return withAttributes(ConeAttributes.Empty, this@ConeInferenceContext)
     }
 
     override fun SimpleTypeMarker.replaceArguments(newArguments: List<TypeArgumentMarker>): SimpleTypeMarker {
         require(this is ConeKotlinType)
-        return this.withArguments(newArguments.cast<List<ConeTypeProjection>>().toTypedArray())
+        return this.withArguments(newArguments.cast<List<ConeTypeProjection>>().toTypedArray(), this@ConeInferenceContext)
+    }
+
+    override fun SimpleTypeMarker.replaceArguments(replacement: (TypeArgumentMarker) -> TypeArgumentMarker): SimpleTypeMarker {
+        require(this is ConeKotlinType)
+        return this.withArguments({ replacement(it).cast() }, this@ConeInferenceContext)
     }
 
     override fun KotlinTypeMarker.hasExactAnnotation(): Boolean {
@@ -356,6 +363,8 @@ interface ConeInferenceContext : TypeSystemInferenceExtensionContext, ConeTypeCo
         return this.captureStatus
     }
 
+    override fun CapturedTypeMarker.isOldCapturedType(): Boolean = false
+
     override fun TypeConstructorMarker.isCapturedTypeConstructor(): Boolean {
         return this is ConeCapturedTypeConstructor
     }
@@ -366,7 +375,7 @@ interface ConeInferenceContext : TypeSystemInferenceExtensionContext, ConeTypeCo
 
     override fun KotlinTypeMarker.removeExactAnnotation(): KotlinTypeMarker {
         require(this is ConeKotlinType)
-        return withAttributes(attributes.remove(CompilerConeAttributes.Exact))
+        return withAttributes(attributes.remove(CompilerConeAttributes.Exact), this@ConeInferenceContext)
     }
 
     override fun TypeConstructorMarker.toErrorType(): SimpleTypeMarker {
@@ -386,6 +395,7 @@ interface ConeInferenceContext : TypeSystemInferenceExtensionContext, ConeTypeCo
 
     override fun KotlinTypeMarker.isSignedOrUnsignedNumberType(): Boolean {
         require(this is ConeKotlinType)
+        if (this is ConeIntegerLiteralType) return true
         if (this !is ConeClassLikeType) return false
         return isPrimitiveNumberOrUnsignedNumberType()
     }
@@ -493,4 +503,7 @@ interface ConeInferenceContext : TypeSystemInferenceExtensionContext, ConeTypeCo
         }
         return intersectionType.withAlternative(secondCandidate)
     }
+
+    override fun SimpleTypeMarker.createConstraintPartForLowerBoundAndFlexibleTypeVariable(): KotlinTypeMarker =
+        createFlexibleType(this.makeSimpleTypeDefinitelyNotNullOrNotNull(), this.withNullability(true))
 }

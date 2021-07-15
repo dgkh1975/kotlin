@@ -7,7 +7,8 @@ package kotlin.native.internal
 
 import kotlin.internal.getProgressionLastElement
 import kotlin.reflect.KClass
-import kotlin.native.concurrent.AtomicReference
+import kotlin.native.concurrent.FreezableAtomicReference
+import kotlin.native.concurrent.freeze
 
 @ExportForCppRuntime
 fun ThrowNullPointerException(): Nothing {
@@ -116,14 +117,19 @@ internal fun ReportUnhandledException(throwable: Throwable) {
     throwable.printStackTrace()
 }
 
-@SymbolName("TerminateWithUnhandledException")
+@GCUnsafeCall("TerminateWithUnhandledException")
 internal external fun TerminateWithUnhandledException(throwable: Throwable)
 
 // Using object to make sure that `hook` is initialized when it's needed instead of
 // in a normal global initialization flow. This is important if some global happens
 // to throw an exception during it's initialization before this hook would've been initialized.
 internal object UnhandledExceptionHookHolder {
-    internal val hook: AtomicReference<ReportUnhandledExceptionHook?> = AtomicReference(null)
+    internal val hook: FreezableAtomicReference<ReportUnhandledExceptionHook?> =
+        if (Platform.memoryModel == MemoryModel.EXPERIMENTAL) {
+            FreezableAtomicReference<ReportUnhandledExceptionHook?>(null)
+        } else {
+            FreezableAtomicReference<ReportUnhandledExceptionHook?>(null).freeze()
+        }
 }
 
 @PublishedApi
@@ -184,7 +190,7 @@ internal fun checkProgressionStep(step: Long) =
 
 @PublishedApi
 internal fun getProgressionLast(start: Char, end: Char, step: Int): Char =
-        getProgressionLast(start.toInt(), end.toInt(), step).toChar()
+        getProgressionLast(start.code, end.code, step).toChar()
 
 @PublishedApi
 internal fun getProgressionLast(start: Int, end: Int, step: Int): Int =

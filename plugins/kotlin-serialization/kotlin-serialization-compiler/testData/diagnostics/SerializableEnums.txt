@@ -23,6 +23,7 @@ public object EnumSerializer : kotlinx.serialization.KSerializer<ExplicitlyMarke
     public open override /*1*/ /*synthesized*/ fun equals(/*0*/ other: kotlin.Any?): kotlin.Boolean
     public open override /*1*/ /*synthesized*/ fun hashCode(): kotlin.Int
     public open override /*1*/ /*synthesized*/ fun toString(): kotlin.String
+    @kotlin.jvm.JvmStatic public final /*synthesized*/ fun `write$Self`(/*0*/ self: EnumUsage, /*1*/ output: kotlinx.serialization.encoding.CompositeEncoder, /*2*/ serialDesc: kotlinx.serialization.descriptors.SerialDescriptor): kotlin.Unit
 
     @kotlin.Deprecated(level = DeprecationLevel.HIDDEN, message = "This synthesized declaration should not be used directly", replaceWith = kotlin.ReplaceWith(expression = "", imports = {})) public object `$serializer` : kotlinx.serialization.internal.GeneratedSerializer<EnumUsage> {
         private constructor `$serializer`()
@@ -101,6 +102,14 @@ public object EnumSerializer : kotlinx.serialization.KSerializer<ExplicitlyMarke
     public final override /*1*/ /*fake_override*/ /*isHiddenForResolutionEverywhereBesideSupercalls*/ fun getDeclaringClass(): java.lang.Class<ExplicitlyMarkedEnumCustom!>!
     public final override /*1*/ /*fake_override*/ fun hashCode(): kotlin.Int
     public open override /*1*/ /*fake_override*/ fun toString(): kotlin.String
+
+    public companion object Companion {
+        private constructor Companion()
+        public open override /*1*/ /*fake_override*/ fun equals(/*0*/ other: kotlin.Any?): kotlin.Boolean
+        public open override /*1*/ /*fake_override*/ fun hashCode(): kotlin.Int
+        public final /*synthesized*/ fun serializer(): kotlinx.serialization.KSerializer<ExplicitlyMarkedEnumCustom>
+        public open override /*1*/ /*fake_override*/ fun toString(): kotlin.String
+    }
 
     // Static members
     public final /*synthesized*/ fun valueOf(/*0*/ value: kotlin.String): ExplicitlyMarkedEnumCustom

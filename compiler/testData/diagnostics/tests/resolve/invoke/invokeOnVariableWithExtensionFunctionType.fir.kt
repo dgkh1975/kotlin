@@ -1,4 +1,3 @@
-// !WITH_NEW_INFERENCE
 // FILE: 1.kt
 package fooIsExtension
 
@@ -17,15 +16,15 @@ fun test(a: A, b: B) {
 
         b.(foo)()
 
-        <!INAPPLICABLE_CANDIDATE!>(b.<!INAPPLICABLE_CANDIDATE!>foo<!>)<!>()
+        <!ARGUMENT_TYPE_MISMATCH!>(b.<!INAPPLICABLE_CANDIDATE!>foo<!>)()<!>
 
         foo(b)
         (foo)(b)
     }
 
     with(b) {
-        a.<!INAPPLICABLE_CANDIDATE!>foo<!>()
-        a.(<!INAPPLICABLE_CANDIDATE!>foo<!>)()
+        a.foo(<!NO_VALUE_FOR_PARAMETER!>)<!>
+        a.(foo)(<!NO_VALUE_FOR_PARAMETER!>)<!>
 
         (a.foo)()
 
@@ -59,15 +58,15 @@ fun test(a: A, b: B) {
 
         b.(foo)()
 
-        (b.<!UNRESOLVED_REFERENCE!>foo<!>)()
+        (<!UNRESOLVED_REFERENCE!>b.<!FUNCTION_CALL_EXPECTED!>foo<!><!>)()
 
         foo(b)
         (foo)(b)
     }
 
     with(b) {
-        a.<!INAPPLICABLE_CANDIDATE!>foo<!>()
-        a.(<!INAPPLICABLE_CANDIDATE!>foo<!>)()
+        a.foo(<!NO_VALUE_FOR_PARAMETER!>)<!>
+        a.(foo)(<!NO_VALUE_FOR_PARAMETER!>)<!>
 
         (a.foo)()
 

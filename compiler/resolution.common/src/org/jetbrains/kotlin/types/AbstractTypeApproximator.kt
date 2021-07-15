@@ -5,11 +5,16 @@
 
 package org.jetbrains.kotlin.types
 
+import org.jetbrains.kotlin.config.LanguageFeature
+import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.resolve.calls.NewCommonSuperTypeCalculator.commonSuperType
 import org.jetbrains.kotlin.types.model.*
 import java.util.concurrent.ConcurrentHashMap
 
-abstract class AbstractTypeApproximator(val ctx: TypeSystemInferenceExtensionContext) : TypeSystemInferenceExtensionContext by ctx {
+abstract class AbstractTypeApproximator(
+    val ctx: TypeSystemInferenceExtensionContext,
+    protected val languageVersionSettings: LanguageVersionSettings,
+) : TypeSystemInferenceExtensionContext by ctx {
 
     private class ApproximationResult(val type: KotlinTypeMarker?)
 
@@ -81,7 +86,7 @@ abstract class AbstractTypeApproximator(val ctx: TypeSystemInferenceExtensionCon
 
         return cachedValue(type, conf, toSuper = true) {
             approximateTo(
-                prepareType(type), conf, { upperBound() },
+                AbstractTypeChecker.prepareType(ctx, type), conf, { upperBound() },
                 referenceApproximateToSuperType, depth
             )
         }
@@ -92,7 +97,7 @@ abstract class AbstractTypeApproximator(val ctx: TypeSystemInferenceExtensionCon
 
         return cachedValue(type, conf, toSuper = false) {
             approximateTo(
-                prepareType(type), conf, { lowerBound() },
+                AbstractTypeChecker.prepareType(ctx, type), conf, { lowerBound() },
                 referenceApproximateToSubType, depth
             )
         }
@@ -219,7 +224,8 @@ abstract class AbstractTypeApproximator(val ctx: TypeSystemInferenceExtensionCon
             TypeApproximatorConfiguration.IntersectionStrategy.ALLOWED -> if (!thereIsApproximation) return null else intersectTypes(newTypes)
             TypeApproximatorConfiguration.IntersectionStrategy.TO_FIRST -> if (toSuper) newTypes.first() else return type.defaultResult(toSuper = false)
             // commonSupertypeCalculator should handle flexible types correctly
-            TypeApproximatorConfiguration.IntersectionStrategy.TO_COMMON_SUPERTYPE -> {
+            TypeApproximatorConfiguration.IntersectionStrategy.TO_COMMON_SUPERTYPE,
+            TypeApproximatorConfiguration.IntersectionStrategy.TO_UPPER_BOUND_IF_SUPERTYPE -> {
                 if (!toSuper) return type.defaultResult(toSuper = false)
                 val resultType = commonSuperType(newTypes)
                 approximateToSuperType(resultType, conf) ?: resultType
@@ -360,7 +366,7 @@ abstract class AbstractTypeApproximator(val ctx: TypeSystemInferenceExtensionCon
             return typeWithErasedNullability
         }
 
-        return if (conf.definitelyNotNullType) {
+        return if (conf.definitelyNotNullType || languageVersionSettings.supportsFeature(LanguageFeature.DefinitelyNotNullTypeParameters)) {
             approximatedOriginalType?.makeDefinitelyNotNullOrNotNull()
         } else {
             if (toSuper)
@@ -444,13 +450,26 @@ abstract class AbstractTypeApproximator(val ctx: TypeSystemInferenceExtensionCon
                      * In<Foo> <: In<subType(Foo)>
                      * Inv<in Foo> <: Inv<in subType(Foo)>
                      */
-                    val approximatedArgument = argumentType.let {
-                        if (isApproximateDirectionToSuper(effectiveVariance, toSuper)) {
-                            approximateToSuperType(it, conf, depth)
+                    val approximatedArgument = if (isApproximateDirectionToSuper(effectiveVariance, toSuper)) {
+                        val approximatedType = approximateToSuperType(argumentType, conf, depth)
+                        if (conf.intersection == TypeApproximatorConfiguration.IntersectionStrategy.TO_UPPER_BOUND_IF_SUPERTYPE
+                            && argumentType.typeConstructor().isIntersection()
+                            && parameter.getUpperBounds().all { AbstractTypeChecker.isSubtypeOf(ctx, argumentType, it) }
+                        ) {
+                            val intersectedUpperBounds = intersectTypes(parameter.getUpperBounds())
+                            if (approximatedType == null
+                                || !AbstractTypeChecker.isSubtypeOf(ctx, approximatedType, intersectedUpperBounds)
+                            ) {
+                                intersectedUpperBounds
+                            } else {
+                                approximatedType
+                            }
                         } else {
-                            approximateToSubType(it, conf, depth)
+                            approximatedType ?: continue@loop
                         }
-                    } ?: continue@loop
+                    } else {
+                        approximateToSubType(argumentType, conf, depth) ?: continue@loop
+                    }
 
                     if (
                         conf.intersection != TypeApproximatorConfiguration.IntersectionStrategy.ALLOWED &&

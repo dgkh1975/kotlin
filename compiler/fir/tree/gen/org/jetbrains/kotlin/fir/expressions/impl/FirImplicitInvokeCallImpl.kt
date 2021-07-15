@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.fir.FirSourceElement
 import org.jetbrains.kotlin.fir.expressions.FirAnnotationCall
 import org.jetbrains.kotlin.fir.expressions.FirArgumentList
 import org.jetbrains.kotlin.fir.expressions.FirExpression
+import org.jetbrains.kotlin.fir.expressions.FirFunctionCallOrigin
 import org.jetbrains.kotlin.fir.expressions.FirImplicitInvokeCall
 import org.jetbrains.kotlin.fir.references.FirNamedReference
 import org.jetbrains.kotlin.fir.references.FirReference
@@ -34,6 +35,7 @@ internal class FirImplicitInvokeCallImpl(
     override var calleeReference: FirNamedReference,
 ) : FirImplicitInvokeCall() {
     override var typeRef: FirTypeRef = FirImplicitTypeRefImpl(null)
+    override val origin: FirFunctionCallOrigin = FirFunctionCallOrigin.Operator
 
     override fun <R, D> acceptChildren(visitor: FirVisitor<R, D>, data: D) {
         typeRef.accept(visitor, data)
@@ -51,17 +53,17 @@ internal class FirImplicitInvokeCallImpl(
     }
 
     override fun <D> transformChildren(transformer: FirTransformer<D>, data: D): FirImplicitInvokeCallImpl {
-        typeRef = typeRef.transformSingle(transformer, data)
+        typeRef = typeRef.transform(transformer, data)
         transformAnnotations(transformer, data)
         transformTypeArguments(transformer, data)
-        explicitReceiver = explicitReceiver?.transformSingle(transformer, data)
+        explicitReceiver = explicitReceiver?.transform(transformer, data)
         if (dispatchReceiver !== explicitReceiver) {
-            dispatchReceiver = dispatchReceiver.transformSingle(transformer, data)
+            dispatchReceiver = dispatchReceiver.transform(transformer, data)
         }
         if (extensionReceiver !== explicitReceiver && extensionReceiver !== dispatchReceiver) {
-            extensionReceiver = extensionReceiver.transformSingle(transformer, data)
+            extensionReceiver = extensionReceiver.transform(transformer, data)
         }
-        argumentList = argumentList.transformSingle(transformer, data)
+        argumentList = argumentList.transform(transformer, data)
         transformCalleeReference(transformer, data)
         return this
     }
@@ -77,22 +79,22 @@ internal class FirImplicitInvokeCallImpl(
     }
 
     override fun <D> transformExplicitReceiver(transformer: FirTransformer<D>, data: D): FirImplicitInvokeCallImpl {
-        explicitReceiver = explicitReceiver?.transformSingle(transformer, data)
+        explicitReceiver = explicitReceiver?.transform(transformer, data)
         return this
     }
 
     override fun <D> transformDispatchReceiver(transformer: FirTransformer<D>, data: D): FirImplicitInvokeCallImpl {
-        dispatchReceiver = dispatchReceiver.transformSingle(transformer, data)
+        dispatchReceiver = dispatchReceiver.transform(transformer, data)
         return this
     }
 
     override fun <D> transformExtensionReceiver(transformer: FirTransformer<D>, data: D): FirImplicitInvokeCallImpl {
-        extensionReceiver = extensionReceiver.transformSingle(transformer, data)
+        extensionReceiver = extensionReceiver.transform(transformer, data)
         return this
     }
 
     override fun <D> transformCalleeReference(transformer: FirTransformer<D>, data: D): FirImplicitInvokeCallImpl {
-        calleeReference = calleeReference.transformSingle(transformer, data)
+        calleeReference = calleeReference.transform(transformer, data)
         return this
     }
 

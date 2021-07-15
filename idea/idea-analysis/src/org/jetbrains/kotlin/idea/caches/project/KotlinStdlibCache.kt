@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.idea.caches.project
 
 import com.intellij.openapi.components.ServiceManager
+import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.OrderRootType
 import com.intellij.openapi.vfs.VirtualFile
@@ -17,7 +18,8 @@ import org.jetbrains.kotlin.idea.configuration.IdeBuiltInsLoadingState
 import org.jetbrains.kotlin.idea.util.application.runReadAction
 import org.jetbrains.kotlin.idea.vfilefinder.KotlinStdlibIndex
 import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.platform.jvm.isJvm
+import org.jetbrains.kotlin.utils.addToStdlib.safeAs
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 // TODO(kirpichenkov): works only for JVM (see KT-44552)
@@ -101,9 +103,30 @@ class KotlinStdlibCacheImpl(val project: Project) : KotlinStdlibCache {
 
     override fun findStdlibInModuleDependencies(module: IdeaModuleInfo): LibraryInfo? {
         val stdlibDependency = moduleStdlibDependencyCache.getOrPut(module) {
-            module.dependencies().lazyClosure { it.dependencies() }.firstOrNull {
-                it is LibraryInfo && isStdlib(it)
-            }.let { StdlibDependency(it as? LibraryInfo?) }
+
+            fun IdeaModuleInfo.asStdLibInfo() = this.safeAs<LibraryInfo>()?.takeIf { isStdlib(it) }
+
+            val stdLib: LibraryInfo? = module.asStdLibInfo() ?: run {
+                val checkedLibraryInfo = mutableSetOf<IdeaModuleInfo>()
+                val stack = ArrayDeque<IdeaModuleInfo>()
+                stack.add(module)
+
+                // bfs
+                while (stack.isNotEmpty()) {
+                    ProgressManager.checkCanceled()
+
+                    val poll = stack.poll()
+                    if (!checkedLibraryInfo.add(poll)) continue
+
+                    stack += poll.dependencies().also { dependencies ->
+                        dependencies
+                            .firstOrNull { it is LibraryInfo && isStdlib(it) }
+                            ?.let { return@run it as LibraryInfo }
+                    }
+                }
+                null
+            }
+            StdlibDependency(stdLib)
         }
 
         return stdlibDependency.libraryInfo

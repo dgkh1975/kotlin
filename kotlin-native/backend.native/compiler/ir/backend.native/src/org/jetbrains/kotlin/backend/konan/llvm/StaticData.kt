@@ -51,9 +51,16 @@ internal class StaticData(override val context: Context): ContextUtils {
                 val llvmGlobal = createLlvmGlobal(module!!, type, name, isExported)
                 return Global(staticData, llvmGlobal)
             }
+
+            fun get(staticData: StaticData, name: String): Global? {
+                val llvmGlobal = LLVMGetNamedGlobal(staticData.context.llvmModule, name) ?: return null
+                return Global(staticData, llvmGlobal)
+            }
         }
 
         val type get() = getGlobalType(this.llvmGlobal)
+
+        fun getInitializer() = LLVMGetInitializer(llvmGlobal)
 
         fun setInitializer(value: ConstValue) {
             LLVMSetInitializer(llvmGlobal, value.llvm)
@@ -77,6 +84,10 @@ internal class StaticData(override val context: Context): ContextUtils {
 
         fun setSection(name: String) {
             LLVMSetSection(llvmGlobal, name)
+        }
+
+        fun setExternallyInitialized(value: Boolean) {
+            LLVMSetExternallyInitialized(llvmGlobal, if (value) 1 else 0)
         }
 
         val pointer = Pointer.to(this)
@@ -147,6 +158,10 @@ internal class StaticData(override val context: Context): ContextUtils {
         return global
     }
 
+    fun getGlobal(name: String): Global? {
+        return Global.get(this, name)
+    }
+
     /**
      * Creates array-typed global with given name and value.
      */
@@ -173,6 +188,6 @@ internal class StaticData(override val context: Context): ContextUtils {
  * @param args data for constant creation.
  */
 internal fun StaticData.createImmutableBlob(value: IrConst<String>): LLVMValueRef {
-    val args = value.value.map { Int8(it.toByte()).llvm }
+    val args = value.value.map { Int8(it.code.toByte()).llvm }
     return createConstKotlinArray(context.ir.symbols.immutableBlob.owner, args)
 }

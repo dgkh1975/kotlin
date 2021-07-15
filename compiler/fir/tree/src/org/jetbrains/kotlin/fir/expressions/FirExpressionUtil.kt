@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.fir.expressions.impl.FirBlockImpl
 import org.jetbrains.kotlin.fir.expressions.impl.FirPartiallyResolvedArgumentList
 import org.jetbrains.kotlin.fir.expressions.impl.FirResolvedArgumentList
 import org.jetbrains.kotlin.fir.expressions.impl.FirSingleExpressionBlock
+import org.jetbrains.kotlin.fir.references.FirReference
 import org.jetbrains.kotlin.fir.references.FirResolvedNamedReference
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.types.ConeClassLikeType
@@ -43,7 +44,7 @@ inline val FirCall.arguments: List<FirExpression> get() = argumentList.arguments
 
 inline val FirCall.argument: FirExpression get() = argumentList.arguments.first()
 
-inline val FirCall.resolvedArgumentMapping: LinkedHashMap<FirExpression, FirValueParameter>?
+inline val FirCall.resolvedArgumentMapping: Map<FirExpression, FirValueParameter>?
     get() = when (val argumentList = argumentList) {
         is FirResolvedArgumentList -> argumentList.mapping
         else -> null
@@ -63,6 +64,10 @@ fun FirExpression.toResolvedCallableReference(): FirResolvedNamedReference? {
 
 fun FirExpression.toResolvedCallableSymbol(): FirCallableSymbol<*>? {
     return toResolvedCallableReference()?.resolvedSymbol as FirCallableSymbol<*>?
+}
+
+fun FirReference.toResolvedCallableSymbol(): FirCallableSymbol<*>? {
+    return (this as? FirResolvedNamedReference)?.resolvedSymbol as? FirCallableSymbol<*>
 }
 
 fun buildErrorLoop(source: FirSourceElement?, diagnostic: ConeDiagnostic): FirErrorLoop {
@@ -108,3 +113,5 @@ fun FirBlock.replaceFirstStatement(statement: FirStatement): FirStatement {
     statements[0] = statement
     return existed
 }
+
+fun FirExpression.unwrapArgument(): FirExpression = (this as? FirWrappedArgumentExpression)?.expression ?: this

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2021 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.gradle.plugin.*
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinUsages
 import org.jetbrains.kotlin.gradle.plugin.mpp.isMain
 import org.jetbrains.kotlin.gradle.targets.js.KotlinJsReportAggregatingTestRun
+import org.jetbrains.kotlin.gradle.targets.js.npm.npmProject
 import org.jetbrains.kotlin.gradle.tasks.KotlinTasksProvider
 import org.jetbrains.kotlin.gradle.testing.internal.kotlinTestRegistry
 import org.jetbrains.kotlin.gradle.testing.testTaskName
@@ -21,8 +22,8 @@ import org.jetbrains.kotlin.gradle.utils.isParentOf
 import org.jetbrains.kotlin.gradle.utils.klibModuleName
 import java.io.File
 
-open class KotlinJsIrTargetConfigurator(kotlinPluginVersion: String) :
-    KotlinOnlyTargetConfigurator<KotlinJsIrCompilation, KotlinJsIrTarget>(true, true, kotlinPluginVersion),
+open class KotlinJsIrTargetConfigurator() :
+    KotlinOnlyTargetConfigurator<KotlinJsIrCompilation, KotlinJsIrTarget>(true, true),
     KotlinTargetWithTestsConfigurator<KotlinJsReportAggregatingTestRun, KotlinJsIrTarget> {
 
     override val testRunClass: Class<KotlinJsReportAggregatingTestRun> get() = KotlinJsReportAggregatingTestRun::class.java
@@ -54,8 +55,8 @@ open class KotlinJsIrTargetConfigurator(kotlinPluginVersion: String) :
     }
 
     override fun buildCompilationProcessor(compilation: KotlinJsIrCompilation): KotlinSourceSetProcessor<*> {
-        val tasksProvider = KotlinTasksProvider(compilation.target.targetName)
-        return KotlinJsIrSourceSetProcessor(tasksProvider, compilation, kotlinPluginVersion)
+        val tasksProvider = KotlinTasksProvider()
+        return KotlinJsIrSourceSetProcessor(tasksProvider, compilation)
     }
 
     override fun createArchiveTasks(target: KotlinJsIrTarget): TaskProvider<out Zip> {
@@ -116,9 +117,20 @@ open class KotlinJsIrTargetConfigurator(kotlinPluginVersion: String) :
 
             compilation.binaries
                 .withType(JsIrBinary::class.java)
-                .all {
-                    it.linkTask.configure { linkTask ->
+                .all { binary ->
+                    binary.linkTask.configure { linkTask ->
                         linkTask.kotlinOptions.configureOptions()
+
+                        val rootDir = binary.project.rootDir
+                        linkTask.kotlinOptions.freeCompilerArgs += listOf(
+                            "-source-map-base-dirs",
+                            rootDir.absolutePath
+                        )
+
+                        linkTask.kotlinOptions.freeCompilerArgs += listOf(
+                            "-source-map-prefix",
+                            rootDir.toRelativeString(binary.compilation.npmProject.dist) + File.separator
+                        )
                     }
                 }
         }
@@ -127,6 +139,7 @@ open class KotlinJsIrTargetConfigurator(kotlinPluginVersion: String) :
     private fun KotlinJsOptions.configureOptions() {
         moduleKind = "umd"
         sourceMap = true
+        sourceMapEmbedSources = "never"
     }
 
     override fun defineConfigurationsForTarget(target: KotlinJsIrTarget) {
@@ -144,6 +157,7 @@ open class KotlinJsIrTargetConfigurator(kotlinPluginVersion: String) :
             isCanBeConsumed = true
             attributes.attribute<Usage>(Usage.USAGE_ATTRIBUTE, KotlinUsages.producerApiUsage(target))
             attributes.attribute(KotlinPlatformType.attribute, KotlinPlatformType.common)
+            setupAsPublicConfigurationIfSupported(target)
         }
     }
 }

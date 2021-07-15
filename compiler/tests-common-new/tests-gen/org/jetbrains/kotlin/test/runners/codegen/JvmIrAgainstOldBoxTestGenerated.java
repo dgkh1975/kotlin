@@ -21,6 +21,12 @@ import java.util.regex.Pattern;
 @TestDataPath("$PROJECT_ROOT")
 public class JvmIrAgainstOldBoxTestGenerated extends AbstractJvmIrAgainstOldBoxTest {
     @Test
+    @TestMetadata("adaptedSuspendFunctionReference.kt")
+    public void testAdaptedSuspendFunctionReference() throws Exception {
+        runTest("compiler/testData/codegen/box/compileKotlinAgainstKotlin/adaptedSuspendFunctionReference.kt");
+    }
+
+    @Test
     public void testAllFilesPresentInCompileKotlinAgainstKotlin() throws Exception {
         KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/box/compileKotlinAgainstKotlin"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JVM_MULTI_MODULE_IR_AGAINST_OLD, true);
     }
@@ -221,6 +227,12 @@ public class JvmIrAgainstOldBoxTestGenerated extends AbstractJvmIrAgainstOldBoxT
     @TestMetadata("jvmFieldInConstructor.kt")
     public void testJvmFieldInConstructor() throws Exception {
         runTest("compiler/testData/codegen/box/compileKotlinAgainstKotlin/jvmFieldInConstructor.kt");
+    }
+
+    @Test
+    @TestMetadata("jvmFieldInConstructor2.kt")
+    public void testJvmFieldInConstructor2() throws Exception {
+        runTest("compiler/testData/codegen/box/compileKotlinAgainstKotlin/jvmFieldInConstructor2.kt");
     }
 
     @Test
@@ -513,6 +525,18 @@ public class JvmIrAgainstOldBoxTestGenerated extends AbstractJvmIrAgainstOldBoxT
         }
 
         @Test
+        @TestMetadata("extensionPropertyWithSameName.kt")
+        public void testExtensionPropertyWithSameName() throws Exception {
+            runTest("compiler/testData/codegen/box/compileKotlinAgainstKotlin/inlineClasses/extensionPropertyWithSameName.kt");
+        }
+
+        @Test
+        @TestMetadata("funInterface.kt")
+        public void testFunInterface() throws Exception {
+            runTest("compiler/testData/codegen/box/compileKotlinAgainstKotlin/inlineClasses/funInterface.kt");
+        }
+
+        @Test
         @TestMetadata("inlineClassFakeOverrideMangling.kt")
         public void testInlineClassFakeOverrideMangling() throws Exception {
             runTest("compiler/testData/codegen/box/compileKotlinAgainstKotlin/inlineClasses/inlineClassFakeOverrideMangling.kt");
@@ -597,6 +621,12 @@ public class JvmIrAgainstOldBoxTestGenerated extends AbstractJvmIrAgainstOldBoxT
             @TestMetadata("defaultWithInlineClassAndReceivers.kt")
             public void testDefaultWithInlineClassAndReceivers() throws Exception {
                 runTest("compiler/testData/codegen/box/compileKotlinAgainstKotlin/inlineClasses/oldMangling/defaultWithInlineClassAndReceivers.kt");
+            }
+
+            @Test
+            @TestMetadata("extensionPropertyWithSameName.kt")
+            public void testExtensionPropertyWithSameName() throws Exception {
+                runTest("compiler/testData/codegen/box/compileKotlinAgainstKotlin/inlineClasses/oldMangling/extensionPropertyWithSameName.kt");
             }
 
             @Test

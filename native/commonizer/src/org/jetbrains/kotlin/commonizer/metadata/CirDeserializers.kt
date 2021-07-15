@@ -11,10 +11,10 @@ import kotlinx.metadata.klib.annotations
 import kotlinx.metadata.klib.compileTimeValue
 import kotlinx.metadata.klib.getterAnnotations
 import kotlinx.metadata.klib.setterAnnotations
-import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.commonizer.cir.*
 import org.jetbrains.kotlin.commonizer.mergedtree.CirProvided
 import org.jetbrains.kotlin.commonizer.utils.*
+import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.types.Variance
 
 object CirDeserializers {
@@ -45,17 +45,17 @@ object CirDeserializers {
             isMarkedNullable = false
         )
 
-        val allValueArguments: Map<String, KmAnnotationArgument<*>> = source.arguments
+        val allValueArguments: Map<String, KmAnnotationArgument> = source.arguments
         if (allValueArguments.isEmpty())
             return CirAnnotation.createInterned(type = type, constantValueArguments = emptyMap(), annotationValueArguments = emptyMap())
 
-        val constantValueArguments: MutableMap<CirName, CirConstantValue<*>> = THashMap(allValueArguments.size)
+        val constantValueArguments: MutableMap<CirName, CirConstantValue> = THashMap(allValueArguments.size)
         val annotationValueArguments: MutableMap<CirName, CirAnnotation> = THashMap(allValueArguments.size)
 
         allValueArguments.forEach { (name, constantValue) ->
             val cirName = CirName.create(name)
             if (constantValue is KmAnnotationArgument.AnnotationValue)
-                annotationValueArguments[cirName] = annotation(source = constantValue.value, typeResolver)
+                annotationValueArguments[cirName] = annotation(source = constantValue.annotation, typeResolver)
             else
                 constantValueArguments[cirName] = constantValue(
                     constantValue = constantValue,
@@ -73,7 +73,7 @@ object CirDeserializers {
 
     private val ALWAYS_HAS_ANNOTATIONS: Flags = flagsOf(Flag.Common.HAS_ANNOTATIONS)
 
-    private fun typeParameter(source: KmTypeParameter, typeResolver: CirTypeResolver): CirTypeParameter = CirTypeParameter.create(
+    private fun typeParameter(source: KmTypeParameter, typeResolver: CirTypeResolver): CirTypeParameter = CirTypeParameter(
         annotations = annotations(ALWAYS_HAS_ANNOTATIONS, typeResolver, source::annotations),
         name = CirName.create(source.name),
         isReified = Flag.TypeParameter.IS_REIFIED(source.flags),
@@ -84,7 +84,7 @@ object CirDeserializers {
     private fun extensionReceiver(
         receiverParameterType: KmType,
         typeResolver: CirTypeResolver
-    ): CirExtensionReceiver = CirExtensionReceiver.create(
+    ): CirExtensionReceiver = CirExtensionReceiver(
         annotations = emptyList(), // TODO nowhere to read receiver annotations from, see KT-42490
         type = type(receiverParameterType, typeResolver)
     )
@@ -97,7 +97,7 @@ object CirDeserializers {
             )
         } else CirConstantValue.NullValue
 
-        return CirProperty.create(
+        return CirProperty(
             annotations = annotations(source.flags, typeResolver, source::annotations),
             name = name,
             typeParameters = source.typeParameters.compactMap { typeParameter(it, typeResolver) },
@@ -169,7 +169,7 @@ object CirDeserializers {
         }
 
     fun function(name: CirName, source: KmFunction, containingClass: CirContainingClass?, typeResolver: CirTypeResolver): CirFunction =
-        CirFunction.create(
+        CirFunction(
             annotations = annotations(source.flags, typeResolver, source::annotations),
             name = name,
             typeParameters = source.typeParameters.compactMap { typeParameter(it, typeResolver) },
@@ -205,18 +205,19 @@ object CirDeserializers {
         )
 
     private fun constantValue(
-        constantValue: KmAnnotationArgument<*>?,
+        constantValue: KmAnnotationArgument?,
         constantName: CirName? = null,
         owner: Any,
-    ): CirConstantValue<*> = constantValue(
+    ): CirConstantValue = constantValue(
         constantValue = constantValue,
         location = { "${owner::class.java}, $owner" + constantName?.toString()?.let { "[$it]" } }
     )
 
+    @OptIn(ExperimentalUnsignedTypes::class)
     private fun constantValue(
-        constantValue: KmAnnotationArgument<*>?,
+        constantValue: KmAnnotationArgument?,
         location: () -> String
-    ): CirConstantValue<*> = when (constantValue) {
+    ): CirConstantValue = when (constantValue) {
         null -> CirConstantValue.NullValue
 
         is KmAnnotationArgument.StringValue -> CirConstantValue.StringValue(constantValue.value)
@@ -242,7 +243,7 @@ object CirDeserializers {
         )
 
         is KmAnnotationArgument.ArrayValue -> CirConstantValue.ArrayValue(
-            constantValue.value.compactMapIndexed { index, innerConstantValue ->
+            constantValue.elements.compactMapIndexed { index, innerConstantValue ->
                 constantValue(
                     constantValue = innerConstantValue,
                     location = { "${location()}[$index]" }

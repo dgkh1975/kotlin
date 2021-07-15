@@ -79,7 +79,7 @@ internal object Devirtualization {
                     } +
                             moduleDFG.symbolTable.classMap.values
                                     .filterIsInstance<DataFlowIR.Type.Declared>()
-                                    .flatMap { it.vtable + it.itable.values }
+                                    .flatMap { it.vtable + it.itable.values.flatten() }
                                     .filterIsInstance<DataFlowIR.FunctionSymbol.Declared>()
                                     .filter { moduleDFG.functions.containsKey(it) }
                 }
@@ -263,7 +263,7 @@ internal object Devirtualization {
                 vtable[callSite.calleeVtableIndex]
 
             is DataFlowIR.Node.ItableCall ->
-                itable[callSite.calleeHash]!!
+                itable[callSite.interfaceId]!![callSite.calleeItableIndex]
 
             else -> error("Unreachable")
         }
@@ -456,7 +456,7 @@ internal object Devirtualization {
             }
 
             context.logMultiple {
-                val edgesCount = constraintGraph.nodes.sumBy {
+                val edgesCount = constraintGraph.nodes.sumOf {
                     (directEdges[it.id + 1] - directEdges[it.id]) + (it.directCastEdges?.size ?: 0)
                 }
                 +"CONSTRAINT GRAPH: ${constraintGraph.nodes.size} nodes, $edgesCount edges"
@@ -773,12 +773,12 @@ internal object Devirtualization {
             private val preliminaryNumberOfNodes =
                     allTypes.size + // A possible source node for each type.
                             functions.size * 2 + // <returns> and <throws> nodes for each function.
-                            functions.values.sumBy {
-                                it.body.allScopes.sumBy { it.nodes.size } // A node for each DataFlowIR.Node.
+                            functions.values.sumOf {
+                                it.body.allScopes.sumOf { it.nodes.size } // A node for each DataFlowIR.Node.
                             } +
                             functions.values
-                                    .sumBy { function ->
-                                        function.body.allScopes.sumBy {
+                                    .sumOf { function ->
+                                        function.body.allScopes.sumOf {
                                             it.nodes.count { node ->
                                                 // A cast if types are different.
                                                 node is DataFlowIR.Node.Call

@@ -5,12 +5,15 @@ import org.jetbrains.kotlin.backend.common.IrValidator
 import org.jetbrains.kotlin.backend.common.IrValidatorConfig
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.common.phaser.*
+import org.jetbrains.kotlin.backend.common.serialization.CompatibilityMode
 import org.jetbrains.kotlin.backend.common.serialization.metadata.KlibMetadataMonolithicSerializer
+import org.jetbrains.kotlin.backend.konan.MemoryModel
 import org.jetbrains.kotlin.backend.konan.llvm.*
 import org.jetbrains.kotlin.backend.konan.lower.ExpectToActualDefaultValueCopier
 import org.jetbrains.kotlin.backend.konan.objcexport.ObjCExport
-import org.jetbrains.kotlin.backend.konan.serialization.*
-import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
+import org.jetbrains.kotlin.backend.konan.serialization.KonanIdSignaturer
+import org.jetbrains.kotlin.backend.konan.serialization.KonanIrModuleSerializer
+import org.jetbrains.kotlin.backend.konan.serialization.KonanManglerDesc
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.ir.IrElement
@@ -153,7 +156,7 @@ internal val serializerPhase = konanUnitPhase(
 
             serializedIr = irModule?.let { ir ->
                 KonanIrModuleSerializer(
-                    messageLogger, ir.irBuiltins, expectDescriptorToSymbol, skipExpects = !expectActualLinker
+                    messageLogger, ir.irBuiltins, expectDescriptorToSymbol, skipExpects = !expectActualLinker, compatibilityMode = CompatibilityMode.CURRENT
                 ).serializedIrModule(ir)
             }
 
@@ -191,6 +194,7 @@ internal val allLoweringsPhase = NamedCompilerPhase(
                 arrayConstructorPhase then
                 lateinitPhase then
                 sharedVariablesPhase then
+                inventNamesForLocalClasses then
                 extractLocalClassesFromInlineBodies then
                 inlinePhase then
                 provisionalFunctionExpressionPhase then
@@ -217,9 +221,11 @@ internal val allLoweringsPhase = NamedCompilerPhase(
                             delegationPhase,
                             functionReferencePhase,
                             singleAbstractMethodPhase,
+                            enumWhenPhase,
                             builtinOperatorPhase,
                             finallyBlocksPhase,
                             enumClassPhase,
+                            enumUsagePhase,
                             interopPhase,
                             varargPhase,
                             compileTimeEvaluatePhase,
@@ -228,7 +234,6 @@ internal val allLoweringsPhase = NamedCompilerPhase(
                             typeOperatorPhase,
                             bridgesPhase,
                             autoboxPhase,
-                            returnsInsertionPhase,
                         )
                 ),
         actions = setOf(defaultDumper, ::moduleValidationCallback)
@@ -376,6 +381,7 @@ internal val bitcodePhase = NamedCompilerPhase(
                 generateDebugInfoHeaderPhase then
                 propertyAccessorInlinePhase then // Have to run after link dependencies phase, because fields
                                                  // from dependencies can be changed during lowerings.
+                returnsInsertionPhase then
                 escapeAnalysisPhase then
                 localEscapeAnalysisPhase then
                 codegenPhase then
@@ -387,6 +393,7 @@ private val backendCodegen = namedUnitPhase(
         name = "Backend codegen",
         description = "Backend code generation",
         lower = takeFromContext<Context, Unit, IrModuleFragment> { it.irModule!! } then
+                functionsWithoutBoundCheck then
                 allLoweringsPhase then // Lower current module first.
                 dependenciesLowerPhase then // Then lower all libraries in topological order.
                                             // With that we guarantee that inline functions are unlowered while being inlined.
@@ -397,7 +404,9 @@ private val backendCodegen = namedUnitPhase(
                 verifyBitcodePhase then
                 printBitcodePhase then
                 linkBitcodeDependenciesPhase then
+                checkExternalCallsPhase then
                 bitcodeOptimizationPhase then
+                rewriteExternalCallsCheckerGlobals then
                 unitSink()
 )
 
@@ -446,12 +455,16 @@ internal fun PhaseConfig.konanPhasesConfig(config: KonanConfig) {
         disableIf(backendCodegen, config.produce == CompilerOutputKind.LIBRARY)
         disableUnless(bitcodeOptimizationPhase, config.produce.involvesLinkStage)
         disableUnless(linkBitcodeDependenciesPhase, config.produce.involvesLinkStage)
+        disableUnless(checkExternalCallsPhase, config.produce.involvesLinkStage && getBoolean(KonanConfigKeys.CHECK_EXTERNAL_CALLS))
+        disableUnless(rewriteExternalCallsCheckerGlobals, config.produce.involvesLinkStage && getBoolean(KonanConfigKeys.CHECK_EXTERNAL_CALLS))
         disableUnless(objectFilesPhase, config.produce.involvesLinkStage)
         disableUnless(linkerPhase, config.produce.involvesLinkStage)
         disableIf(testProcessorPhase, getNotNull(KonanConfigKeys.GENERATE_TEST_RUNNER) == TestRunnerKind.NONE)
         disableUnless(buildDFGPhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
         disableUnless(devirtualizationPhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
         disableUnless(escapeAnalysisPhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
+        // TODO: Support escape analysis with experimental MM.
+        disableIf(escapeAnalysisPhase, config.memoryModel == MemoryModel.EXPERIMENTAL)
         // Inline accessors only in optimized builds due to separate compilation and possibility to get broken
         // debug information.
         disableUnless(propertyAccessorInlinePhase, getBoolean(KonanConfigKeys.OPTIMIZATION))

@@ -59,6 +59,7 @@ private fun ConeKotlinType.renderAttributes(): String {
 fun ConeTypeProjection.render(): String {
     return when (this) {
         ConeStarProjection -> "*"
+        is ConeKotlinTypeConflictingProjection -> "CONFLICTING-PROJECTION ${type.render()}"
         is ConeKotlinTypeProjectionIn -> "in ${type.render()}"
         is ConeKotlinTypeProjectionOut -> "out ${type.render()}"
         is ConeKotlinType -> render()
@@ -69,7 +70,7 @@ fun ConeKotlinType.renderFunctionType(
     kind: FunctionClassKind?, isExtension: Boolean, renderType: ConeTypeProjection.() -> String = { render() }
 ): String {
     if (!kind.withPrettyRender()) return renderType()
-    return buildString {
+    val renderedType = buildString {
         if (kind == FunctionClassKind.SuspendFunction) {
             append("suspend ")
         }
@@ -88,6 +89,7 @@ fun ConeKotlinType.renderFunctionType(
         append(" -> ")
         append(returnType.renderType())
     }
+    return if (isMarkedNullable) "($renderedType)?" else renderedType
 }
 
 @OptIn(ExperimentalContracts::class)

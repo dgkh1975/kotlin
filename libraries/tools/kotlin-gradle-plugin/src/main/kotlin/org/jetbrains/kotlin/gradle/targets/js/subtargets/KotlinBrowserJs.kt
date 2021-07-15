@@ -141,10 +141,20 @@ open class KotlinBrowserJs @Inject constructor(target: KotlinJsTarget) :
 
                     task.description = "start ${type.name.toLowerCase()} webpack dev server"
 
-                    task.devServer = KotlinWebpackConfig.DevServer(
-                        open = true,
-                        contentBase = listOf(compilation.output.resourcesDir.canonicalPath)
-                    )
+                    webpackMajorVersion.choose(
+                        {
+                            task.devServer = KotlinWebpackConfig.DevServer(
+                                open = true,
+                                static = mutableListOf(compilation.output.resourcesDir.canonicalPath)
+                            )
+                        },
+                        {
+                            task.devServer = KotlinWebpackConfig.DevServer(
+                                open = true,
+                                contentBase = mutableListOf(compilation.output.resourcesDir.canonicalPath)
+                            )
+                        }
+                    )()
 
                     task.outputs.upToDateWhen { false }
 
@@ -257,7 +267,7 @@ open class KotlinBrowserJs @Inject constructor(target: KotlinJsTarget) :
 
         entryProperty.set(
             project.layout.file(actualDceTaskProvider.map {
-                it.destinationDir.resolve(compilation.compileKotlinTask.outputFile.name)
+                it.destinationDir.resolve(compilation.compileKotlinTask.outputFileProperty.get().name)
             })
         )
 
@@ -300,7 +310,7 @@ open class KotlinBrowserJs @Inject constructor(target: KotlinJsTarget) :
                 ?: compilation.npmProject.dir.resolve(if (dev) DCE_DEV_DIR else DCE_DIR)
             it.defaultCompilerClasspath.setFrom(project.configurations.named(COMPILER_CLASSPATH_CONFIGURATION_NAME))
 
-            it.source(kotlinTask.map { it.outputFile })
+            it.source(kotlinTask.map { it.outputFileProperty.get() })
         }
     }
 

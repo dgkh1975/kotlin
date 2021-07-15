@@ -58,7 +58,7 @@ internal fun Context.psiToIr(
     generatorContext.irBuiltIns.functionFactory = functionIrClassFactory
     val stubGenerator = DeclarationStubGeneratorImpl(
             moduleDescriptor, symbolTable,
-            config.configuration.languageVersionSettings
+            generatorContext.irBuiltIns
     )
     val symbols = KonanSymbols(this, generatorContext.irBuiltIns, symbolTable, symbolTable.lazyWrapper, functionIrClassFactory)
 
@@ -67,7 +67,9 @@ internal fun Context.psiToIr(
         stubGenerator.unboundSymbolGeneration = true
 
         object : IrDeserializer {
-            override fun getDeclaration(symbol: IrSymbol) = stubGenerator.getDeclaration(symbol)
+            override fun getDeclaration(symbol: IrSymbol) = functionIrClassFactory.getDeclaration(symbol)
+                    ?: stubGenerator.getDeclaration(symbol)
+
             override fun resolveBySignatureInModule(signature: IdSignature, kind: IrDeserializer.TopLevelSymbolKind, moduleName: Name): IrSymbol {
                 error("Should not be called")
             }
@@ -123,7 +125,7 @@ internal fun Context.psiToIr(
                         isProducingLibrary -> linker.deserializeOnlyHeaderModule(dependency, kotlinLibrary)
                         kotlinLibrary != null && config.cachedLibraries.isLibraryCached(kotlinLibrary) ->
                             linker.deserializeHeadersWithInlineBodies(dependency, kotlinLibrary)
-                        else -> linker.deserializeIrModuleHeader(dependency, kotlinLibrary)
+                        else -> linker.deserializeIrModuleHeader(dependency, kotlinLibrary, dependency.name.asString())
                     }
                 }
                 if (dependencies.size == dependenciesCount) break

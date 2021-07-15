@@ -30,6 +30,12 @@ public class Fir2IrTextTestGenerated extends AbstractFir2IrTextTest {
     @TestDataPath("$PROJECT_ROOT")
     public class Classes {
         @Test
+        @TestMetadata("47424.kt")
+        public void test47424() throws Exception {
+            runTest("compiler/testData/ir/irText/classes/47424.kt");
+        }
+
+        @Test
         @TestMetadata("abstractMembers.kt")
         public void testAbstractMembers() throws Exception {
             runTest("compiler/testData/ir/irText/classes/abstractMembers.kt");
@@ -239,6 +245,24 @@ public class Fir2IrTextTestGenerated extends AbstractFir2IrTextTest {
         }
 
         @Test
+        @TestMetadata("kt44013.kt")
+        public void testKt44013() throws Exception {
+            runTest("compiler/testData/ir/irText/classes/kt44013.kt");
+        }
+
+        @Test
+        @TestMetadata("kt45853.kt")
+        public void testKt45853() throws Exception {
+            runTest("compiler/testData/ir/irText/classes/kt45853.kt");
+        }
+
+        @Test
+        @TestMetadata("kt45934.kt")
+        public void testKt45934() throws Exception {
+            runTest("compiler/testData/ir/irText/classes/kt45934.kt");
+        }
+
+        @Test
         @TestMetadata("lambdaInDataClassDefaultParameter.kt")
         public void testLambdaInDataClassDefaultParameter() throws Exception {
             runTest("compiler/testData/ir/irText/classes/lambdaInDataClassDefaultParameter.kt");
@@ -429,6 +453,18 @@ public class Fir2IrTextTestGenerated extends AbstractFir2IrTextTest {
         }
 
         @Test
+        @TestMetadata("kt45308.kt")
+        public void testKt45308() throws Exception {
+            runTest("compiler/testData/ir/irText/declarations/kt45308.kt");
+        }
+
+        @Test
+        @TestMetadata("kt47527.kt")
+        public void testKt47527() throws Exception {
+            runTest("compiler/testData/ir/irText/declarations/kt47527.kt");
+        }
+
+        @Test
         @TestMetadata("localClassWithOverrides.kt")
         public void testLocalClassWithOverrides() throws Exception {
             runTest("compiler/testData/ir/irText/declarations/localClassWithOverrides.kt");
@@ -591,6 +627,12 @@ public class Fir2IrTextTestGenerated extends AbstractFir2IrTextTest {
             @TestMetadata("javaAnnotation.kt")
             public void testJavaAnnotation() throws Exception {
                 runTest("compiler/testData/ir/irText/declarations/annotations/javaAnnotation.kt");
+            }
+
+            @Test
+            @TestMetadata("javaAnnotationWithSingleArrayArgument.kt")
+            public void testJavaAnnotationWithSingleArrayArgument() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/annotations/javaAnnotationWithSingleArrayArgument.kt");
             }
 
             @Test
@@ -1377,6 +1419,30 @@ public class Fir2IrTextTestGenerated extends AbstractFir2IrTextTest {
         }
 
         @Test
+        @TestMetadata("kt47082.kt")
+        public void testKt47082() throws Exception {
+            runTest("compiler/testData/ir/irText/expressions/kt47082.kt");
+        }
+
+        @Test
+        @TestMetadata("kt47245.kt")
+        public void testKt47245() throws Exception {
+            runTest("compiler/testData/ir/irText/expressions/kt47245.kt");
+        }
+
+        @Test
+        @TestMetadata("kt47328.kt")
+        public void testKt47328() throws Exception {
+            runTest("compiler/testData/ir/irText/expressions/kt47328.kt");
+        }
+
+        @Test
+        @TestMetadata("kt47450.kt")
+        public void testKt47450() throws Exception {
+            runTest("compiler/testData/ir/irText/expressions/kt47450.kt");
+        }
+
+        @Test
         @TestMetadata("lambdaInCAO.kt")
         public void testLambdaInCAO() throws Exception {
             runTest("compiler/testData/ir/irText/expressions/lambdaInCAO.kt");
@@ -1482,6 +1548,12 @@ public class Fir2IrTextTestGenerated extends AbstractFir2IrTextTest {
         @TestMetadata("propertyReferences.kt")
         public void testPropertyReferences() throws Exception {
             runTest("compiler/testData/ir/irText/expressions/propertyReferences.kt");
+        }
+
+        @Test
+        @TestMetadata("protectedJavaFieldRef.kt")
+        public void testProtectedJavaFieldRef() throws Exception {
+            runTest("compiler/testData/ir/irText/expressions/protectedJavaFieldRef.kt");
         }
 
         @Test
@@ -1821,6 +1893,12 @@ public class Fir2IrTextTestGenerated extends AbstractFir2IrTextTest {
             @TestMetadata("kt37131.kt")
             public void testKt37131() throws Exception {
                 runTest("compiler/testData/ir/irText/expressions/callableReferences/kt37131.kt");
+            }
+
+            @Test
+            @TestMetadata("kt46069.kt")
+            public void testKt46069() throws Exception {
+                runTest("compiler/testData/ir/irText/expressions/callableReferences/kt46069.kt");
             }
 
             @Test
@@ -2273,6 +2351,12 @@ public class Fir2IrTextTestGenerated extends AbstractFir2IrTextTest {
         }
 
         @Test
+        @TestMetadata("TypeParameterBounds.kt")
+        public void testTypeParameterBounds() throws Exception {
+            runTest("compiler/testData/ir/irText/firProblems/TypeParameterBounds.kt");
+        }
+
+        @Test
         @TestMetadata("typeParameterFromJavaClass.kt")
         public void testTypeParameterFromJavaClass() throws Exception {
             runTest("compiler/testData/ir/irText/firProblems/typeParameterFromJavaClass.kt");
@@ -2380,6 +2464,12 @@ public class Fir2IrTextTestGenerated extends AbstractFir2IrTextTest {
         @TestMetadata("kt24114.kt")
         public void testKt24114() throws Exception {
             runTest("compiler/testData/ir/irText/regressions/kt24114.kt");
+        }
+
+        @Test
+        @TestMetadata("kt45236.kt")
+        public void testKt45236() throws Exception {
+            runTest("compiler/testData/ir/irText/regressions/kt45236.kt");
         }
 
         @Test
@@ -2621,6 +2711,12 @@ public class Fir2IrTextTestGenerated extends AbstractFir2IrTextTest {
         }
 
         @Test
+        @TestMetadata("intersectionTypeInSamType.kt")
+        public void testIntersectionTypeInSamType() throws Exception {
+            runTest("compiler/testData/ir/irText/types/intersectionTypeInSamType.kt");
+        }
+
+        @Test
         @TestMetadata("javaWildcardType.kt")
         public void testJavaWildcardType() throws Exception {
             runTest("compiler/testData/ir/irText/types/javaWildcardType.kt");
@@ -2729,6 +2825,24 @@ public class Fir2IrTextTestGenerated extends AbstractFir2IrTextTest {
             @TestMetadata("platformTypeReceiver.kt")
             public void testPlatformTypeReceiver() throws Exception {
                 runTest("compiler/testData/ir/irText/types/nullChecks/platformTypeReceiver.kt");
+            }
+
+            @Test
+            @TestMetadata("typeParameterWithMixedNullableAndNotNullableBounds.kt")
+            public void testTypeParameterWithMixedNullableAndNotNullableBounds() throws Exception {
+                runTest("compiler/testData/ir/irText/types/nullChecks/typeParameterWithMixedNullableAndNotNullableBounds.kt");
+            }
+
+            @Test
+            @TestMetadata("typeParameterWithMultipleNotNullableBounds.kt")
+            public void testTypeParameterWithMultipleNotNullableBounds() throws Exception {
+                runTest("compiler/testData/ir/irText/types/nullChecks/typeParameterWithMultipleNotNullableBounds.kt");
+            }
+
+            @Test
+            @TestMetadata("typeParameterWithMultipleNullableBounds.kt")
+            public void testTypeParameterWithMultipleNullableBounds() throws Exception {
+                runTest("compiler/testData/ir/irText/types/nullChecks/typeParameterWithMultipleNullableBounds.kt");
             }
 
             @Nested

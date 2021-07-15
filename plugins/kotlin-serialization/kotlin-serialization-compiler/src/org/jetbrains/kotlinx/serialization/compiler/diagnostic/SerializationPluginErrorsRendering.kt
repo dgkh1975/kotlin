@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2021 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -24,6 +24,14 @@ object SerializationPluginErrorsRendering : DefaultErrorMessages.Extension {
             SerializationErrors.PLUGIN_IS_NOT_ENABLED,
             "kotlinx.serialization compiler plugin is not applied to the module, so this annotation would not be processed. " +
                     "Make sure that you've setup your buildscript correctly and re-import project."
+        )
+        MAP.put(
+            SerializationErrors.ANONYMOUS_OBJECTS_NOT_SUPPORTED,
+            "Anonymous objects or contained in it classes can not be serializable."
+        )
+        MAP.put(
+            SerializationErrors.INNER_CLASSES_NOT_SUPPORTED,
+            "Inner (with reference to outer this) serializable classes are not supported. Remove @Serializable annotation or 'inner' keyword."
         )
         MAP.put(
             SerializationErrors.EXPLICIT_SERIALIZABLE_IS_REQUIRED,
@@ -64,6 +72,11 @@ object SerializationPluginErrorsRendering : DefaultErrorMessages.Extension {
             "Class ''{1}'', which is serializer for type ''{2}'', is applied here to type ''{0}''. This may lead to errors or incorrect behavior.",
             Renderers.RENDER_TYPE,
             Renderers.RENDER_TYPE,
+            Renderers.RENDER_TYPE
+        )
+        MAP.put(
+            SerializationErrors.LOCAL_SERIALIZER_USAGE,
+            "Class ''{0}'' can't be used as a serializer since it is local",
             Renderers.RENDER_TYPE
         )
         MAP.put(

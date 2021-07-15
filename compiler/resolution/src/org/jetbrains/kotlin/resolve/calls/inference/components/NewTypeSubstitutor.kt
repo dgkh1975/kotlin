@@ -54,8 +54,9 @@ interface NewTypeSubstitutor : TypeSubstitutorMarker {
             } else {
                 val lowerBound = substitute(type.lowerBound, keepAnnotation, runCapturedChecks)
                 val upperBound = substitute(type.upperBound, keepAnnotation, runCapturedChecks)
-                val enhancement =
-                    if (type is TypeWithEnhancement) substituteTypeEnhancement(type, keepAnnotation, runCapturedChecks) else null
+                val enhancement = if (type is TypeWithEnhancement) {
+                    substituteTypeEnhancement(type.enhancement, keepAnnotation, runCapturedChecks)
+                } else null
 
                 if (lowerBound == null && upperBound == null) {
                     null
@@ -64,7 +65,7 @@ interface NewTypeSubstitutor : TypeSubstitutorMarker {
                     KotlinTypeFactory.flexibleType(
                         lowerBound?.lowerIfFlexible() ?: type.lowerBound,
                         upperBound?.upperIfFlexible() ?: type.upperBound
-                    ).wrapEnhancement(enhancement)
+                    ).wrapEnhancement(if (enhancement is TypeWithEnhancement) enhancement.enhancement else enhancement)
                 }
             }
         }
@@ -104,6 +105,8 @@ interface NewTypeSubstitutor : TypeSubstitutorMarker {
 
             val innerType = capturedType.lowerType ?: capturedType.constructor.projection.type.unwrap()
             val substitutedInnerType = substitute(innerType, keepAnnotation, runCapturedChecks = false)
+            val substitutedSuperTypes =
+                capturedType.constructor.supertypes.map { substitute(it, keepAnnotation, runCapturedChecks = false) ?: it }
 
             if (substitutedInnerType != null) {
                 return if (substitutedInnerType.isCaptured()) substitutedInnerType else {
@@ -112,7 +115,7 @@ interface NewTypeSubstitutor : TypeSubstitutorMarker {
                         NewCapturedTypeConstructor(
                             TypeProjectionImpl(typeConstructor.projection.projectionKind, substitutedInnerType),
                             typeParameter = typeConstructor.typeParameter
-                        ),
+                        ).also { it.initializeSupertypes(substitutedSuperTypes) },
                         lowerType = if (capturedType.lowerType != null) substitutedInnerType else null
                     )
                 }

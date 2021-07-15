@@ -16,8 +16,7 @@ public fun CliCommonizer(classLoader: ClassLoader): CliCommonizer {
     return CliCommonizer(CommonizerClassLoaderExecutor(classLoader))
 }
 
-public class CliCommonizer(private val executor: Executor) : Commonizer {
-
+public class CliCommonizer(private val executor: Executor) : NativeDistributionCommonizer, CInteropCommonizer {
     public fun interface Executor {
         public operator fun invoke(arguments: List<String>)
     }
@@ -25,21 +24,40 @@ public class CliCommonizer(private val executor: Executor) : Commonizer {
     override fun commonizeLibraries(
         konanHome: File,
         inputLibraries: Set<File>,
-        dependencyLibraries: Set<File>,
-        outputCommonizerTarget: SharedCommonizerTarget,
-        outputDirectory: File
+        dependencyLibraries: Set<CommonizerDependency>,
+        outputTargets: Set<SharedCommonizerTarget>,
+        outputDirectory: File,
+        logLevel: CommonizerLogLevel
     ) {
         if (inputLibraries.isEmpty()) return
         val arguments = mutableListOf<String>().apply {
             add("native-klib-commonize")
             add("-distribution-path"); add(konanHome.absolutePath)
             add("-input-libraries"); add(inputLibraries.joinToString(";") { it.absolutePath })
-            add("-output-commonizer-target"); add(outputCommonizerTarget.identityString)
+            add("-output-targets"); add(outputTargets.joinToString(";") { it.identityString })
             add("-output-path"); add(outputDirectory.absolutePath)
             if (dependencyLibraries.isNotEmpty()) {
-                add("-dependency-libraries"); add(dependencyLibraries.joinToString(";") { it.absolutePath })
+                add("-dependency-libraries"); add(dependencyLibraries.joinToString(";"))
             }
+            add("-log-level"); add(logLevel.name.lowercase())
         }
+        executor(arguments)
+    }
+
+    override fun commonizeNativeDistribution(
+        konanHome: File,
+        outputDirectory: File,
+        outputTargets: Set<SharedCommonizerTarget>,
+        logLevel: CommonizerLogLevel
+    ) {
+        val arguments = mutableListOf<String>().apply {
+            add("native-dist-commonize")
+            add("-distribution-path"); add(konanHome.absolutePath)
+            add("-output-path"); add(outputDirectory.absolutePath)
+            add("-output-targets"); add(outputTargets.joinToString(";") { it.identityString })
+            add("-log-level"); add(logLevel.name.lowercase())
+        }
+
         executor(arguments)
     }
 }

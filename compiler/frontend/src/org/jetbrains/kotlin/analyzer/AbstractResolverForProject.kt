@@ -89,7 +89,8 @@ abstract class AbstractResolverForProject<M : ModuleInfo>(
     override val name: String
         get() = "Resolver for '$debugName'"
 
-    private fun isCorrectModuleInfo(moduleInfo: M) = moduleInfo in allModules
+    private fun isCorrectModuleInfo(moduleInfo: M): Boolean =
+        ((moduleInfo as? DerivedModuleInfo)?.originalModule ?: moduleInfo) in allModules
 
     final override fun resolverForModuleDescriptor(descriptor: ModuleDescriptor): ResolverForModule {
         val moduleResolver = resolverForModuleDescriptorImpl(descriptor)
@@ -164,8 +165,10 @@ abstract class AbstractResolverForProject<M : ModuleInfo>(
     }
 
     private fun doGetDescriptorForModule(module: M): ModuleDescriptorImpl {
-        val moduleFromThisResolver = moduleInfoToResolvableInfo[module]
-            ?: return delegateResolver.descriptorForModule(module) as ModuleDescriptorImpl
+        val moduleFromThisResolver =
+            module.takeIf { it is DerivedModuleInfo && it.originalModule in moduleInfoToResolvableInfo }
+                ?: moduleInfoToResolvableInfo[module]
+                ?: return delegateResolver.descriptorForModule(module) as ModuleDescriptorImpl
 
         return projectContext.storageManager.compute {
             var moduleData = descriptorByModule.getOrPut(moduleFromThisResolver) {
@@ -252,6 +255,12 @@ private class DelegatingPackageFragmentProvider<M : ModuleInfo>(
         resolverForProject.resolverForModuleDescriptor(module).packageFragmentProvider.collectPackageFragmentsOptimizedIfPossible(fqName, packageFragments)
     }
 
+    override fun isEmpty(fqName: FqName): Boolean {
+        if (certainlyDoesNotExist(fqName)) return true
+
+        return resolverForProject.resolverForModuleDescriptor(module).packageFragmentProvider.isEmpty(fqName)
+    }
+
     override fun getSubPackagesOf(fqName: FqName, nameFilter: (Name) -> Boolean): Collection<FqName> {
         if (certainlyDoesNotExist(fqName)) return emptyList()
 
@@ -262,6 +271,10 @@ private class DelegatingPackageFragmentProvider<M : ModuleInfo>(
         if (resolverForProject.isResolverForModuleDescriptorComputed(module)) return false // let this request get cached inside delegate
 
         return !packageOracle.packageExists(fqName) && fqName !in syntheticFilePackages
+    }
+
+    override fun toString(): String {
+        return "DelegatingProvider for $module in ${resolverForProject.name}"
     }
 }
 
@@ -282,7 +295,7 @@ private object DiagnoseUnknownModuleInfoReporter {
                             else -> errorInModulesResolver(message)
                         }
                     }
-                    else -> throw errorInModulesResolver(message)
+                    else -> errorInModulesResolver(message)
                 }
             }
             name.contains(ResolverForProject.resolverForScriptDependenciesName) -> errorInScriptDependenciesInfoResolver(message)

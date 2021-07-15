@@ -59,6 +59,7 @@ dependencies {
     testRuntime(project(":kotlin-scripting-idea"))
     testRuntime(project(":kotlinx-serialization-ide-plugin"))
     testRuntime(project(":plugins:parcelize:parcelize-ide"))
+    testRuntime(project(":plugins:lombok:lombok-ide-plugin"))
     testRuntime(project(":kotlin-gradle-statistics"))
     // TODO: the order of the plugins matters here, consider avoiding order-dependency
     testRuntime(intellijPluginDep("junit"))
@@ -70,19 +71,14 @@ dependencies {
     testRuntime(intellijPluginDep("coverage"))
     if (Ide.IJ()) {
         testRuntime(intellijPluginDep("maven"))
-
-        if (Ide.IJ201.orHigher()) {
-            testRuntime(intellijPluginDep("repository-search"))
-        }
+        testRuntime(intellijPluginDep("repository-search"))
     }
+
     testRuntime(intellijPluginDep("android"))
     testRuntime(intellijPluginDep("smali"))
 
-    if (Ide.AS41.orHigher() || Ide.IJ202.orHigher()) {
-         testRuntime(intellijPluginDep("platform-images"))
-    }
-
-    if (Ide.AS36.orHigher()) {
+    testRuntime(intellijPluginDep("platform-images"))
+    if (Ide.AS()) {
         testRuntime(intellijPluginDep("android-layoutlib"))
     }
 }
@@ -100,7 +96,7 @@ testsJar()
 projectTest(parallel = false) {
     dependsOn(":dist")
     dependsOnKotlinGradlePluginInstall()
-    if (!Ide.AS41.orHigher()) {
+    if (Ide.IJ()) {
         systemProperty("android.studio.sdk.manager.disabled", "true")
     }
     workingDir = rootDir
@@ -123,7 +119,7 @@ projectTest(parallel = false) {
 
 configureFormInstrumentation()
 
-if (Ide.AS41.orHigher()) {
+if (Ide.AS()) {
     getOrCreateTask<Test>("test") {
         setExcludes(listOf("**"))
     }

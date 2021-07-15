@@ -18,6 +18,7 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinSharedNativeCompilation
 import org.jetbrains.kotlin.gradle.targets.native.internal.CInteropCommonizationParameters
 import org.jetbrains.kotlin.gradle.targets.native.internal.CInteropCommonizerTask
 import org.jetbrains.kotlin.gradle.targets.native.internal.commonizeCInteropTask
+import org.jetbrains.kotlin.gradle.targets.native.internal.supports
 import org.jetbrains.kotlin.konan.target.KonanTarget.*
 import kotlin.test.*
 
@@ -58,7 +59,7 @@ class CInteropCommonizerTaskTest {
 
         assertEquals(
             CInteropCommonizationParameters(
-                CommonizerTarget(LINUX_X64, MACOS_X64), setOf(linuxInterop.identifier, macosInterop.identifier)
+                setOf(CommonizerTarget(LINUX_X64, MACOS_X64)), setOf(linuxInterop.identifier, macosInterop.identifier)
             ),
             task.getCommonizationParameters(nativeMainCompilation)
         )
@@ -114,41 +115,30 @@ class CInteropCommonizerTaskTest {
 
         project.evaluate()
 
-        /*
-        //https://youtrack.jetbrains.com/issue/KT-39324
         assertEquals(
             CInteropCommonizationParameters(
-                SharedCommonizerTarget(CommonizerTarget(IOS_X64, IOS_ARM64), CommonizerTarget(MACOS_X64), CommonizerTarget(LINUX_X64)),
+                setOf(
+                    CommonizerTarget(IOS_X64, IOS_ARM64),
+                    CommonizerTarget(IOS_X64, IOS_ARM64, MACOS_X64, LINUX_X64)
+                ),
                 setOf(linuxInterop, macosInterop, iosX64Interop, iosArm64Interop)
             ), task.getCommonizationParameters(sharedNativeCompilation(nativeMain))
         )
-         */
-        assertNull(
-            task.getCommonizationParameters(sharedNativeCompilation(nativeMain))
-        )
 
-        /*
-        //https://youtrack.jetbrains.com/issue/KT-39324
         assertEquals(
             CInteropCommonizationParameters(
-                SharedCommonizerTarget(CommonizerTarget(IOS_X64, IOS_ARM64), CommonizerTarget(MACOS_X64), CommonizerTarget(LINUX_X64)),
+                setOf(
+                    CommonizerTarget(IOS_X64, IOS_ARM64),
+                    CommonizerTarget(IOS_X64, IOS_ARM64, MACOS_X64, LINUX_X64)
+                ),
                 setOf(linuxInterop, macosInterop, iosX64Interop, iosArm64Interop)
             ), task.getCommonizationParameters(sharedNativeCompilation(iosMain))
         )
-         */
-        assertEquals(
-            CInteropCommonizationParameters(CommonizerTarget(IOS_X64, IOS_ARM64), setOf(iosX64Interop, iosArm64Interop)),
-            task.getCommonizationParameters(sharedNativeCompilation(iosMain))
-        )
 
-        /*
-        //https://youtrack.jetbrains.com/issue/KT-39324
         assertTrue(
-            task.getCommonizationParameters(sharedNativeCompilation(iosMain))!! in
-                    task.getCommonizationParameters(sharedNativeCompilation(nativeMain))!!,
-            "Expected CInteropCommonizerTarget of iosMain to be fully contained in nativeMain"
+            task.getCommonizationParameters(sharedNativeCompilation(nativeMain))!!.supports(sharedNativeCompilation(nativeMain)),
+            "Expected CInteropCommonizerTarget of nativeMain to support iosMain"
         )
-         */
     }
 
     private fun sharedNativeCompilation(sourceSet: KotlinSourceSet): KotlinSharedNativeCompilation {

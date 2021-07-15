@@ -30,10 +30,10 @@ interface TypeSystemCommonBackendContext : TypeSystemContext {
      */
     fun KotlinTypeMarker.getAnnotationFirstArgumentValue(fqName: FqName): Any?
 
-    fun TypeConstructorMarker.getTypeParameterClassifier(): TypeParameterMarker?
     fun TypeConstructorMarker.isInlineClass(): Boolean
     fun TypeConstructorMarker.isInnerClass(): Boolean
     fun TypeParameterMarker.getRepresentativeUpperBound(): KotlinTypeMarker
+    fun KotlinTypeMarker.getUnsubstitutedUnderlyingType(): KotlinTypeMarker?
     fun KotlinTypeMarker.getSubstitutedUnderlyingType(): KotlinTypeMarker?
 
     fun KotlinTypeMarker.makeNullable(): KotlinTypeMarker =

@@ -40,7 +40,8 @@ val foldConstantLoweringPhase = makeIrFilePhase(
 class FoldConstantLowering(
     private val context: CommonBackendContext,
     // In K/JS Float and Double are the same so Float constant should be fold similar to Double
-    private val floatSpecial: Boolean = false) : IrElementTransformerVoid(), BodyLoweringPass {
+    private val floatSpecial: Boolean = false
+) : IrElementTransformerVoid(), BodyLoweringPass {
     /**
      * ID of an binary operator / method.
      *
@@ -105,18 +106,17 @@ class FoldConstantLowering(
         }
 
     private fun buildIrConstant(startOffset: Int, endOffset: Int, type: IrType, v: Any?): IrConst<*> {
-        val constType = type.makeNotNull()
         return when (type.getPrimitiveType()) {
-            PrimitiveType.BOOLEAN -> IrConstImpl.boolean(startOffset, endOffset, constType, v as Boolean)
-            PrimitiveType.CHAR -> IrConstImpl.char(startOffset, endOffset, constType, v as Char)
-            PrimitiveType.BYTE -> IrConstImpl.byte(startOffset, endOffset, constType, (v as Number).toByte())
-            PrimitiveType.SHORT -> IrConstImpl.short(startOffset, endOffset, constType, (v as Number).toShort())
-            PrimitiveType.INT -> IrConstImpl.int(startOffset, endOffset, constType, (v as Number).toInt())
-            PrimitiveType.FLOAT -> fromFloatConstSafe(startOffset, endOffset, type, v)
-            PrimitiveType.LONG -> IrConstImpl.long(startOffset, endOffset, constType, (v as Number).toLong())
-            PrimitiveType.DOUBLE -> IrConstImpl.double(startOffset, endOffset, constType, (v as Number).toDouble())
+            PrimitiveType.BOOLEAN -> IrConstImpl.boolean(startOffset, endOffset, context.irBuiltIns.booleanType, v as Boolean)
+            PrimitiveType.CHAR -> IrConstImpl.char(startOffset, endOffset, context.irBuiltIns.charType, v as Char)
+            PrimitiveType.BYTE -> IrConstImpl.byte(startOffset, endOffset, context.irBuiltIns.byteType, (v as Number).toByte())
+            PrimitiveType.SHORT -> IrConstImpl.short(startOffset, endOffset, context.irBuiltIns.shortType, (v as Number).toShort())
+            PrimitiveType.INT -> IrConstImpl.int(startOffset, endOffset, context.irBuiltIns.intType, (v as Number).toInt())
+            PrimitiveType.FLOAT -> fromFloatConstSafe(startOffset, endOffset, context.irBuiltIns.floatType, v)
+            PrimitiveType.LONG -> IrConstImpl.long(startOffset, endOffset, context.irBuiltIns.longType, (v as Number).toLong())
+            PrimitiveType.DOUBLE -> IrConstImpl.double(startOffset, endOffset, context.irBuiltIns.doubleType, (v as Number).toDouble())
             else -> when {
-                constType.isString() -> IrConstImpl.string(startOffset, endOffset, constType, v as String)
+                type.isStringClassType() -> IrConstImpl.string(startOffset, endOffset, context.irBuiltIns.stringType, v as String)
                 else -> throw IllegalArgumentException("Unexpected IrCall return type")
             }
         }
@@ -131,6 +131,7 @@ class FoldConstantLowering(
             operationName == "toString" -> constToString(operand)
             // Disable toFloat folding on K/JS till `toFloat` is fixed (KT-35422)
             operationName == "toFloat" && floatSpecial -> return call
+            operand.kind == IrConstKind.Null -> return call
             else -> evaluateUnary(
                 operationName,
                 operand.kind.toString(),
@@ -162,6 +163,8 @@ class FoldConstantLowering(
         val lhs = coerceToDouble(call.dispatchReceiver as? IrConst<*> ?: return call)
         val rhs = coerceToDouble(call.getValueArgument(0) as? IrConst<*> ?: return call)
 
+        if (lhs.kind == IrConstKind.Null || rhs.kind == IrConstKind.Null) return call
+
         val evaluated = try {
             evaluateBinary(
                 call.symbol.owner.name.toString(),
@@ -190,6 +193,8 @@ class FoldConstantLowering(
         val lhs = call.getValueArgument(0) as? IrConst<*> ?: return call
         val rhs = call.getValueArgument(1) as? IrConst<*> ?: return call
 
+        if (lhs.kind == IrConstKind.Null || rhs.kind == IrConstKind.Null) return call
+
         val evaluated = try {
             val evaluator =
                 BINARY_OP_TO_EVALUATOR[BinaryOp(lhs.kind.toString(), rhs.kind.toString(), call.symbol.owner.name.toString())] ?: return call
@@ -204,7 +209,6 @@ class FoldConstantLowering(
     private fun normalizeUnsignedValue(const: IrConst<*>): Any? {
         // Unsigned constants are represented through signed constants with a different IrType
         if (const.type.isUnsigned()) {
-            @OptIn(ExperimentalUnsignedTypes::class)
             when (val kind = const.kind) {
                 is IrConstKind.Byte ->
                     return kind.valueOf(const).toUByte()
@@ -244,7 +248,6 @@ class FoldConstantLowering(
         return normalizeUnsignedValue(const).toString()
     }
 
-    @ExperimentalUnsignedTypes
     override fun lower(irBody: IrBody, container: IrDeclaration) {
         irBody.transformChildrenVoid(object : IrElementTransformerVoid() {
             override fun visitCall(expression: IrCall): IrExpression {
@@ -270,7 +273,8 @@ class FoldConstantLowering(
                             next.startOffset, next.endOffset, context.irBuiltIns.stringType, constToString(next)
                         )
                         else -> folded[folded.size - 1] = IrConstImpl.string(
-                            last.startOffset, next.endOffset, context.irBuiltIns.stringType,
+                            // Inlined strings may have `last.startOffset > next.endOffset`
+                            Math.min(last.startOffset, next.startOffset), Math.max(last.endOffset, next.endOffset), context.irBuiltIns.stringType,
                             constToString(last) + constToString(next)
                         )
                     }

@@ -5,39 +5,26 @@
 
 package org.jetbrains.kotlin.commonizer
 
-import org.jetbrains.kotlin.commonizer.konan.TargetedNativeManifestDataProvider
+import org.jetbrains.kotlin.commonizer.konan.NativeManifestDataProvider
+import org.jetbrains.kotlin.commonizer.mergedtree.CirFictitiousFunctionClassifiers
+import org.jetbrains.kotlin.commonizer.mergedtree.CirProvidedClassifiers
 import org.jetbrains.kotlin.commonizer.stats.StatsCollector
+import org.jetbrains.kotlin.storage.LockBasedStorageManager
+import org.jetbrains.kotlin.storage.StorageManager
+import org.jetbrains.kotlin.util.Logger
 
-class CommonizerParameters(
+data class CommonizerParameters(
+    val outputTargets: Set<SharedCommonizerTarget>,
+    val manifestProvider: TargetDependent<NativeManifestDataProvider>,
+    val dependenciesProvider: TargetDependent<ModulesProvider?>,
+    val targetProviders: TargetDependent<TargetProvider?>,
     val resultsConsumer: ResultsConsumer,
-    val manifestDataProvider: TargetedNativeManifestDataProvider,
-    // common module dependencies (ex: Kotlin stdlib)
-    val commonDependencyModulesProvider: ModulesProvider? = null,
+    val storageManager: StorageManager = LockBasedStorageManager.NO_LOCKS,
     val statsCollector: StatsCollector? = null,
-    val progressLogger: ((String) -> Unit)? = null
-) {
-    // use linked hash map to preserve order
-    private val _targetProviders = LinkedHashMap<CommonizerTarget, TargetProvider>()
-    val targetProviders: List<TargetProvider> get() = _targetProviders.values.toList()
+    val logger: Logger? = null,
+)
 
-    fun addTarget(targetProvider: TargetProvider): CommonizerParameters {
-        require(targetProvider.target !in _targetProviders) { "Target ${targetProvider.target} is already added" }
-        _targetProviders[targetProvider.target] = targetProvider
-
-        return this
-    }
-
-    fun getCommonModuleNames(): Set<String> {
-        if (_targetProviders.size < 2) return emptySet() // too few targets
-
-        val allModuleNames: List<Set<String>> = _targetProviders.values.map { targetProvider ->
-            targetProvider.modulesProvider.loadModuleInfos().mapTo(HashSet()) { it.name }
-        }
-
-        return allModuleNames.reduce { a, b -> a intersect b } // there are modules that are present in every target
-    }
-
-    fun hasAnythingToCommonize(): Boolean {
-        return getCommonModuleNames().isNotEmpty()
-    }
+internal fun CommonizerParameters.dependencyClassifiers(target: CommonizerTarget): CirProvidedClassifiers {
+    val modulesProvider = dependenciesProvider[target]
+    return CirProvidedClassifiers.of(CirFictitiousFunctionClassifiers, CirProvidedClassifiers.by(modulesProvider))
 }

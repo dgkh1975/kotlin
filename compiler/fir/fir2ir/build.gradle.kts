@@ -17,10 +17,6 @@ dependencies {
 
     compileOnly(intellijCoreDep()) { includeJars("intellij-core") }
 
-    testCompileOnly(intellijDep())
-
-    testRuntimeOnly(intellijDep())
-
     testCompileOnly(project(":kotlin-test:kotlin-test-jvm"))
     testCompileOnly(project(":kotlin-test:kotlin-test-junit"))
     testApi(projectTests(":compiler:test-infrastructure"))
@@ -39,6 +35,17 @@ dependencies {
 
     testCompileOnly(intellijCoreDep()) { includeJars("intellij-core") }
     testRuntimeOnly(intellijCoreDep()) { includeJars("intellij-core") }
+
+    testRuntimeOnly(intellijDep()) {
+        includeJars("jna", rootProject = rootProject)
+    }
+
+    Platform[202] {
+        testRuntimeOnly(intellijDep()) { includeJars("intellij-deps-fastutil-8.3.1-1") }
+    }
+    Platform[203].orHigher {
+        testRuntimeOnly(intellijDep()) { includeJars("intellij-deps-fastutil-8.4.1-4") }
+    }
 }
 
 val generationRoot = projectDir.resolve("tests-gen")
@@ -59,6 +66,7 @@ if (kotlinBuildProperties.isInJpsBuildIdeaSync) {
 }
 
 projectTest(jUnit5Enabled = true) {
+    dependsOn(":dist")
     workingDir = rootDir
     useJUnitPlatform()
 }

@@ -231,6 +231,11 @@ public class KotlinHighlightingPassTestGenerated extends AbstractKotlinHighlight
             runTest("idea/testData/checker/OverridesAndGenerics.kt");
         }
 
+        @TestMetadata("PackageInExpressionPosition.kt")
+        public void testPackageInExpressionPosition() throws Exception {
+            runTest("idea/testData/checker/PackageInExpressionPosition.kt");
+        }
+
         @TestMetadata("PackageQualified.kt")
         public void testPackageQualified() throws Exception {
             runTest("idea/testData/checker/PackageQualified.kt");
@@ -939,6 +944,11 @@ public class KotlinHighlightingPassTestGenerated extends AbstractKotlinHighlight
         @TestMetadata("operatorCallDiagnosticsOnInOperator.kt")
         public void testOperatorCallDiagnosticsOnInOperator() throws Exception {
             runTest("idea/testData/checker/diagnosticsMessage/operatorCallDiagnosticsOnInOperator.kt");
+        }
+
+        @TestMetadata("valOrVarOnParameter.kt")
+        public void testValOrVarOnParameter() throws Exception {
+            runTest("idea/testData/checker/diagnosticsMessage/valOrVarOnParameter.kt");
         }
     }
 }

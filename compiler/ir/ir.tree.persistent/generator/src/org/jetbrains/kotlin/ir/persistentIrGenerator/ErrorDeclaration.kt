@@ -24,6 +24,8 @@ internal fun PersistentIrGenerator.generateErrorDeclaration() {
                     +"    get() = _descriptor ?: this." + import("toIrBasedDescriptor", "org.jetbrains.kotlin.ir.descriptors") + "()"
                 ),
                 id,
+                signature,
+                id,
                 lastModified,
                 loweredUpTo,
                 values,
@@ -43,4 +45,6 @@ internal fun PersistentIrGenerator.generateErrorDeclaration() {
             "ErrorDeclaration",
         )()
     })
+
+    addCarrierProtoMessage("ErrorDeclaration")
 }

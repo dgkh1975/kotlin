@@ -22,9 +22,8 @@ import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
-import org.jetbrains.kotlin.js.config.DceRuntimeDiagnostic
+import org.jetbrains.kotlin.js.config.RuntimeDiagnostic
 import org.jetbrains.kotlin.js.config.JSConfigurationKeys
-import org.jetbrains.kotlin.js.config.removingBody
 import org.jetbrains.kotlin.utils.addIfNotNull
 import java.util.*
 
@@ -50,24 +49,52 @@ private fun IrField.isConstant(): Boolean {
     return correspondingPropertySymbol?.owner?.isConst ?: false
 }
 
-private fun buildRoots(modules: Iterable<IrModuleFragment>, context: JsIrBackendContext): Iterable<IrDeclaration> {
-    val rootDeclarations =
-        (modules.flatMap { it.files } + context.packageLevelJsModules + context.externalPackageFragment.values).flatMapTo(mutableListOf()) { file ->
-            file.declarations.flatMap { if (it is IrProperty) listOfNotNull(it.backingField, it.getter, it.setter) else listOf(it) }
-                .filter {
-                    it is IrField && it.initializer != null && !it.isKotlinPackage()
-                            || it.isExported(context)
-                            || it.isEffectivelyExternal()
-                            || it is IrField && it.correspondingPropertySymbol?.owner?.isExported(context) == true
-                            || it is IrSimpleFunction && it.correspondingPropertySymbol?.owner?.isExported(context) == true
-                }.filter { !(it is IrField && it.isConstant() && !it.isExported(context)) }
+private fun IrDeclaration.addRootsTo(to: MutableCollection<IrDeclaration>, context: JsIrBackendContext) {
+    when {
+        this is IrProperty -> {
+            backingField?.addRootsTo(to, context)
+            getter?.addRootsTo(to, context)
+            setter?.addRootsTo(to, context)
         }
+        isEffectivelyExternal() -> {
+            to += this
+        }
+        isExported(context) -> {
+            to += this
+        }
+        this is IrField -> {
+            // TODO: simplify
+            if ((initializer != null && !isKotlinPackage() || correspondingPropertySymbol?.owner?.isExported(context) == true) && !isConstant()) {
+                to += this
+            }
+        }
+        this is IrSimpleFunction -> {
+            if (correspondingPropertySymbol?.owner?.isExported(context) == true) {
+                to += this
+            }
+        }
+    }
+}
+
+private fun buildRoots(modules: Iterable<IrModuleFragment>, context: JsIrBackendContext): Iterable<IrDeclaration> {
+    val rootDeclarations = mutableListOf<IrDeclaration>()
+    val allFiles = (modules.flatMap { it.files } + context.packageLevelJsModules + context.externalPackageFragment.values)
+    allFiles.forEach {
+        it.declarations.forEach {
+            it.addRootsTo(rootDeclarations, context)
+        }
+    }
 
     rootDeclarations += context.testRoots.values
 
     val dceRuntimeDiagnostic = context.dceRuntimeDiagnostic
     if (dceRuntimeDiagnostic != null) {
         rootDeclarations += dceRuntimeDiagnostic.unreachableDeclarationMethod(context).owner
+    }
+
+    if (context.legacyPropertyAccess) {
+        rootDeclarations += context.intrinsics.safePropertyGet.owner
+        rootDeclarations += context.intrinsics.safePropertySet.owner
     }
 
     JsMainFunctionDetector.getMainFunctionOrNull(modules.last())?.let { mainFunction ->
@@ -80,11 +107,6 @@ private fun buildRoots(modules: Iterable<IrModuleFragment>, context: JsIrBackend
     return rootDeclarations
 }
 
-private fun DceRuntimeDiagnostic.unreachableDeclarationMethod(context: JsIrBackendContext) =
-    when (this) {
-        DceRuntimeDiagnostic.LOG -> context.intrinsics.jsUnreachableDeclarationLog
-        DceRuntimeDiagnostic.EXCEPTION -> context.intrinsics.jsUnreachableDeclarationException
-    }
 
 private fun processUselessDeclarations(
     modules: Iterable<IrModuleFragment>,
@@ -142,6 +164,16 @@ private fun IrDeclaration.processUselessDeclaration(context: JsIrBackendContext)
         }
         else -> emptyList()
     }
+}
+
+private fun RuntimeDiagnostic.unreachableDeclarationMethod(context: JsIrBackendContext) =
+    when (this) {
+        RuntimeDiagnostic.LOG -> context.intrinsics.jsUnreachableDeclarationLog
+        RuntimeDiagnostic.EXCEPTION -> context.intrinsics.jsUnreachableDeclarationException
+    }
+
+private fun RuntimeDiagnostic.removingBody(): Boolean {
+    return this != RuntimeDiagnostic.LOG
 }
 
 private fun IrDeclaration.processWithDiagnostic(context: JsIrBackendContext) {
@@ -362,12 +394,27 @@ fun usefulDeclarations(roots: Iterable<IrDeclaration>, context: JsIrBackendConte
                             val ref = expression.getTypeArgument(0)!!.classifierOrFail.owner as IrDeclaration
                             ref.enqueue("intrinsic: jsClass")
                             referencedJsClasses += ref
+                            // When class reference provided as parameter to external function
+                            // It can be instantiated by external JS script
+                            // Need to leave constructor for this
+                            // https://youtrack.jetbrains.com/issue/KT-46672
+                            // TODO: Possibly solution with origin is not so good
+                            //  There is option with applying this hack to jsGetKClass
+                            if (expression.origin == JsLoweredDeclarationOrigin.CLASS_REFERENCE) {
+                                // Maybe we need to filter primary constructor
+                                // Although at this time, we should have only primary constructor
+                                (ref as IrClass)
+                                    .constructors
+                                    .forEach {
+                                        it.enqueue("intrinsic: jsClass (constructor)")
+                                    }
+                            }
                         }
                         context.intrinsics.jsGetKClassFromExpression -> {
                             val ref = expression.getTypeArgument(0)?.classOrNull ?: context.irBuiltIns.anyClass
                             referencedJsClassesFromExpressions += ref.owner
                         }
-                        context.intrinsics.jsObjectCreate.symbol -> {
+                        context.intrinsics.jsObjectCreate -> {
                             val classToCreate = expression.getTypeArgument(0)!!.classifierOrFail.owner as IrClass
                             classToCreate.enqueue("intrinsic: jsObjectCreate")
                             constructedClasses += classToCreate

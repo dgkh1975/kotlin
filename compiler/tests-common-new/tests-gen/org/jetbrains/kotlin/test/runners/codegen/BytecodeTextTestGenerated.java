@@ -743,6 +743,12 @@ public class BytecodeTextTestGenerated extends AbstractBytecodeTextTest {
         }
 
         @Test
+        @TestMetadata("suspendBoxing.kt")
+        public void testSuspendBoxing() throws Exception {
+            runTest("compiler/testData/codegen/bytecodeText/boxingOptimization/suspendBoxing.kt");
+        }
+
+        @Test
         @TestMetadata("unsafeRemoving.kt")
         public void testUnsafeRemoving() throws Exception {
             runTest("compiler/testData/codegen/bytecodeText/boxingOptimization/unsafeRemoving.kt");
@@ -3375,6 +3381,12 @@ public class BytecodeTextTestGenerated extends AbstractBytecodeTextTest {
         }
 
         @Test
+        @TestMetadata("genericNoUnbox.kt")
+        public void testGenericNoUnbox() throws Exception {
+            runTest("compiler/testData/codegen/bytecodeText/inlineClasses/genericNoUnbox.kt");
+        }
+
+        @Test
         @TestMetadata("hashCodeIsCalledByInlineClass.kt")
         public void testHashCodeIsCalledByInlineClass() throws Exception {
             runTest("compiler/testData/codegen/bytecodeText/inlineClasses/hashCodeIsCalledByInlineClass.kt");
@@ -3438,6 +3450,24 @@ public class BytecodeTextTestGenerated extends AbstractBytecodeTextTest {
         @TestMetadata("mangledInlineClassInterfaceImplementation.kt")
         public void testMangledInlineClassInterfaceImplementation() throws Exception {
             runTest("compiler/testData/codegen/bytecodeText/inlineClasses/mangledInlineClassInterfaceImplementation.kt");
+        }
+
+        @Test
+        @TestMetadata("mangledSamWrappers.kt")
+        public void testMangledSamWrappers() throws Exception {
+            runTest("compiler/testData/codegen/bytecodeText/inlineClasses/mangledSamWrappers.kt");
+        }
+
+        @Test
+        @TestMetadata("mangledSamWrappersIndy.kt")
+        public void testMangledSamWrappersIndy() throws Exception {
+            runTest("compiler/testData/codegen/bytecodeText/inlineClasses/mangledSamWrappersIndy.kt");
+        }
+
+        @Test
+        @TestMetadata("mangledSamWrappersOld.kt")
+        public void testMangledSamWrappersOld() throws Exception {
+            runTest("compiler/testData/codegen/bytecodeText/inlineClasses/mangledSamWrappersOld.kt");
         }
 
         @Test
@@ -4485,6 +4515,12 @@ public class BytecodeTextTestGenerated extends AbstractBytecodeTextTest {
         }
 
         @Test
+        @TestMetadata("safeCallAndElvisChains.kt")
+        public void testSafeCallAndElvisChains() throws Exception {
+            runTest("compiler/testData/codegen/bytecodeText/nullCheckOptimization/safeCallAndElvisChains.kt");
+        }
+
+        @Test
         @TestMetadata("trivialInstanceOf.kt")
         public void testTrivialInstanceOf() throws Exception {
             runTest("compiler/testData/codegen/bytecodeText/nullCheckOptimization/trivialInstanceOf.kt");
@@ -4532,6 +4568,12 @@ public class BytecodeTextTestGenerated extends AbstractBytecodeTextTest {
         @TestMetadata("definedInSources.kt")
         public void testDefinedInSources() throws Exception {
             runTest("compiler/testData/codegen/bytecodeText/optimizedDelegatedProperties/definedInSources.kt");
+        }
+
+        @Test
+        @TestMetadata("delegateToAnother.kt")
+        public void testDelegateToAnother() throws Exception {
+            runTest("compiler/testData/codegen/bytecodeText/optimizedDelegatedProperties/delegateToAnother.kt");
         }
 
         @Test
@@ -4964,6 +5006,12 @@ public class BytecodeTextTestGenerated extends AbstractBytecodeTextTest {
         @TestMetadata("concatDynamicIndyDataClass.kt")
         public void testConcatDynamicIndyDataClass() throws Exception {
             runTest("compiler/testData/codegen/bytecodeText/stringOperations/concatDynamicIndyDataClass.kt");
+        }
+
+        @Test
+        @TestMetadata("concatDynamicSpecialSymbols.kt")
+        public void testConcatDynamicSpecialSymbols() throws Exception {
+            runTest("compiler/testData/codegen/bytecodeText/stringOperations/concatDynamicSpecialSymbols.kt");
         }
 
         @Test

@@ -12,19 +12,15 @@ import org.jetbrains.kotlin.ir.builders.declarations.*
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.expressions.impl.*
-import org.jetbrains.kotlin.ir.util.getPropertyGetter
-import org.jetbrains.kotlin.ir.util.module
-import org.jetbrains.kotlin.ir.util.patchDeclarationParents
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.ClassId
-import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.calls.components.isVararg
-import org.jetbrains.kotlin.resolve.descriptorUtil.classValueType
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
+import org.jetbrains.kotlin.util.collectionUtils.filterIsInstanceAnd
 import org.jetbrains.kotlinx.serialization.compiler.backend.common.SerializableCompanionCodegen
 import org.jetbrains.kotlinx.serialization.compiler.backend.common.findTypeSerializer
 import org.jetbrains.kotlinx.serialization.compiler.extensions.SerializationPluginContext
@@ -35,25 +31,6 @@ class SerializableCompanionIrGenerator(
     override val compilerContext: SerializationPluginContext,
     bindingContext: BindingContext
 ) : SerializableCompanionCodegen(irClass.descriptor, bindingContext), IrBuilderExtension {
-
-    private val lazyDescriptor = irClass.module.findClassAcrossModuleDependencies(
-        ClassId(FqName("kotlin"), Name.identifier("Lazy"))
-    )!!
-
-    private val lazySafeModeClassDescriptor = irClass.module.findClassAcrossModuleDependencies(
-        ClassId(FqName("kotlin"), Name.identifier("LazyThreadSafetyMode"))
-    )!!
-
-    private val lazyFunctionSymbol = compilerContext.referenceFunctions(FqName("kotlin").child(Name.identifier("lazy"))).single {
-        it.descriptor.valueParameters.size == 2 && it.descriptor.valueParameters[0].type == lazySafeModeClassDescriptor.defaultType
-    }
-
-    private val publicationEntryDescriptor = lazySafeModeClassDescriptor.enumEntries().single { it.name == Name.identifier("PUBLICATION") }
-
-    private val function0Descriptor = irClass.module.findClassAcrossModuleDependencies(
-        ClassId(FqName("kotlin"), Name.identifier("Function0"))
-    )!!
-
 
     companion object {
         fun generate(
@@ -82,7 +59,7 @@ class SerializableCompanionIrGenerator(
             )
         ) ?: return
 
-        val irSerializableClass = compilerContext.referenceClass(serializableDescriptor.fqNameSafe)?.owner ?: return
+        val irSerializableClass = if (irClass.isCompanion) irClass.parentAsClass else irClass
         val serializableWithAlreadyPresent = irSerializableClass.annotations.any {
             it.symbol.descriptor.constructedClass.fqNameSafe == annotationMarkerClass.fqNameSafe
         }
@@ -90,12 +67,23 @@ class SerializableCompanionIrGenerator(
 
         val annotationCtor = compilerContext.referenceConstructors(annotationMarkerClass.fqNameSafe).single { it.owner.isPrimary }
         val annotationType = annotationMarkerClass.defaultType.toIrType()
+
+        val serializerIrClass = if (serializableDescriptor.isInternalSerializable) {
+            // internally generated serializer always declared inside serializable class
+            irSerializableClass.declarations
+                .filterIsInstanceAnd<IrClass> { it.name == serializer.name }
+                .singleOrNull() ?: throw Exception("No class with name ${serializer.fqNameSafe}")
+        } else {
+            // FIXME referenceClass not supports local classes so it should be replaced in future
+            compilerContext.referenceClass(serializer.fqNameSafe)!!.owner
+        }
+
+
         val annotationCtorCall = IrConstructorCallImpl.fromSymbolDescriptor(startOffset, endOffset, annotationType, annotationCtor).apply {
-            val serializerType = serializer.toSimpleType(false)
             putValueArgument(
                 0,
                 createClassReference(
-                    serializerType,
+                    serializerIrClass,
                     startOffset,
                     endOffset
                 )
@@ -113,58 +101,22 @@ class SerializableCompanionIrGenerator(
             )
         )
 
-        val field = irClass.addField {
-            name = Name.identifier(SerialEntityNames.SERIALIZER_LAZY_DELEGATE_FIELD_NAME)
-            visibility = DescriptorVisibilities.PRIVATE
-            origin = SERIALIZABLE_PLUGIN_ORIGIN
-            isFinal = true
-            isStatic = true
-            type = lazyDescriptor.defaultType.toIrType()
-        }.apply {
-            val lambda = irClass.createSingletonLambda(serializerDescriptor.defaultType.toIrType(), startOffset, endOffset) {
-                val expr = serializerInstance(
-                    this@SerializableCompanionIrGenerator,
-                    serializerDescriptor, serializableDescriptor.module,
-                    serializableDescriptor.defaultType
-                )
-                patchSerializableClassWithMarkerAnnotation(serializerDescriptor)
-                +irReturn(requireNotNull(expr))
-            }
+        val kSerializerIrClass = compilerContext.referenceClass(SerialEntityNames.KSERIALIZER_NAME_FQ)!!.owner
+        val targetIrType =
+            kSerializerIrClass.defaultType.substitute(mapOf(kSerializerIrClass.typeParameters[0].symbol to compilerContext.builtIns.anyType.toIrType()))
 
-            val call = IrCallImpl(startOffset, endOffset, type, lazyFunctionSymbol, 0, 2)
-            call.putValueArgument(
-                0,
-                IrGetEnumValueImpl(
-                    startOffset,
-                    endOffset,
-                    publicationEntryDescriptor.classValueType!!.toIrType(),
-                    compilerContext.symbolTable.referenceEnumEntry(publicationEntryDescriptor)
-                ),
+        val property = createLazyProperty(irClass, targetIrType, SerialEntityNames.CACHED_SERIALIZER_PROPERTY_NAME) {
+            val expr = serializerInstance(
+                this@SerializableCompanionIrGenerator,
+                serializerDescriptor, serializableDescriptor.module,
+                serializableDescriptor.defaultType
             )
-
-            call.putValueArgument(
-                1,
-                IrFunctionExpressionImpl(
-                    startOffset,
-                    endOffset,
-                    function0Descriptor.defaultType.toIrType(),
-                    lambda,
-                    IrStatementOrigin.LAMBDA
-                ),
-            )
-
-            initializer = irClass.factory.createExpressionBody(startOffset, endOffset, call)
+            patchSerializableClassWithMarkerAnnotation(serializerDescriptor)
+            +irReturn(requireNotNull(expr))
         }
 
-        val valueGetter = compilerContext.referenceClass(lazyDescriptor.fqNameSafe)!!.getPropertyGetter("value")!!
-
         irClass.contributeFunction(methodDescriptor) {
-            +irReturn(
-                irGet(
-                    serializerDescriptor.defaultType.toIrType(),
-                    irGetField(null, field), valueGetter
-                )
-            )
+            +irReturn(getLazyValueExpression(irClass, property))
         }
         generateSerializerFactoryIfNeeded(methodDescriptor)
     }

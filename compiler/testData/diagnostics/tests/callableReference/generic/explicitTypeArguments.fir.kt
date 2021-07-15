@@ -1,11 +1,10 @@
-// !WITH_NEW_INFERENCE
 // !DIAGNOSTICS: -UNUSED_VARIABLE, -UNUSED_PARAMETER
 
 fun <T> takeFun(f: (T) -> Unit) {}
 fun <T, R> callFun(f: (T) -> R): R = TODO()
 
 fun <T> foo(s: T) {}
-fun <T : Int> fooInt(s: T) {}
+fun <T : <!FINAL_UPPER_BOUND!>Int<!>> fooInt(s: T) {}
 
 open class Wrapper<T>(val value: T)
 fun <T, R : Wrapper<in T>> createWrapper(s: T): R = TODO()

@@ -77,12 +77,15 @@ open class HostManager(
             IOS_ARM32,
             IOS_ARM64,
             IOS_X64,
+            IOS_SIMULATOR_ARM64,
             WATCHOS_ARM32,
             WATCHOS_ARM64,
             WATCHOS_X86,
             WATCHOS_X64,
+            WATCHOS_SIMULATOR_ARM64,
             TVOS_ARM64,
             TVOS_X64,
+            TVOS_SIMULATOR_ARM64,
             LINUX_X64,
             LINUX_ARM32_HFP,
             LINUX_ARM64,
@@ -98,12 +101,15 @@ open class HostManager(
             IOS_ARM32,
             IOS_ARM64,
             IOS_X64,
+            IOS_SIMULATOR_ARM64,
             WATCHOS_ARM32,
             WATCHOS_ARM64,
             WATCHOS_X86,
             WATCHOS_X64,
+            WATCHOS_SIMULATOR_ARM64,
             TVOS_ARM64,
             TVOS_X64,
+            TVOS_SIMULATOR_ARM64,
             LINUX_X64,
             LINUX_ARM32_HFP,
             LINUX_ARM64,
@@ -164,6 +170,16 @@ open class HostManager(
         fun simpleOsName(): String {
             val hostOs = hostOs()
             return if (hostOs == "osx") "macos" else hostOs
+        }
+
+        @JvmStatic
+        fun platformName(): String {
+            val hostOs = hostOs()
+            val arch = hostArch()
+            return when (hostOs) {
+                "osx" -> "macos-$arch"
+                else -> "$hostOs-$arch"
+            }
         }
 
         val jniHostPlatformIncludeDir: String

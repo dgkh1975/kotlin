@@ -8,31 +8,31 @@ fun <T> case_1(x: T) {
 
     if (y != x) {
         <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>
-        <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.<!INAPPLICABLE_CANDIDATE!>equals<!>(null)
+        <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!><!UNSAFE_CALL!>.<!>equals(null)
         <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.propT
-        <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.<!INAPPLICABLE_CANDIDATE!>propAny<!>
+        <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!><!UNSAFE_CALL!>.<!>propAny
         <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.propNullableT
         <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.propNullableAny
         <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.funT()
-        <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.<!INAPPLICABLE_CANDIDATE!>funAny<!>()
+        <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!><!UNSAFE_CALL!>.<!>funAny()
         <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.funNullableT()
         <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.funNullableAny()
-        <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.apply { <!INAPPLICABLE_CANDIDATE!>equals<!>(null) }
+        <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.apply { <!UNSAFE_CALL!>equals<!>(null) }
         <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.apply { propT }
-        <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.apply { <!INAPPLICABLE_CANDIDATE!>propAny<!> }
+        <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.apply { <!UNSAFE_CALL!>propAny<!> }
         <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.apply { propNullableT }
         <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.apply { propNullableAny }
         <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.apply { funT() }
-        <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.apply { <!INAPPLICABLE_CANDIDATE!>funAny<!>() }
+        <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.apply { <!UNSAFE_CALL!>funAny<!>() }
         <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.apply { funNullableT() }
-        <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.apply { funNullableAny(); <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.<!INAPPLICABLE_CANDIDATE!>equals<!>(null) }
-        <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.also { <!DEBUG_INFO_EXPRESSION_TYPE("T")!>it<!>.<!INAPPLICABLE_CANDIDATE!>equals<!>(null) }
+        <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.apply { funNullableAny(); <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!><!UNSAFE_CALL!>.<!>equals(null) }
+        <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.also { <!DEBUG_INFO_EXPRESSION_TYPE("T")!>it<!><!UNSAFE_CALL!>.<!>equals(null) }
         <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.also { <!DEBUG_INFO_EXPRESSION_TYPE("T")!>it<!>.propT }
-        <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.also { <!DEBUG_INFO_EXPRESSION_TYPE("T")!>it<!>.<!INAPPLICABLE_CANDIDATE!>propAny<!> }
+        <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.also { <!DEBUG_INFO_EXPRESSION_TYPE("T")!>it<!><!UNSAFE_CALL!>.<!>propAny }
         <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.also { <!DEBUG_INFO_EXPRESSION_TYPE("T")!>it<!>.propNullableT }
         <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.also { <!DEBUG_INFO_EXPRESSION_TYPE("T")!>it<!>.propNullableAny }
         <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.also { <!DEBUG_INFO_EXPRESSION_TYPE("T")!>it<!>.funT() }
-        <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.also { <!DEBUG_INFO_EXPRESSION_TYPE("T")!>it<!>.<!INAPPLICABLE_CANDIDATE!>funAny<!>() }
+        <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.also { <!DEBUG_INFO_EXPRESSION_TYPE("T")!>it<!><!UNSAFE_CALL!>.<!>funAny() }
         <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.also { <!DEBUG_INFO_EXPRESSION_TYPE("T")!>it<!>.funNullableT() }
         <!DEBUG_INFO_EXPRESSION_TYPE("T")!>x<!>.also { <!DEBUG_INFO_EXPRESSION_TYPE("T")!>it<!>.funNullableAny() }
     }
@@ -2525,7 +2525,7 @@ fun <T> case_37(x: Map<in T, *>?) {
 }
 
 // TESTCASE NUMBER: 38
-fun <T> case_38(x: Map<*, out T>?) {
+fun <T> case_38(x: Map<*, <!REDUNDANT_PROJECTION!>out<!> T>?) {
     if (x != null) {
         <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.collections.Map<*, out T>? & kotlin.collections.Map<*, out T>")!>x<!>
         <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.collections.Map<*, out T>? & kotlin.collections.Map<*, out T>")!>x<!>.equals(null)
@@ -2731,7 +2731,7 @@ fun <T> case_40(x: InterfaceWithTwoTypeParameters<in T, in T>?) {
 }
 
 // TESTCASE NUMBER: 41
-fun <T> case_41(x: Map<out T, out T>?) {
+fun <T> case_41(x: Map<out T, <!REDUNDANT_PROJECTION!>out<!> T>?) {
     if (x != null) {
         <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.collections.Map<out T, out T>? & kotlin.collections.Map<out T, out T>")!>x<!>
         <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.collections.Map<out T, out T>? & kotlin.collections.Map<out T, out T>")!>x<!>.equals(null)
@@ -2803,7 +2803,7 @@ fun <T> case_41(x: Map<out T, out T>?) {
 }
 
 // TESTCASE NUMBER: 42
-fun <T> case_42(x: Map<T, out T>?) {
+fun <T> case_42(x: Map<T, <!REDUNDANT_PROJECTION!>out<!> T>?) {
     if (x != null) {
         <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.collections.Map<T, out T>? & kotlin.collections.Map<T, out T>")!>x<!>
         <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.collections.Map<T, out T>? & kotlin.collections.Map<T, out T>")!>x<!>.equals(null)

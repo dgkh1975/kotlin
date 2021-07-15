@@ -1,9 +1,8 @@
 //!DIAGNOSTICS: -UNUSED_PARAMETER -UNUSED_VARIABLE
-// !WITH_NEW_INFERENCE
 
 <!CONFLICTING_OVERLOADS!>@Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 @kotlin.jvm.JvmName("containsAny")
-<!HIDDEN!>@kotlin.internal.LowPriorityInOverloadResolution<!>
+@kotlin.internal.LowPriorityInOverloadResolution
 public fun <T> Iterable<T>.contains1(element: T): Int<!> = null!!
 
 <!CONFLICTING_OVERLOADS!>@Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")

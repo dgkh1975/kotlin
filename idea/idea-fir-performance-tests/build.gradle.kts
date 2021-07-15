@@ -4,7 +4,7 @@ plugins {
 }
 
 dependencies {
-    compile(project(":idea:idea-frontend-fir"))
+    compile(project(":idea-frontend-fir"))
     compile(project(":idea:formatter"))
     compile(intellijDep())
     compile(intellijCoreDep())
@@ -22,7 +22,7 @@ dependencies {
     compile(project(":idea:idea-fir"))
     testCompile(projectTests(":compiler:tests-common"))
     testCompile(projectTests(":idea:idea-test-framework"))
-    testCompile(projectTests(":idea:idea-frontend-fir"))
+    testCompile(projectTests(":idea-frontend-fir"))
     testCompile(project(":kotlin-test:kotlin-test-junit"))
     testCompile(commonDep("junit:junit"))
 
@@ -44,6 +44,7 @@ dependencies {
     testRuntimeOnly(project(":kotlin-scripting-idea"))
     testRuntimeOnly(project(":kotlinx-serialization-ide-plugin"))
     testRuntimeOnly(project(":plugins:parcelize:parcelize-ide"))
+    testRuntimeOnly(project(":plugins:lombok:lombok-ide-plugin"))
     testRuntimeOnly(project(":nj2k:nj2k-services"))
     testRuntimeOnly(project(":kotlin-reflect"))
     testRuntimeOnly(project(":idea:kotlin-gradle-tooling"))

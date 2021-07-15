@@ -20,6 +20,7 @@ KtFirKotlinPropertySymbol:
   isExtension: false
   isLateInit: false
   isOverride: false
+  isStatic: false
   isVal: true
   modality: FINAL
   name: x
@@ -37,11 +38,13 @@ KtFirPropertyGetterSymbol:
   dispatchType: null
   hasBody: true
   isDefault: false
+  isExtension: false
   isInline: false
   isOverride: false
   modality: FINAL
   origin: SOURCE
-  symbolKind: TOP_LEVEL
+  receiverType: null
+  symbolKind: ACCESSOR
   visibility: Public
 
 KtFirKotlinPropertySymbol:
@@ -59,6 +62,7 @@ KtFirKotlinPropertySymbol:
   isExtension: true
   isLateInit: false
   isOverride: false
+  isStatic: false
   isVal: true
   modality: FINAL
   name: y

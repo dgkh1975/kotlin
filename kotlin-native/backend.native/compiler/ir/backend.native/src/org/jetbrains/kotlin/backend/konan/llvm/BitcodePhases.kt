@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.backend.common.phaser.namedUnitPhase
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.GlobalHierarchyAnalysis
 import org.jetbrains.kotlin.backend.konan.lower.RedundantCoercionsCleaner
+import org.jetbrains.kotlin.backend.konan.lower.ReturnsInsertionLowering
 import org.jetbrains.kotlin.backend.konan.optimizations.*
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
@@ -106,6 +107,13 @@ internal val buildDFGPhase = makeKonanModuleOpPhase(
         op = { context, irModule ->
             context.moduleDFG = ModuleDFGBuilder(context, irModule).build()
         }
+)
+
+internal val returnsInsertionPhase = makeKonanModuleOpPhase(
+        name = "ReturnsInsertion",
+        description = "Returns insertion for Unit functions",
+        prerequisite = setOf(autoboxPhase, coroutinesPhase, enumClassPhase),
+        op = { context, irModule -> irModule.files.forEach { ReturnsInsertionLowering(context).lower(it) } }
 )
 
 internal val devirtualizationPhase = makeKonanModuleOpPhase(
@@ -291,6 +299,20 @@ internal val linkBitcodeDependenciesPhase = makeKonanModuleOpPhase(
         description = "Link bitcode dependencies",
         op = { context, _ -> linkBitcodeDependencies(context) }
 )
+
+internal val checkExternalCallsPhase = makeKonanModuleOpPhase(
+        name = "CheckExternalCalls",
+        description = "Check external calls",
+        op = { context, _ -> checkLlvmModuleExternalCalls(context) }
+)
+
+internal val rewriteExternalCallsCheckerGlobals = makeKonanModuleOpPhase(
+        name = "RewriteExternalCallsCheckerGlobals",
+        description = "Rewrite globals for external calls checker after optimizer run",
+        op = { context, _ -> addFunctionsListSymbolForChecker(context) }
+)
+
+
 
 internal val bitcodeOptimizationPhase = makeKonanModuleOpPhase(
         name = "BitcodeOptimization",

@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.fir.analysis.diagnostics
 
-import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.fir.FirAnnotationContainer
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirSourceElement
@@ -13,45 +12,67 @@ import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.collectors.AbstractDiagnosticCollector
 
 abstract class DiagnosticReporter {
-    abstract fun report(diagnostic: FirDiagnostic<*>?, context: CheckerContext)
+    abstract fun report(diagnostic: FirDiagnostic?, context: CheckerContext)
 }
 
-inline fun <reified T : FirSourceElement, P : PsiElement> DiagnosticReporter.reportOn(
-    source: T?,
-    factory: FirDiagnosticFactory0<T, P>,
-    context: CheckerContext
+@OptIn(InternalDiagnosticFactoryMethod::class)
+fun DiagnosticReporter.reportOn(
+    source: FirSourceElement?,
+    factory: FirDiagnosticFactory0,
+    context: CheckerContext,
+    positioningStrategy: SourceElementPositioningStrategy? = null
 ) {
-    source?.let { report(factory.on(it), context) }
+    source?.let { report(factory.on(it, positioningStrategy), context) }
 }
 
-inline fun <reified T : FirSourceElement, P : PsiElement, A : Any> DiagnosticReporter.reportOn(
-    source: T?,
-    factory: FirDiagnosticFactory1<T, P, A>,
+@OptIn(InternalDiagnosticFactoryMethod::class)
+fun <A : Any> DiagnosticReporter.reportOn(
+    source: FirSourceElement?,
+    factory: FirDiagnosticFactory1<A>,
     a: A,
-    context: CheckerContext
+    context: CheckerContext,
+    positioningStrategy: SourceElementPositioningStrategy? = null
 ) {
-    source?.let { report(factory.on(it, a), context) }
+    source?.let { report(factory.on(it, a, positioningStrategy), context) }
 }
 
-inline fun <reified T : FirSourceElement, P : PsiElement, A : Any, B : Any> DiagnosticReporter.reportOn(
-    source: T?,
-    factory: FirDiagnosticFactory2<T, P, A, B>,
+@OptIn(InternalDiagnosticFactoryMethod::class)
+fun <A : Any, B : Any> DiagnosticReporter.reportOn(
+    source: FirSourceElement?,
+    factory: FirDiagnosticFactory2<A, B>,
     a: A,
     b: B,
-    context: CheckerContext
+    context: CheckerContext,
+    positioningStrategy: SourceElementPositioningStrategy? = null
 ) {
-    source?.let { report(factory.on(it, a, b), context) }
+    source?.let { report(factory.on(it, a, b, positioningStrategy), context) }
 }
 
-inline fun <reified T : FirSourceElement, P : PsiElement, A : Any, B : Any, C : Any> DiagnosticReporter.reportOn(
-    source: T?,
-    factory: FirDiagnosticFactory3<T, P, A, B, C>,
+@OptIn(InternalDiagnosticFactoryMethod::class)
+fun <A : Any, B : Any, C : Any> DiagnosticReporter.reportOn(
+    source: FirSourceElement?,
+    factory: FirDiagnosticFactory3<A, B, C>,
     a: A,
     b: B,
     c: C,
-    context: CheckerContext
+    context: CheckerContext,
+    positioningStrategy: SourceElementPositioningStrategy? = null
 ) {
-    source?.let { report(factory.on(it, a, b, c), context) }
+    source?.let { report(factory.on(it, a, b, c, positioningStrategy), context) }
+}
+
+@OptIn(InternalDiagnosticFactoryMethod::class)
+fun <A : Any, B : Any, C : Any, D : Any> DiagnosticReporter.reportOn(
+    source: FirSourceElement?,
+    factory: FirDiagnosticFactory4<A, B, C, D>,
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    context: CheckerContext,
+    positioningStrategy: SourceElementPositioningStrategy? = null
+) {
+    source?.let { report(factory.on(it, a, b, c, d, positioningStrategy), context) }
 }
 
 inline fun withSuppressedDiagnostics(
@@ -74,49 +95,68 @@ inline fun withSuppressedDiagnostics(
     f(context)
 }
 
-inline fun <reified T : FirSourceElement, P : PsiElement> DiagnosticReporter.reportOnWithSuppression(
+fun DiagnosticReporter.reportOnWithSuppression(
     element: FirElement,
-    factory: FirDiagnosticFactory0<T, P>,
-    context: CheckerContext
+    factory: FirDiagnosticFactory0,
+    context: CheckerContext,
+    positioningStrategy: SourceElementPositioningStrategy? = null
 ) {
     withSuppressedDiagnostics(element, context) {
-        reportOn(element.source as? T, factory, it)
+        reportOn(element.source, factory, it, positioningStrategy)
     }
 }
 
-inline fun <reified T : FirSourceElement, P : PsiElement, A : Any> DiagnosticReporter.reportOnWithSuppression(
+fun <A : Any> DiagnosticReporter.reportOnWithSuppression(
     element: FirElement,
-    factory: FirDiagnosticFactory1<T, P, A>,
+    factory: FirDiagnosticFactory1<A>,
     a: A,
-    context: CheckerContext
+    context: CheckerContext,
+    positioningStrategy: SourceElementPositioningStrategy? = null
 ) {
     withSuppressedDiagnostics(element, context) {
-        reportOn(element.source as? T, factory, a, it)
+        reportOn(element.source, factory, a, it, positioningStrategy)
     }
 }
 
-inline fun <reified T : FirSourceElement, P : PsiElement, A : Any, B : Any> DiagnosticReporter.reportOnWithSuppression(
+fun <A : Any, B : Any> DiagnosticReporter.reportOnWithSuppression(
     element: FirElement,
-    factory: FirDiagnosticFactory2<T, P, A, B>,
+    factory: FirDiagnosticFactory2<A, B>,
     a: A,
     b: B,
-    context: CheckerContext
+    context: CheckerContext,
+    positioningStrategy: SourceElementPositioningStrategy? = null
 ) {
     withSuppressedDiagnostics(element, context) {
-        reportOn(element.source as? T, factory, a, b, it)
+        reportOn(element.source, factory, a, b, it, positioningStrategy)
     }
 }
 
-inline fun <reified T : FirSourceElement, P : PsiElement, A : Any, B : Any, C : Any> DiagnosticReporter.reportOnWithSuppression(
+fun <A : Any, B : Any, C : Any> DiagnosticReporter.reportOnWithSuppression(
     element: FirElement,
-    factory: FirDiagnosticFactory3<T, P, A, B, C>,
+    factory: FirDiagnosticFactory3<A, B, C>,
     a: A,
     b: B,
     c: C,
-    context: CheckerContext
+    context: CheckerContext,
+    positioningStrategy: SourceElementPositioningStrategy? = null
 ) {
     withSuppressedDiagnostics(element, context) {
-        reportOn(element.source as? T, factory, a, b, c, it)
+        reportOn(element.source, factory, a, b, c, it, positioningStrategy)
+    }
+}
+
+fun <A : Any, B : Any, C : Any, D : Any> DiagnosticReporter.reportOnWithSuppression(
+    element: FirElement,
+    factory: FirDiagnosticFactory4<A, B, C, D>,
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+    context: CheckerContext,
+    positioningStrategy: SourceElementPositioningStrategy? = null
+) {
+    withSuppressedDiagnostics(element, context) {
+        reportOn(element.source, factory, a, b, c, d, it, positioningStrategy)
     }
 }
 

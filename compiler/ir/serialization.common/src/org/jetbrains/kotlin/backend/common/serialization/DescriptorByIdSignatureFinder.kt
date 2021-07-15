@@ -42,7 +42,8 @@ class DescriptorByIdSignatureFinder(
     fun findDescriptorBySignature(signature: IdSignature): DeclarationDescriptor? =
         when (signature) {
             is IdSignature.AccessorSignature -> findDescriptorForAccessorSignature(signature)
-            is IdSignature.PublicSignature -> findDescriptorForPublicSignature(signature)
+            is IdSignature.CommonSignature -> findDescriptorForPublicSignature(signature)
+            is IdSignature.CompositeSignature -> findDescriptorBySignature(signature.nearestPublicSig())
             else -> error("only PublicSignature or AccessorSignature should reach this point, got $signature")
         }
 
@@ -89,7 +90,7 @@ class DescriptorByIdSignatureFinder(
         }
     }
 
-    private fun findDescriptorForPublicSignature(signature: IdSignature.PublicSignature): DeclarationDescriptor? {
+    private fun findDescriptorForPublicSignature(signature: IdSignature.CommonSignature): DeclarationDescriptor? {
         val nameSegments = signature.nameSegments
         val toplevelDescriptors = performLookup(nameSegments, signature.packageFqName())
             .ifEmpty { return null }
@@ -117,8 +118,8 @@ class DescriptorByIdSignatureFinder(
                             if (isConstructorName(current)) addAll(classDescriptor.constructors)
                             addAll(memberScope.getContributedFunctions(current, NoLookupLocation.FROM_BACKEND))
                             addAll(memberScope.getContributedVariables(current, NoLookupLocation.FROM_BACKEND))
-                            addAll(classDescriptor.staticScope.getContributedDescriptors { it == current })
                         }
+                        addAll(classDescriptor.staticScope.getContributedDescriptors().filter { it.name == current })
                     }
                 }
             }
@@ -140,7 +141,7 @@ class DescriptorByIdSignatureFinder(
                 // We don't compute id for typealiases and classes.
                 candidate is ClassDescriptor || candidate is TypeAliasDescriptor
             } else {
-                val candidateHash = with(mangler) { candidate.signatureMangle }
+                val candidateHash = with(mangler) { candidate.signatureMangle() }
                 candidateHash == id
             }
         }

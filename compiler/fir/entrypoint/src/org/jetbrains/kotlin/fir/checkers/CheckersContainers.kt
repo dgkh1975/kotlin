@@ -5,11 +5,14 @@
 
 package org.jetbrains.kotlin.fir.checkers
 
+import org.jetbrains.kotlin.fir.analysis.checkers.*
+import org.jetbrains.kotlin.fir.analysis.jvm.checkers.JvmDeclarationCheckers
 import org.jetbrains.kotlin.fir.session.FirSessionFactory
 
 fun FirSessionFactory.FirSessionConfigurator.registerCommonCheckers() {
     useCheckers(CommonDeclarationCheckers)
     useCheckers(CommonExpressionCheckers)
+    useCheckers(CommonTypeCheckers)
 }
 
 fun FirSessionFactory.FirSessionConfigurator.registerExtendedCommonCheckers() {
@@ -17,7 +20,6 @@ fun FirSessionFactory.FirSessionConfigurator.registerExtendedCommonCheckers() {
     useCheckers(ExtendedDeclarationCheckers)
 }
 
-// TODO: Move this to different, JVM-specific module?
 fun FirSessionFactory.FirSessionConfigurator.registerJvmCheckers() {
     useCheckers(JvmDeclarationCheckers)
 }

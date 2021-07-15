@@ -7,10 +7,14 @@ package org.jetbrains.kotlin.fir.analysis.checkers.declaration
 
 import org.jetbrains.kotlin.fir.FirFakeSourceElementKind
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
+import org.jetbrains.kotlin.fir.analysis.checkers.hasModifier
 import org.jetbrains.kotlin.fir.analysis.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors
 import org.jetbrains.kotlin.fir.analysis.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.declarations.*
+import org.jetbrains.kotlin.fir.declarations.utils.hasBody
+import org.jetbrains.kotlin.fir.declarations.utils.isExpect
+import org.jetbrains.kotlin.fir.declarations.utils.isExternal
 import org.jetbrains.kotlin.lexer.KtTokens
 
 // See old FE's [DeclarationsChecker]
@@ -31,7 +35,7 @@ object FirTopLevelFunctionsChecker : FirFileChecker() {
         if (function.hasModifier(KtTokens.ABSTRACT_KEYWORD)) return
         if (function.isExternal) return
         if (!function.hasBody && !function.isExpect) {
-            reporter.reportOn(source, FirErrors.NON_MEMBER_FUNCTION_NO_BODY, function, context)
+            reporter.reportOn(source, FirErrors.NON_MEMBER_FUNCTION_NO_BODY, function.symbol, context)
         }
 
         checkExpectDeclarationVisibilityAndBody(function, source, reporter, context)

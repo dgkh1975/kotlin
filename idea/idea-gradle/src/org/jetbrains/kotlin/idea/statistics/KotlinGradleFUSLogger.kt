@@ -50,7 +50,7 @@ class KotlinGradleFUSLogger : StartupActivity, DumbAware, Runnable {
                     // 2. the projectId should be stable and independent on IDE version
                     val presentableUrl = FileUtil.toSystemIndependentName(path)
                     val name =
-                        PathUtilRt.getFileName(presentableUrl).toLowerCase(Locale.US).removeSuffix(ProjectFileType.DOT_DEFAULT_EXTENSION)
+                        PathUtilRt.getFileName(presentableUrl).lowercase().removeSuffix(ProjectFileType.DOT_DEFAULT_EXTENSION)
                     val locationHash = Integer.toHexString((presentableUrl).hashCode())
                     val projectHash =
                         "${name.trimMiddle(name.length.coerceAtMost(254 - locationHash.length), useEllipsisSymbol = false)}.$locationHash"
@@ -85,7 +85,7 @@ class KotlinGradleFUSLogger : StartupActivity, DumbAware, Runnable {
             val data = HashMap<String, String>()
             fun putIfNotNull(key: String, value: String?) {
                 if (value != null) {
-                    data[key.toLowerCase()] = value
+                    data[key.lowercase()] = value
                 }
             }
 
@@ -129,14 +129,19 @@ class KotlinGradleFUSLogger : StartupActivity, DumbAware, Runnable {
                 BooleanMetrics.ENABLED_COMPILER_PLUGIN_JPA_SUPPORT,
                 BooleanMetrics.ENABLED_COMPILER_PLUGIN_SAM_WITH_RECEIVER,
                 BooleanMetrics.JVM_COMPILER_IR_MODE,
-                StringMetrics.JVM_DEFAULTS
+                StringMetrics.JVM_DEFAULTS,
+                StringMetrics.USE_OLD_BACKEND
             )
 
             container.log(
                 GradleStatisticsEvents.JS,
                 BooleanMetrics.JS_GENERATE_EXTERNALS,
                 StringMetrics.JS_GENERATE_EXECUTABLE_DEFAULT,
-                StringMetrics.JS_TARGET_MODE
+                StringMetrics.JS_TARGET_MODE,
+                BooleanMetrics.JS_SOURCE_MAP,
+                StringMetrics.JS_PROPERTY_LAZY_INITIALIZATION,
+                BooleanMetrics.JS_KLIB_INCREMENTAL,
+                BooleanMetrics.JS_IR_INCREMENTAL,
             )
 
             container.log(

@@ -15,13 +15,14 @@ import org.jetbrains.kotlin.backend.jvm.ir.getKtFile
 import org.jetbrains.kotlin.backend.jvm.serialization.JvmIdSignatureDescriptor
 import org.jetbrains.kotlin.codegen.CodegenFactory
 import org.jetbrains.kotlin.codegen.state.GenerationState
+import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.descriptors.konan.DeserializedKlibModuleOrigin
 import org.jetbrains.kotlin.descriptors.konan.KlibModuleOrigin
 import org.jetbrains.kotlin.idea.MainFunctionDetector
+import org.jetbrains.kotlin.ir.backend.jvm.serialization.JvmDescriptorMangler
 import org.jetbrains.kotlin.ir.backend.jvm.serialization.JvmIrLinker
-import org.jetbrains.kotlin.ir.backend.jvm.serialization.JvmManglerDesc
 import org.jetbrains.kotlin.ir.builders.TranslationPluginContext
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
@@ -39,10 +40,11 @@ import org.jetbrains.kotlin.psi2ir.preprocessing.SourceDeclarationsPreprocessor
 import org.jetbrains.kotlin.resolve.CleanableBindingContext
 
 open class JvmIrCodegenFactory(
+    configuration: CompilerConfiguration,
     private val phaseConfig: PhaseConfig,
-    private val externalMangler: JvmManglerDesc? = null,
+    private val externalMangler: JvmDescriptorMangler? = null,
     private val externalSymbolTable: SymbolTable? = null,
-    private val jvmGeneratorExtensions: JvmGeneratorExtensionsImpl = JvmGeneratorExtensionsImpl()
+    private val jvmGeneratorExtensions: JvmGeneratorExtensionsImpl = JvmGeneratorExtensionsImpl(configuration),
 ) : CodegenFactory {
     data class JvmIrBackendInput(
         val state: GenerationState,
@@ -65,7 +67,7 @@ open class JvmIrCodegenFactory(
         val (mangler, symbolTable) =
             if (externalSymbolTable != null) externalMangler!! to externalSymbolTable
             else {
-                val mangler = JvmManglerDesc(MainFunctionDetector(state.bindingContext, state.languageVersionSettings))
+                val mangler = JvmDescriptorMangler(MainFunctionDetector(state.bindingContext, state.languageVersionSettings))
                 val symbolTable = SymbolTable(JvmIdSignatureDescriptor(mangler), IrFactoryImpl, JvmNameProvider)
                 mangler to symbolTable
             }
@@ -77,7 +79,7 @@ open class JvmIrCodegenFactory(
         psi2irContext.irBuiltIns.functionFactory = functionFactory
 
         val stubGenerator =
-            DeclarationStubGeneratorImpl(psi2irContext.moduleDescriptor, symbolTable, state.languageVersionSettings, jvmGeneratorExtensions)
+            DeclarationStubGeneratorImpl(psi2irContext.moduleDescriptor, symbolTable, psi2irContext.irBuiltIns, jvmGeneratorExtensions)
         val frontEndContext = object : TranslationPluginContext {
             override val moduleDescriptor: ModuleDescriptor
                 get() = psi2irContext.moduleDescriptor
@@ -91,7 +93,7 @@ open class JvmIrCodegenFactory(
         val irLinker = JvmIrLinker(
             psi2irContext.moduleDescriptor,
             messageLogger,
-            psi2irContext.irBuiltIns,
+            JvmIrTypeSystemContext(psi2irContext.irBuiltIns),
             symbolTable,
             functionFactory,
             frontEndContext,
@@ -139,7 +141,7 @@ open class JvmIrCodegenFactory(
                 // We have to ensure that deserializer for built-ins module is created
                 irLinker.deserializeIrModuleHeader(it.builtIns.builtInsModule, null)
             }
-            irLinker.deserializeIrModuleHeader(it, kotlinLibrary)
+            irLinker.deserializeIrModuleHeader(it, kotlinLibrary, _moduleName = it.name.asString())
         }
         val irProviders = listOf(irLinker)
 
@@ -171,8 +173,7 @@ open class JvmIrCodegenFactory(
         val result = LinkedHashSet<ModuleDescriptor>()
         fun collectImpl(descriptor: ModuleDescriptor) {
             val dependencies = descriptor.allDependencyModules
-            dependencies.forEach { if (it !in result) collectImpl(it) }
-            result += dependencies
+            dependencies.forEach { if (result.add(it)) collectImpl(it) }
         }
         collectImpl(this)
         return result.toList()
@@ -180,8 +181,11 @@ open class JvmIrCodegenFactory(
 
     fun doGenerateFilesInternal(input: JvmIrBackendInput) {
         val (state, irModuleFragment, symbolTable, phaseConfig, irProviders, extensions, backendExtension, notifyCodegenStart) = input
+        val irSerializer = if (state.configuration.getBoolean(JVMConfigurationKeys.SERIALIZE_IR))
+            JvmIrSerializerImpl(state.configuration)
+        else null
         val context = JvmBackendContext(
-            state, irModuleFragment.irBuiltins, irModuleFragment, symbolTable, phaseConfig, extensions, backendExtension,
+            state, irModuleFragment.irBuiltins, irModuleFragment, symbolTable, phaseConfig, extensions, backendExtension, irSerializer,
             notifyCodegenStart
         )
         /* JvmBackendContext creates new unbound symbols, have to resolve them. */

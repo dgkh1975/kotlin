@@ -8,7 +8,7 @@ package org.jetbrains.kotlin.idea.frontend.api.fir.scopes
 import org.jetbrains.kotlin.fir.declarations.FirProperty
 import org.jetbrains.kotlin.fir.declarations.FirRegularClass
 import org.jetbrains.kotlin.fir.declarations.FirSimpleFunction
-import org.jetbrains.kotlin.idea.frontend.api.ValidityToken
+import org.jetbrains.kotlin.idea.frontend.api.tokens.ValidityToken
 import org.jetbrains.kotlin.idea.frontend.api.ValidityTokenOwner
 import org.jetbrains.kotlin.idea.frontend.api.fir.KtSymbolByFirBuilder
 import org.jetbrains.kotlin.idea.frontend.api.fir.symbols.KtFirFileSymbol
@@ -33,7 +33,7 @@ internal class KtFirFileScope(
         _callableNames + _classifierNames
     }
 
-    override fun getAllNames(): Set<Name> = allNamesCached
+    override fun getAllPossibleNames(): Set<Name> = allNamesCached
 
     private val _callableNames: Set<Name> by cached {
         val result = mutableSetOf<Name>()
@@ -49,7 +49,7 @@ internal class KtFirFileScope(
         result
     }
 
-    override fun getCallableNames(): Set<Name> = _callableNames
+    override fun getPossibleCallableNames(): Set<Name> = _callableNames
 
     private val _classifierNames: Set<Name> by cached {
         val result = mutableSetOf<Name>()
@@ -61,7 +61,7 @@ internal class KtFirFileScope(
         result
     }
 
-    override fun getClassifierNames(): Set<Name> = _classifierNames
+    override fun getPossibleClassifierNames(): Set<Name> = _classifierNames
 
     override fun getCallableSymbols(nameFilter: KtScopeNameFilter): Sequence<KtCallableSymbol> = withValidityAssertion {
         owner.firRef.withFir {

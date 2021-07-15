@@ -5,26 +5,25 @@
 
 package org.jetbrains.kotlin.fir.analysis.diagnostics
 
+import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.diagnostics.WhenMissingCase
 import org.jetbrains.kotlin.diagnostics.rendering.Renderer
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirRenderer
 import org.jetbrains.kotlin.fir.declarations.*
+import org.jetbrains.kotlin.fir.declarations.utils.classId
 import org.jetbrains.kotlin.fir.render
-import org.jetbrains.kotlin.fir.renderWithType
-import org.jetbrains.kotlin.fir.symbols.AbstractFirBasedSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirTypeParameterSymbol
+import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
+import org.jetbrains.kotlin.fir.symbols.SymbolInternals
+import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.render
 
 object FirDiagnosticRenderers {
     val NULLABLE_STRING = Renderer<String?> { it ?: "null" }
 
-    val SYMBOL = Renderer { symbol: AbstractFirBasedSymbol<*> ->
+    val SYMBOL = Renderer { symbol: FirBasedSymbol<*> ->
         when (symbol) {
             is FirClassLikeSymbol<*> -> symbol.classId.asString()
             is FirCallableSymbol<*> -> symbol.callableId.toString()
@@ -33,53 +32,50 @@ object FirDiagnosticRenderers {
         }
     }
 
-    val SYMBOLS = Renderer { symbols: Collection<AbstractFirBasedSymbol<*>> ->
+    val SYMBOLS = Renderer { symbols: Collection<FirBasedSymbol<*>> ->
         symbols.joinToString(prefix = "[", postfix = "]", separator = ", ", limit = 3, truncated = "...") { symbol ->
             SYMBOL.render(symbol)
         }
     }
 
-    val TO_STRING = Renderer { element: Any ->
+    val RENDER_COLLECTION_OF_TYPES = Renderer { types: Collection<ConeKotlinType> ->
+        types.joinToString(separator = ", ") { type ->
+            RENDER_TYPE.render(type)
+        }
+    }
+
+    val TO_STRING = Renderer { element: Any? ->
         element.toString()
     }
 
-    val PROPERTY_NAME = Renderer { symbol: FirPropertySymbol ->
-        symbol.fir.name.asString()
+    val VARIABLE_NAME = Renderer { symbol: FirVariableSymbol<*> ->
+        symbol.name.asString()
     }
 
     val FIR = Renderer { element: FirElement ->
         element.render()
     }
 
-    val NAME = Renderer { element: FirElement ->
-        when (element) {
-            is FirMemberDeclaration -> DECLARATION_NAME.render(element)
-            is FirCallableDeclaration<*> -> element.symbol.callableId.callableName.asString()
-            else -> "???"
-        }
-    }
-
     val VISIBILITY = Renderer { visibility: Visibility ->
         visibility.externalDisplayName
     }
 
-    val DECLARATION_NAME = Renderer { declaration: FirMemberDeclaration ->
-        val name = when (declaration) {
-            is FirProperty -> declaration.name
-            is FirSimpleFunction -> declaration.name
-            is FirRegularClass -> declaration.name
-            is FirTypeAlias -> declaration.name
-            is FirEnumEntry -> declaration.name
-            is FirField -> declaration.name
-            is FirConstructor -> return@Renderer "constructor"
+    val DECLARATION_NAME = Renderer { symbol: FirBasedSymbol<*> ->
+        val name = when (symbol) {
+            is FirCallableSymbol<*> -> symbol.name
+            is FirClassLikeSymbol<*> -> symbol.classId.shortClassName
             else -> return@Renderer "???"
         }
         name.asString()
     }
 
-    val RENDER_CLASS_OR_OBJECT = Renderer { firClass: FirClass<*> ->
-        val name = firClass.classId.relativeClassName.asString()
-        val classOrObject = if (firClass is FirRegularClass) "Class" else "Object"
+    val RENDER_CLASS_OR_OBJECT = Renderer { classSymbol: FirClassSymbol<*> ->
+        val name = classSymbol.classId.relativeClassName.asString()
+        val classOrObject = when (classSymbol.classKind) {
+            ClassKind.OBJECT -> "Object"
+            ClassKind.INTERFACE -> "Interface"
+            else -> "Class"
+        }
         "$classOrObject $name"
     }
 
@@ -88,11 +84,12 @@ object FirDiagnosticRenderers {
         t.render()
     }
 
-    val FQ_NAMES_IN_TYPES = Renderer { element: FirElement ->
-        element.renderWithType(mode = FirRenderer.RenderMode.WithFqNamesExceptAnnotation)
+    val FQ_NAMES_IN_TYPES = Renderer { symbol: FirBasedSymbol<*> ->
+        @OptIn(SymbolInternals::class)
+        symbol.fir.render(mode = FirRenderer.RenderMode.WithFqNamesExceptAnnotationAndBody)
     }
 
-    val AMBIGUOUS_CALLS = Renderer { candidates: Collection<AbstractFirBasedSymbol<*>> ->
+    val AMBIGUOUS_CALLS = Renderer { candidates: Collection<FirBasedSymbol<*>> ->
         candidates.joinToString(separator = "\n", prefix = "\n") { symbol ->
             SYMBOL.render(symbol)
         }
@@ -109,4 +106,10 @@ object FirDiagnosticRenderers {
             "$list $branches or 'else' branch instead"
         }
     }
+
+    val NOT_RENDERED = Renderer<Any?> {
+        ""
+    }
+
+    val FUNCTION_PARAMETERS = Renderer { hasValueParameters: Boolean -> if (hasValueParameters) "..." else "" }
 }

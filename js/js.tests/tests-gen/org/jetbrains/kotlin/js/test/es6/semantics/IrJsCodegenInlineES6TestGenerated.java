@@ -1393,6 +1393,11 @@ public class IrJsCodegenInlineES6TestGenerated extends AbstractIrJsCodegenInline
                 runTest("compiler/testData/codegen/boxInline/defaultValues/lambdaInlining/kt25106.kt");
             }
 
+            @TestMetadata("lambdaTakesResult.kt")
+            public void testLambdaTakesResult() throws Exception {
+                runTest("compiler/testData/codegen/boxInline/defaultValues/lambdaInlining/lambdaTakesResult.kt");
+            }
+
             @TestMetadata("noInline.kt")
             public void testNoInline() throws Exception {
                 runTest("compiler/testData/codegen/boxInline/defaultValues/lambdaInlining/noInline.kt");
@@ -1490,6 +1495,21 @@ public class IrJsCodegenInlineES6TestGenerated extends AbstractIrJsCodegenInline
                     runTest("compiler/testData/codegen/boxInline/defaultValues/lambdaInlining/callableReferences/boundFunctionReferenceOnLong.kt");
                 }
 
+                @TestMetadata("boundInlineClassMethod.kt")
+                public void testBoundInlineClassMethod() throws Exception {
+                    runTest("compiler/testData/codegen/boxInline/defaultValues/lambdaInlining/callableReferences/boundInlineClassMethod.kt");
+                }
+
+                @TestMetadata("boundInlineClassMethodWithAny.kt")
+                public void testBoundInlineClassMethodWithAny() throws Exception {
+                    runTest("compiler/testData/codegen/boxInline/defaultValues/lambdaInlining/callableReferences/boundInlineClassMethodWithAny.kt");
+                }
+
+                @TestMetadata("boundInlineClassMethodWithInt.kt")
+                public void testBoundInlineClassMethodWithInt() throws Exception {
+                    runTest("compiler/testData/codegen/boxInline/defaultValues/lambdaInlining/callableReferences/boundInlineClassMethodWithInt.kt");
+                }
+
                 @TestMetadata("boundPropertyReference.kt")
                 public void testBoundPropertyReference() throws Exception {
                     runTest("compiler/testData/codegen/boxInline/defaultValues/lambdaInlining/callableReferences/boundPropertyReference.kt");
@@ -1518,6 +1538,11 @@ public class IrJsCodegenInlineES6TestGenerated extends AbstractIrJsCodegenInline
                 @TestMetadata("differentInvokeSignature2.kt")
                 public void testDifferentInvokeSignature2() throws Exception {
                     runTest("compiler/testData/codegen/boxInline/defaultValues/lambdaInlining/callableReferences/differentInvokeSignature2.kt");
+                }
+
+                @TestMetadata("differentInvokeSignature3.kt")
+                public void testDifferentInvokeSignature3() throws Exception {
+                    runTest("compiler/testData/codegen/boxInline/defaultValues/lambdaInlining/callableReferences/differentInvokeSignature3.kt");
                 }
 
                 @TestMetadata("functionImportedFromObject.kt")
@@ -1583,6 +1608,11 @@ public class IrJsCodegenInlineES6TestGenerated extends AbstractIrJsCodegenInline
                 @TestMetadata("propertyReferenceFromObject.kt")
                 public void testPropertyReferenceFromObject() throws Exception {
                     runTest("compiler/testData/codegen/boxInline/defaultValues/lambdaInlining/callableReferences/propertyReferenceFromObject.kt");
+                }
+
+                @TestMetadata("withInlineClassParameter.kt")
+                public void testWithInlineClassParameter() throws Exception {
+                    runTest("compiler/testData/codegen/boxInline/defaultValues/lambdaInlining/callableReferences/withInlineClassParameter.kt");
                 }
             }
         }
@@ -1989,6 +2019,11 @@ public class IrJsCodegenInlineES6TestGenerated extends AbstractIrJsCodegenInline
         public void testCaptureThisAndOuter() throws Exception {
             runTest("compiler/testData/codegen/boxInline/innerClasses/captureThisAndOuter.kt");
         }
+
+        @TestMetadata("fakeOverride.kt")
+        public void testFakeOverride() throws Exception {
+            runTest("compiler/testData/codegen/boxInline/innerClasses/fakeOverride.kt");
+        }
     }
 
     @TestMetadata("compiler/testData/codegen/boxInline/invokedynamic")
@@ -2340,6 +2375,11 @@ public class IrJsCodegenInlineES6TestGenerated extends AbstractIrJsCodegenInline
         @TestMetadata("kt8948v2.kt")
         public void testKt8948v2() throws Exception {
             runTest("compiler/testData/codegen/boxInline/nonLocalReturns/kt8948v2.kt");
+        }
+
+        @TestMetadata("kt9304.kt")
+        public void testKt9304() throws Exception {
+            runTest("compiler/testData/codegen/boxInline/nonLocalReturns/kt9304.kt");
         }
 
         @TestMetadata("nestedNonLocals.kt")
@@ -2995,6 +3035,11 @@ public class IrJsCodegenInlineES6TestGenerated extends AbstractIrJsCodegenInline
             runTest("compiler/testData/codegen/boxInline/reified/kt18977.kt");
         }
 
+        @TestMetadata("kt28234.kt")
+        public void testKt28234() throws Exception {
+            runTest("compiler/testData/codegen/boxInline/reified/kt28234.kt");
+        }
+
         @TestMetadata("kt35511.kt")
         public void testKt35511() throws Exception {
             runTest("compiler/testData/codegen/boxInline/reified/kt35511.kt");
@@ -3015,6 +3060,16 @@ public class IrJsCodegenInlineES6TestGenerated extends AbstractIrJsCodegenInline
             runTest("compiler/testData/codegen/boxInline/reified/kt35511_try_values.kt");
         }
 
+        @TestMetadata("kt46584.kt")
+        public void testKt46584() throws Exception {
+            runTest("compiler/testData/codegen/boxInline/reified/kt46584.kt");
+        }
+
+        @TestMetadata("kt46584_2.kt")
+        public void testKt46584_2() throws Exception {
+            runTest("compiler/testData/codegen/boxInline/reified/kt46584_2.kt");
+        }
+
         @TestMetadata("kt7017.kt")
         public void testKt7017() throws Exception {
             runTest("compiler/testData/codegen/boxInline/reified/kt7017.kt");
@@ -3033,6 +3088,11 @@ public class IrJsCodegenInlineES6TestGenerated extends AbstractIrJsCodegenInline
         @TestMetadata("kt9637_2.kt")
         public void testKt9637_2() throws Exception {
             runTest("compiler/testData/codegen/boxInline/reified/kt9637_2.kt");
+        }
+
+        @TestMetadata("nameClash.kt")
+        public void testNameClash() throws Exception {
+            runTest("compiler/testData/codegen/boxInline/reified/nameClash.kt");
         }
 
         @TestMetadata("nonCapturingObjectInLambda.kt")
@@ -3922,6 +3982,16 @@ public class IrJsCodegenInlineES6TestGenerated extends AbstractIrJsCodegenInline
                 KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/boxInline/suspend/defaultParameter"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JS_IR_ES6, true);
             }
 
+            @TestMetadata("defaultInlineLambda.kt")
+            public void testDefaultInlineLambda() throws Exception {
+                runTest("compiler/testData/codegen/boxInline/suspend/defaultParameter/defaultInlineLambda.kt");
+            }
+
+            @TestMetadata("defaultInlineReference.kt")
+            public void testDefaultInlineReference() throws Exception {
+                runTest("compiler/testData/codegen/boxInline/suspend/defaultParameter/defaultInlineReference.kt");
+            }
+
             @TestMetadata("defaultValueCrossinline.kt")
             public void testDefaultValueCrossinline() throws Exception {
                 runTest("compiler/testData/codegen/boxInline/suspend/defaultParameter/defaultValueCrossinline.kt");
@@ -3955,9 +4025,19 @@ public class IrJsCodegenInlineES6TestGenerated extends AbstractIrJsCodegenInline
                 KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/boxInline/suspend/inlineClass"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JS_IR_ES6, true);
             }
 
+            @TestMetadata("returnBoxedFromLambda.kt")
+            public void testReturnBoxedFromLambda() throws Exception {
+                runTest("compiler/testData/codegen/boxInline/suspend/inlineClass/returnBoxedFromLambda.kt");
+            }
+
             @TestMetadata("returnUnboxedDirect.kt")
             public void testReturnUnboxedDirect() throws Exception {
                 runTest("compiler/testData/codegen/boxInline/suspend/inlineClass/returnUnboxedDirect.kt");
+            }
+
+            @TestMetadata("returnUnboxedFromLambda.kt")
+            public void testReturnUnboxedFromLambda() throws Exception {
+                runTest("compiler/testData/codegen/boxInline/suspend/inlineClass/returnUnboxedFromLambda.kt");
             }
 
             @TestMetadata("returnUnboxedResume.kt")

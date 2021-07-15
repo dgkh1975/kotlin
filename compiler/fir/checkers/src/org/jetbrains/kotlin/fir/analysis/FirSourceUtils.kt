@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.fir.analysis
 
+import com.intellij.lang.LighterASTNode
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.tree.TokenSet
 import org.jetbrains.kotlin.fir.*
@@ -19,7 +20,7 @@ fun FirSourceElement.getChild(types: TokenSet, index: Int = 0, depth: Int = -1):
 
 fun FirSourceElement.getChild(types: Set<IElementType>, index: Int = 0, depth: Int = -1): FirSourceElement? {
     return when (this) {
-        is FirPsiSourceElement<*> -> {
+        is FirPsiSourceElement -> {
             getChild(types, index, depth)
         }
         is FirLightSourceElement -> {
@@ -29,13 +30,26 @@ fun FirSourceElement.getChild(types: Set<IElementType>, index: Int = 0, depth: I
     }
 }
 
-private fun FirPsiSourceElement<*>.getChild(types: Set<IElementType>, index: Int, depth: Int): FirSourceElement? {
+private fun FirPsiSourceElement.getChild(types: Set<IElementType>, index: Int, depth: Int): FirSourceElement? {
     val visitor = PsiElementFinderByType(types, index, depth)
     return visitor.find(psi)?.toFirPsiSourceElement()
 }
 
 private fun FirLightSourceElement.getChild(types: Set<IElementType>, index: Int, depth: Int): FirSourceElement? {
     val visitor = LighterTreeElementFinderByType(treeStructure, types, index, depth)
-    return visitor.find(lighterASTNode)?.toFirLightSourceElement(treeStructure)
+    val childNode = visitor.find(lighterASTNode) ?: return null
+    return buildChildSourceElement(childNode)
+}
+
+/**
+ * Keeps 'padding' of parent node in child node
+ */
+internal fun FirLightSourceElement.buildChildSourceElement(childNode: LighterASTNode): FirLightSourceElement {
+    val offsetDelta = startOffset - lighterASTNode.startOffset
+    return childNode.toFirLightSourceElement(
+        treeStructure,
+        startOffset = childNode.startOffset + offsetDelta,
+        endOffset = childNode.endOffset + offsetDelta
+    )
 }
 

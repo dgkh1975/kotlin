@@ -1,11 +1,10 @@
 import org.jetbrains.dokka.gradle.DokkaTask
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlin.pill.PillExtension
 
 plugins {
     java
-    kotlin("jvm")
     `java-gradle-plugin`
+    id("gradle-plugin-common-configuration")
     id("org.jetbrains.dokka")
     id("jps-compatible")
 }
@@ -17,12 +16,7 @@ configure<GradlePluginDevelopmentExtension> {
     isAutomatedPublishing = false
 }
 
-publish()
-
 val jarContents by configurations.creating
-
-sourcesJar()
-javadocJar()
 
 repositories {
     google()
@@ -40,10 +34,10 @@ dependencies {
     compileOnly(project(":compiler:incremental-compilation-impl"))
     compileOnly(project(":daemon-common"))
 
-    implementation(kotlinStdlib())
     implementation(project(":kotlin-util-klib"))
     implementation(project(":native:kotlin-klib-commonizer-api"))
     implementation(project(":kotlin-tooling-metadata"))
+    implementation(project(":kotlin-project-model"))
     compileOnly(project(":native:kotlin-native-utils"))
     compileOnly(project(":kotlin-reflect-api"))
     compileOnly(project(":kotlin-android-extensions"))
@@ -58,18 +52,18 @@ dependencies {
     embedded(project(":kotlin-gradle-build-metrics"))
 
     implementation("com.google.code.gson:gson:${rootProject.extra["versions.jar.gson"]}")
+    implementation("com.google.guava:guava:${rootProject.extra["versions.jar.guava"]}")
     implementation("de.undercouch:gradle-download-task:4.1.1")
     implementation("com.github.gundy:semver4j:0.16.4:nodeps") {
         exclude(group = "*")
     }
 
-    compileOnly("com.android.tools.build:gradle:2.0.0")
-    compileOnly("com.android.tools.build:gradle-core:2.0.0")
-    compileOnly("com.android.tools.build:builder:2.0.0")
-    compileOnly("com.android.tools.build:builder-model:2.0.0")
+    compileOnly("com.android.tools.build:gradle:3.4.0")
+    compileOnly("com.android.tools.build:gradle-api:3.4.0")
+    compileOnly("com.android.tools.build:builder:3.4.0")
+    compileOnly("com.android.tools.build:builder-model:3.4.0")
     compileOnly("org.codehaus.groovy:groovy-all:2.4.12")
-    compileOnly(gradleApi())
-
+    compileOnly(project(":kotlin-reflect"))
     compileOnly(intellijCoreDep()) { includeJars("intellij-core") }
 
     runtimeOnly(projectRuntimeJar(":kotlin-compiler-embeddable"))
@@ -78,10 +72,9 @@ dependencies {
     runtimeOnly(projectRuntimeJar(":kotlin-compiler-runner"))
     runtimeOnly(projectRuntimeJar(":kotlin-scripting-compiler-embeddable"))
     runtimeOnly(projectRuntimeJar(":kotlin-scripting-compiler-impl-embeddable"))
-    runtimeOnly(project(":kotlin-reflect"))
 
     jarContents(compileOnly(intellijDep()) {
-        includeJars("asm-all", "gson", "serviceMessages", rootProject = rootProject)
+        includeJars("asm-all", "gson", "guava", "serviceMessages", rootProject = rootProject)
     })
 
     // com.android.tools.build:gradle has ~50 unneeded transitive dependencies
@@ -110,6 +103,7 @@ if (kotlinBuildProperties.isInJpsBuildIdeaSync) {
     configurations.compile.get().exclude("com.android.tools.external.com-intellij", "intellij-core")
 }
 
+noDefaultJar()
 runtimeJar(rewriteDefaultJarDepsToShadedCompiler()).configure {
     dependsOn(jarContents)
 
@@ -122,15 +116,6 @@ runtimeJar(rewriteDefaultJarDepsToShadedCompiler()).configure {
 }
 
 tasks {
-    withType<KotlinCompile> {
-        kotlinOptions.jdkHome = rootProject.extra["JDK_18"] as String
-        kotlinOptions.languageVersion = "1.3"
-        kotlinOptions.apiVersion = "1.3"
-        kotlinOptions.freeCompilerArgs += listOf(
-            "-Xskip-prerelease-check", "-Xsuppress-version-warnings"
-        )
-    }
-
     named<ProcessResources>("processResources") {
         val propertiesToExpand = mapOf(
             "projectVersion" to project.version,
@@ -142,10 +127,6 @@ tasks {
         filesMatching("project.properties") {
             expand(propertiesToExpand)
         }
-    }
-
-    named<Jar>("jar") {
-        callGroovy("manifestAttributes", manifest, project)
     }
 
     withType<ValidatePlugins>().configureEach {
@@ -164,7 +145,6 @@ tasks {
 }
 
 projectTest {
-    executable = "${rootProject.extra["JDK_18"]!!}/bin/java"
     dependsOn(tasks.named("validatePlugins"))
 
     workingDir = rootDir
@@ -223,6 +203,11 @@ pluginBundle {
         name = "kotlinNativeCocoapodsPlugin",
         id = "org.jetbrains.kotlin.native.cocoapods",
         display = "Kotlin Native plugin for CocoaPods integration"
+    )
+    create(
+        name = "kotlinMultiplatformPluginPm20",
+        id = "org.jetbrains.kotlin.multiplatform.pm20",
+        display = "Kotlin Multiplatform plugin with PM2.0"
     )
 }
 

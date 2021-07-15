@@ -1,4 +1,4 @@
-// !WITH_NEW_INFERENCE
+// FIR_IDENTICAL
 class A {
     operator fun component1() : Int = 1
     operator fun component2() : Int = 2

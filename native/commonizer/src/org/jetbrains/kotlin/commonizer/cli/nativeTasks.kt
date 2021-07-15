@@ -3,18 +3,19 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
+@file:Suppress("DuplicatedCode")
+
 package org.jetbrains.kotlin.commonizer.cli
 
 import org.jetbrains.kotlin.commonizer.*
-import org.jetbrains.kotlin.commonizer.konan.*
+import org.jetbrains.kotlin.commonizer.konan.LibraryCommonizer
+import org.jetbrains.kotlin.commonizer.konan.ModuleSerializer
 import org.jetbrains.kotlin.commonizer.repository.*
 import org.jetbrains.kotlin.commonizer.stats.FileStatsOutput
 import org.jetbrains.kotlin.commonizer.stats.StatsCollector
 import org.jetbrains.kotlin.commonizer.stats.StatsType
-import org.jetbrains.kotlin.commonizer.utils.ProgressLogger
 import org.jetbrains.kotlin.konan.library.KONAN_DISTRIBUTION_KLIB_DIR
 import org.jetbrains.kotlin.konan.library.KONAN_DISTRIBUTION_PLATFORM_LIBS_DIR
-import org.jetbrains.kotlin.konan.target.KonanTarget
 import java.io.File
 
 internal class NativeDistributionListTargets(options: Collection<Option<*>>) : Task(options) {
@@ -47,37 +48,35 @@ internal class NativeKlibCommonize(options: Collection<Option<*>>) : Task(option
         val distribution = KonanDistribution(getMandatory<File, NativeDistributionOptionType>())
         val destination = getMandatory<File, OutputOptionType>()
         val targetLibraries = getMandatory<List<File>, InputLibrariesOptionType>()
-        val dependencyLibraries = getOptional<List<File>, DependencyLibrariesOptionType>().orEmpty()
-        val outputCommonizerTarget = getMandatory<SharedCommonizerTarget, OutputCommonizerTargetOptionType>()
+        val dependencyLibraries = getOptional<List<CommonizerDependency>, DependencyLibrariesOptionType>().orEmpty()
+        val outputTargets = getMandatory<Set<SharedCommonizerTarget>, OutputCommonizerTargetsOptionType>()
         val statsType = getOptional<StatsType, StatsTypeOptionType> { it == "log-stats" } ?: StatsType.NONE
+        val logLevel = getOptional<CommonizerLogLevel, LogLevelOptionType>() ?: CommonizerLogLevel.Quiet
 
-        val konanTargets = outputCommonizerTarget.konanTargets
+
+        val konanTargets = outputTargets.konanTargets
         val commonizerTargets = konanTargets.map(::CommonizerTarget)
 
-        val progressLogger = ProgressLogger(CliLoggerAdapter(2), startImmediately = true)
-        val libraryLoader = DefaultNativeLibraryLoader(progressLogger)
+        val logger = CliLoggerAdapter(logLevel, 2)
+        val libraryLoader = DefaultNativeLibraryLoader(logger)
         val statsCollector = StatsCollector(statsType, commonizerTargets)
         val repository = FilesRepository(targetLibraries.toSet(), libraryLoader)
 
         val resultsConsumer = buildResultsConsumer {
-            this add ModuleSerializer(destination, HierarchicalCommonizerOutputLayout)
-            this add CopyUnconsumedModulesAsIsConsumer(
-                repository, destination, commonizerTargets.toSet(), NativeDistributionCommonizerOutputLayout, progressLogger
-            )
-            this add LoggingResultsConsumer(outputCommonizerTarget, progressLogger)
+            this add ModuleSerializer(destination)
         }
 
         LibraryCommonizer(
-            commonTarget = outputCommonizerTarget,
+            outputTargets = outputTargets,
             repository = repository,
             dependencies = StdlibRepository(distribution, libraryLoader) +
-                    FilesRepository(dependencyLibraries.toSet(), libraryLoader),
+                    CommonizerDependencyRepository(dependencyLibraries.toSet(), libraryLoader),
             resultsConsumer = resultsConsumer,
             statsCollector = statsCollector,
-            progressLogger = progressLogger
+            logger = logger
         ).run()
 
-        statsCollector?.writeTo(FileStatsOutput(destination, statsType.name.toLowerCase()))
+        statsCollector?.writeTo(FileStatsOutput(destination, statsType.name.lowercase()))
     }
 }
 
@@ -87,54 +86,41 @@ internal class NativeDistributionCommonize(options: Collection<Option<*>>) : Tas
     override fun execute(logPrefix: String) {
         val distribution = KonanDistribution(getMandatory<File, NativeDistributionOptionType>())
         val destination = getMandatory<File, OutputOptionType>()
-        val konanTargets = getMandatory<List<KonanTarget>, NativeTargetsOptionType>()
-        val commonizerTargets = konanTargets.map(::CommonizerTarget)
 
-        val copyStdlib = getOptional<Boolean, BooleanOptionType> { it == "copy-stdlib" } ?: false
-        val copyEndorsedLibs = getOptional<Boolean, BooleanOptionType> { it == "copy-endorsed-libs" } ?: false
+        val outputTargets = getMandatory<Set<SharedCommonizerTarget>, OutputCommonizerTargetsOptionType>()
+
         val statsType = getOptional<StatsType, StatsTypeOptionType> { it == "log-stats" } ?: StatsType.NONE
+        val logLevel = getOptional<CommonizerLogLevel, LogLevelOptionType>() ?: CommonizerLogLevel.Quiet
 
-        val progressLogger = ProgressLogger(CliLoggerAdapter(2), startImmediately = true)
-        val libraryLoader = DefaultNativeLibraryLoader(progressLogger)
-        val repository = KonanDistributionRepository(distribution, commonizerTargets.toSet(), libraryLoader)
-        val existingTargets = commonizerTargets.filter { repository.getLibraries(it).isNotEmpty() }.toSet()
-        val statsCollector = StatsCollector(statsType, commonizerTargets)
+        val logger = CliLoggerAdapter(logLevel, 2)
+        val libraryLoader = DefaultNativeLibraryLoader(logger)
+        val repository = KonanDistributionRepository(distribution, outputTargets.konanTargets, libraryLoader)
+        val statsCollector = StatsCollector(statsType, outputTargets.allLeaves().toList())
 
         val resultsConsumer = buildResultsConsumer {
-            this add ModuleSerializer(destination, NativeDistributionCommonizerOutputLayout)
-            this add CopyUnconsumedModulesAsIsConsumer(
-                repository, destination, commonizerTargets.toSet(), NativeDistributionCommonizerOutputLayout, progressLogger
-            )
-            if (copyStdlib) this add CopyStdlibResultsConsumer(distribution, destination, progressLogger)
-            if (copyEndorsedLibs) this add CopyEndorsedLibrairesResultsConsumer(distribution, destination, progressLogger)
-
-            SharedCommonizerTarget.ifNotEmpty(existingTargets)?.let { sharedTargetForLogger ->
-                this add LoggingResultsConsumer(sharedTargetForLogger, progressLogger)
-            }
+            this add ModuleSerializer(destination)
         }
 
-        val targetNames = commonizerTargets.joinToString { it.prettyName }
-        val descriptionSuffix = estimateLibrariesCount(repository, commonizerTargets).let { " ($it items)" }
-        val description = "${logPrefix}Preparing commonized Kotlin/Native libraries for targets $targetNames$descriptionSuffix"
-        println(description)
+        val descriptionSuffix = estimateLibrariesCount(repository, outputTargets.allLeaves()).let { " ($it items)" }
+        logger.log("${logPrefix}Preparing commonized Kotlin/Native libraries for ${outputTargets.allLeaves()}$descriptionSuffix")
 
         LibraryCommonizer(
-            commonTarget = SharedCommonizerTarget(commonizerTargets.toSet()),
+            outputTargets = outputTargets,
             repository = repository,
             dependencies = StdlibRepository(distribution, libraryLoader),
             resultsConsumer = resultsConsumer,
             statsCollector = statsCollector,
-            progressLogger = progressLogger
+            logger = logger
         ).run()
 
-        statsCollector?.writeTo(FileStatsOutput(destination, statsType.name.toLowerCase()))
-
-        println("$description: Done")
+        statsCollector?.writeTo(FileStatsOutput(destination, statsType.name.lowercase()))
     }
 
     companion object {
-        private fun estimateLibrariesCount(repository: Repository, targets: List<LeafCommonizerTarget>): Int {
+        private fun estimateLibrariesCount(repository: Repository, targets: Iterable<LeafCommonizerTarget>): Int {
             return targets.flatMap { repository.getLibraries(it) }.count()
         }
     }
 }
+
+

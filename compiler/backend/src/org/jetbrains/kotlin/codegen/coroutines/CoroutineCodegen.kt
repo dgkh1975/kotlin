@@ -7,9 +7,7 @@ package org.jetbrains.kotlin.codegen.coroutines
 
 import com.intellij.util.ArrayUtil
 import org.jetbrains.kotlin.backend.common.CodegenUtil
-import org.jetbrains.kotlin.builtins.isSuspendFunctionTypeOrSubtype
 import org.jetbrains.kotlin.codegen.*
-import org.jetbrains.kotlin.codegen.binding.CalculatedClosure
 import org.jetbrains.kotlin.codegen.binding.CodegenBinding
 import org.jetbrains.kotlin.codegen.binding.CodegenBinding.CAPTURES_CROSSINLINE_LAMBDA
 import org.jetbrains.kotlin.codegen.binding.CodegenBinding.CLOSURE
@@ -44,7 +42,6 @@ import org.jetbrains.kotlin.resolve.jvm.jvmSignature.JvmMethodSignature
 import org.jetbrains.kotlin.serialization.DescriptorSerializer
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.typeUtil.makeNullable
-import org.jetbrains.kotlin.backend.common.SamType
 import org.jetbrains.kotlin.utils.sure
 import org.jetbrains.org.objectweb.asm.Label
 import org.jetbrains.org.objectweb.asm.MethodVisitor
@@ -451,7 +448,7 @@ class CoroutineCodegenForLambda private constructor(
                             if (parameter.type.isInlineClassType()) {
                                 load(cloneIndex, fieldInfoForCoroutineLambdaParameter.ownerType)
                                 load(index, AsmTypes.OBJECT_TYPE)
-                                StackValue.unboxInlineClass(AsmTypes.OBJECT_TYPE, parameter.type, this)
+                                StackValue.unboxInlineClass(AsmTypes.OBJECT_TYPE, parameter.type, this, typeMapper)
                                 putfield(
                                     fieldInfoForCoroutineLambdaParameter.ownerInternalName,
                                     fieldInfoForCoroutineLambdaParameter.fieldName,
@@ -602,21 +599,6 @@ class CoroutineCodegenForLambda private constructor(
     }
 }
 
-fun isCapturedSuspendLambda(closure: CalculatedClosure, name: String, bindingContext: BindingContext): Boolean {
-    for ((param, value) in closure.captureVariables) {
-        if (param !is ValueParameterDescriptor) continue
-        if (value.fieldName != name) continue
-        return param.type.isSuspendFunctionTypeOrSubtype
-    }
-    val classDescriptor = closure.capturedOuterClassDescriptor ?: return false
-    return isCapturedSuspendLambda(classDescriptor, name, bindingContext)
-}
-
-fun isCapturedSuspendLambda(classDescriptor: ClassDescriptor, name: String, bindingContext: BindingContext): Boolean {
-    val closure = bindingContext[CLOSURE, classDescriptor] ?: return false
-    return isCapturedSuspendLambda(closure, name, bindingContext)
-}
-
 private class AddEndLabelMethodVisitor(
     delegate: MethodVisitor,
     access: Int,
@@ -757,7 +739,7 @@ class CoroutineCodegenForNamedFunction private constructor(
                             generateCoroutineSuspendedCheck(languageVersionSettings)
                             // Now we box the inline class
                             StackValue.coerce(AsmTypes.OBJECT_TYPE, typeMapper.mapType(inlineClassToBoxInInvokeSuspend), this)
-                            StackValue.boxInlineClass(inlineClassToBoxInInvokeSuspend, this)
+                            StackValue.boxInlineClass(inlineClassToBoxInInvokeSuspend, this, typeMapper)
                         }
                     }
 

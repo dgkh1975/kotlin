@@ -8,7 +8,6 @@ package org.jetbrains.kotlin.test.backend.handlers
 import org.jetbrains.kotlin.backend.common.serialization.signature.IdSignatureDescriptor
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.descriptors.findClassAcrossModuleDependencies
-import org.jetbrains.kotlin.ir.IrVerifier
 import org.jetbrains.kotlin.ir.backend.js.lower.serialization.ir.JsManglerDesc
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFile
@@ -34,6 +33,7 @@ import org.jetbrains.kotlin.test.utils.MultiModuleInfoDumperImpl
 import org.jetbrains.kotlin.test.utils.withExtension
 import org.jetbrains.kotlin.test.utils.withSuffixAndExtension
 import java.io.File
+import java.io.PrintStream
 
 class IrTextDumpHandler(testServices: TestServices) : AbstractIrHandler(testServices) {
     companion object {
@@ -67,11 +67,6 @@ class IrTextDumpHandler(testServices: TestServices) : AbstractIrHandler(testServ
             if (EXTERNAL_FILE in testFile.directives) continue
             val actualDump = irFile.dumpTreesFromLineNumber(lineNumber = 0, normalizeNames = true)
             builder.append(actualDump)
-            verify(irFile)
-
-            val irFileCopy = irFile.deepCopyWithSymbols()
-            val dumpOfCopy = irFileCopy.dumpTreesFromLineNumber(lineNumber = 0, normalizeNames = true)
-            assertions.assertEquals(actualDump, dumpOfCopy) { "IR dump mismatch after deep copy with symbols" }
         }
         compareDumpsOfExternalClasses(module, info)
     }
@@ -90,7 +85,7 @@ class IrTextDumpHandler(testServices: TestServices) : AbstractIrHandler(testServ
         val stubGenerator = DeclarationStubGeneratorImpl(
             irModule.descriptor,
             SymbolTable(signaturer, IrFactoryImpl), // TODO
-            module.languageVersionSettings
+            irModule.irBuiltins
         )
 
         val baseFile = testServices.moduleStructure.originalTestDataFiles.first()
@@ -120,10 +115,6 @@ class IrTextDumpHandler(testServices: TestServices) : AbstractIrHandler(testServ
         if (actualDump.isNotEmpty()) {
             assertions.assertEqualsToFile(expectedFile, actualDump)
         }
-    }
-
-    private fun verify(irFile: IrFile) {
-        IrVerifier(assertions).verifyWithAssert(irFile)
     }
 
     private val TestModule.dumpExtension: String

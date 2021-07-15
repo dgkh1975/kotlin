@@ -136,6 +136,19 @@ public class QuickFixMultiFileTestGenerated extends AbstractQuickFixMultiFileTes
         public void testAllFilesPresentInAddExclExclCall() throws Exception {
             KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("idea/testData/quickfix/addExclExclCall"), Pattern.compile("^(\\w+)\\.((before\\.Main\\.\\w+)|(test))$"), null, true);
         }
+
+        @TestMetadata("idea/testData/quickfix/addExclExclCall/typeMismatch")
+        @TestDataPath("$PROJECT_ROOT")
+        @RunWith(JUnit3RunnerWithInners.class)
+        public static class TypeMismatch extends AbstractQuickFixMultiFileTest {
+            private void runTest(String testDataFilePath) throws Exception {
+                KotlinTestUtils.runTest(this::doTestWithExtraFile, this, testDataFilePath);
+            }
+
+            public void testAllFilesPresentInTypeMismatch() throws Exception {
+                KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("idea/testData/quickfix/addExclExclCall/typeMismatch"), Pattern.compile("^(\\w+)\\.((before\\.Main\\.\\w+)|(test))$"), null, true);
+            }
+        }
     }
 
     @TestMetadata("idea/testData/quickfix/addGenericUpperBound")
@@ -761,6 +774,11 @@ public class QuickFixMultiFileTestGenerated extends AbstractQuickFixMultiFileTes
             runTest("idea/testData/quickfix/autoImports/importKotlinStaticPropertyOverloadedSetterFromJava.test");
         }
 
+        @TestMetadata("importNullableTraitWithGenerics.before.Main.kt")
+        public void testImportNullableTraitWithGenerics() throws Exception {
+            runTest("idea/testData/quickfix/autoImports/importNullableTraitWithGenerics.before.Main.kt");
+        }
+
         @TestMetadata("ImportOperatorInvokeWithConvention.before.Main.kt")
         public void testImportOperatorInvokeWithConvention() throws Exception {
             runTest("idea/testData/quickfix/autoImports/ImportOperatorInvokeWithConvention.before.Main.kt");
@@ -949,6 +967,11 @@ public class QuickFixMultiFileTestGenerated extends AbstractQuickFixMultiFileTes
         @TestMetadata("noImportForPrivateClass.before.Main.kt")
         public void testNoImportForPrivateClass() throws Exception {
             runTest("idea/testData/quickfix/autoImports/noImportForPrivateClass.before.Main.kt");
+        }
+
+        @TestMetadata("noImportForPrivateFunction.before.Main.kt")
+        public void testNoImportForPrivateFunction() throws Exception {
+            runTest("idea/testData/quickfix/autoImports/noImportForPrivateFunction.before.Main.kt");
         }
 
         @TestMetadata("noImportInImports.before.Main.kt")

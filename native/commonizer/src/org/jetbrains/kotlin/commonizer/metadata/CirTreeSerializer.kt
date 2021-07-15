@@ -7,17 +7,16 @@ package org.jetbrains.kotlin.commonizer.metadata
 
 import kotlinx.metadata.*
 import kotlinx.metadata.klib.KlibModuleMetadata
-import org.jetbrains.kotlin.commonizer.CommonizerTarget
 import org.jetbrains.kotlin.commonizer.cir.*
 import org.jetbrains.kotlin.commonizer.mergedtree.*
 import org.jetbrains.kotlin.commonizer.mergedtree.CirNode.Companion.indexOfCommon
+import org.jetbrains.kotlin.commonizer.metadata.CirTreeSerializationContext.Path
 import org.jetbrains.kotlin.commonizer.stats.DeclarationType
 import org.jetbrains.kotlin.commonizer.stats.StatsCollector
 import org.jetbrains.kotlin.commonizer.stats.StatsCollector.StatsKey
 import org.jetbrains.kotlin.commonizer.utils.DEFAULT_CONSTRUCTOR_NAME
-import org.jetbrains.kotlin.utils.addToStdlib.cast
 import org.jetbrains.kotlin.commonizer.utils.firstNonNull
-import org.jetbrains.kotlin.commonizer.metadata.CirTreeSerializationContext.Path
+import org.jetbrains.kotlin.utils.addToStdlib.cast
 
 object CirTreeSerializer {
     fun serializeSingleTarget(
@@ -144,6 +143,7 @@ private class CirTreeSerializationVisitor(
         classContext: CirTreeSerializationContext
     ): KmClass? {
         val cirClass = classContext.get<CirClass>(node) ?: return null
+
         val classTypeParametersCount = cirClass.typeParameters.size
         val fullClassName = classContext.currentPath.toString()
 
@@ -176,7 +176,14 @@ private class CirTreeSerializationVisitor(
             property
         }
 
-        return cirClass.serializeClass(classContext, fullClassName, directNestedClasses, nestedConstructors, nestedFunctions, nestedProperties)
+        return cirClass.serializeClass(
+            classContext,
+            fullClassName,
+            directNestedClasses,
+            nestedConstructors,
+            nestedFunctions,
+            nestedProperties
+        )
     }
 
     override fun visitClassConstructorNode(
@@ -293,7 +300,6 @@ private class CirTreeSerializationVisitor(
 
 internal data class CirTreeSerializationContext(
     val targetIndex: Int,
-    val target: CommonizerTarget,
     val isCommon: Boolean,
     val typeParameterIndexOffset: Int,
     val currentPath: Path
@@ -332,7 +338,6 @@ internal data class CirTreeSerializationContext(
 
         return CirTreeSerializationContext(
             targetIndex = targetIndex,
-            target = target,
             isCommon = isCommon,
             typeParameterIndexOffset = 0,
             currentPath = Path.Module(moduleName)
@@ -344,7 +349,6 @@ internal data class CirTreeSerializationContext(
 
         return CirTreeSerializationContext(
             targetIndex = targetIndex,
-            target = target,
             isCommon = isCommon,
             typeParameterIndexOffset = 0,
             currentPath = Path.Package(packageName)
@@ -369,7 +373,6 @@ internal data class CirTreeSerializationContext(
 
         return CirTreeSerializationContext(
             targetIndex = targetIndex,
-            target = target,
             isCommon = isCommon,
             typeParameterIndexOffset = typeParameterIndexOffset + outerClassTypeParametersCount,
             currentPath = newPath
@@ -394,7 +397,6 @@ internal data class CirTreeSerializationContext(
 
         return CirTreeSerializationContext(
             targetIndex = targetIndex,
-            target = target,
             isCommon = isCommon,
             typeParameterIndexOffset = typeParameterIndexOffset + ownerClassTypeParametersCount,
             currentPath = newPath
@@ -417,7 +419,6 @@ internal data class CirTreeSerializationContext(
         fun rootContext(rootNode: CirRootNode, targetIndex: Int): CirTreeSerializationContext =
             CirTreeSerializationContext(
                 targetIndex = targetIndex,
-                target = rootNode.getTarget(targetIndex),
                 isCommon = rootNode.indexOfCommon == targetIndex,
                 typeParameterIndexOffset = 0,
                 currentPath = Path.Empty

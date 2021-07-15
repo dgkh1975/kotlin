@@ -5,18 +5,18 @@
 
 package org.jetbrains.kotlin.fir
 
-import org.jetbrains.kotlin.analyzer.ModuleInfo
 import org.jetbrains.kotlin.fir.types.impl.*
 import org.jetbrains.kotlin.fir.utils.ArrayMapAccessor
 import org.jetbrains.kotlin.fir.utils.ComponentArrayOwner
 import org.jetbrains.kotlin.fir.utils.NullableArrayMapAccessor
 import org.jetbrains.kotlin.fir.utils.TypeRegistry
-import org.jetbrains.kotlin.utils.JavaTypeEnhancementState
 import kotlin.reflect.KClass
 
 interface FirSessionComponent
 
-abstract class FirSession @PrivateSessionConstructor constructor(val sessionProvider: FirSessionProvider?) : ComponentArrayOwner<FirSessionComponent, FirSessionComponent>() {
+abstract class FirSession @PrivateSessionConstructor constructor(
+    val sessionProvider: FirSessionProvider?
+) : ComponentArrayOwner<FirSessionComponent, FirSessionComponent>() {
     companion object : TypeRegistry<FirSessionComponent, FirSessionComponent>() {
         inline fun <reified T : FirSessionComponent> sessionComponentAccessor(): ArrayMapAccessor<FirSessionComponent, FirSessionComponent, T> {
             return generateAccessor(T::class)
@@ -26,10 +26,6 @@ abstract class FirSession @PrivateSessionConstructor constructor(val sessionProv
             return generateNullableAccessor(T::class)
         }
     }
-
-    open val moduleInfo: ModuleInfo? get() = null
-
-    val javaTypeEnhancementState: JavaTypeEnhancementState? get() = null
 
     open val builtinTypes: BuiltinTypes = BuiltinTypes()
 
@@ -41,8 +37,8 @@ abstract class FirSession @PrivateSessionConstructor constructor(val sessionProv
     }
 }
 
-interface FirSessionProvider {
-    fun getSession(moduleInfo: ModuleInfo): FirSession?
+abstract class FirSessionProvider {
+    abstract fun getSession(moduleData: FirModuleData): FirSession?
 }
 
 class BuiltinTypes {

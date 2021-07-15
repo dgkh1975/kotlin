@@ -18,6 +18,7 @@ package org.jetbrains.kotlin.cli.common.arguments
 
 import com.intellij.util.xmlb.annotations.Transient
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
+import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.WARNING
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.config.*
 import java.util.*
@@ -81,6 +82,15 @@ abstract class CommonCompilerArguments : CommonToolArguments() {
 
     @Argument(value = "-P", valueDescription = PLUGIN_OPTION_FORMAT, description = "Pass an option to a plugin")
     var pluginOptions: Array<String>? by FreezableVar(null)
+
+    @Argument(
+        value = "-opt-in",
+        // Uncomment after deletion of optInDeprecated
+        // deprecatedName = "-Xopt-in",
+        valueDescription = "<fq.name>",
+        description = "Enable usages of API that requires opt-in with an opt-in requirement marker with the given fully qualified name"
+    )
+    var optIn: Array<String>? by FreezableVar(null)
 
     // Advanced options
 
@@ -158,25 +168,19 @@ abstract class CommonCompilerArguments : CommonToolArguments() {
     var readDeserializedContracts: Boolean by FreezableVar(false)
 
     @Argument(
-        value = "-Xexperimental",
-        valueDescription = "<fq.name>",
-        description = "Enable and propagate usages of experimental API for marker annotation with the given fully qualified name"
-    )
-    var experimental: Array<String>? by FreezableVar(null)
-
-    @Argument(
         value = "-Xuse-experimental",
         valueDescription = "<fq.name>",
         description = "Enable, but don't propagate usages of experimental API for marker annotation with the given fully qualified name"
     )
     var useExperimental: Array<String>? by FreezableVar(null)
 
+    // NB: we have to keep this flag for some time due to bootstrapping problems
     @Argument(
         value = "-Xopt-in",
         valueDescription = "<fq.name>",
         description = "Enable usages of API that requires opt-in with an opt-in requirement marker with the given fully qualified name"
     )
-    var optIn: Array<String>? by FreezableVar(null)
+    var optInDeprecated: Array<String>? by FreezableVar(null)
 
     @Argument(
         value = "-Xproper-ieee754-comparisons",
@@ -365,17 +369,31 @@ abstract class CommonCompilerArguments : CommonToolArguments() {
     )
     var extendedCompilerChecks: Boolean by FreezableVar(false)
 
-    open fun configureAnalysisFlags(collector: MessageCollector): MutableMap<AnalysisFlag<*>, Any> {
+    @Argument(
+        value = "-Xunrestricted-builder-inference",
+        description = "Eliminate builder inference restrictions like allowance of returning type variables of a builder inference call"
+    )
+    var unrestrictedBuilderInference: Boolean by FreezableVar(false)
+
+    open fun configureAnalysisFlags(collector: MessageCollector, languageVersion: LanguageVersion): MutableMap<AnalysisFlag<*>, Any> {
         return HashMap<AnalysisFlag<*>, Any>().apply {
             put(AnalysisFlags.skipMetadataVersionCheck, skipMetadataVersionCheck)
             put(AnalysisFlags.skipPrereleaseCheck, skipPrereleaseCheck || skipMetadataVersionCheck)
             put(AnalysisFlags.multiPlatformDoNotCheckActual, noCheckActual)
-            val experimentalFqNames = experimental?.toList().orEmpty()
-            if (experimentalFqNames.isNotEmpty()) {
-                put(AnalysisFlags.experimental, experimentalFqNames)
-                collector.report(CompilerMessageSeverity.WARNING, "'-Xexperimental' is deprecated and will be removed in a future release")
+            val useExperimentalFqNames = useExperimental?.toList().orEmpty()
+            if (useExperimentalFqNames.isNotEmpty()) {
+                collector.report(
+                    WARNING, "'-Xuse-experimental' is deprecated and will be removed in a future release, please use -opt-in instead"
+                )
             }
-            put(AnalysisFlags.useExperimental, useExperimental?.toList().orEmpty() + optIn?.toList().orEmpty())
+            val optInDeprecatedFqNames = optInDeprecated?.toList().orEmpty()
+            if (optInDeprecatedFqNames.isNotEmpty()) {
+                // TODO: uncomment this after -opt-in bootstrapping and Gradle script fixing
+//                collector.report(
+//                    WARNING, "'-Xopt-in' is deprecated and will be removed in a future release, please use -opt-in instead"
+//                )
+            }
+            put(AnalysisFlags.useExperimental, useExperimentalFqNames + optInDeprecatedFqNames + optIn?.toList().orEmpty())
             put(AnalysisFlags.expectActualLinker, expectActualLinker)
             put(AnalysisFlags.explicitApiVersion, apiVersion != null)
             put(AnalysisFlags.allowResultReturnType, allowResultReturnType)
@@ -384,6 +402,7 @@ abstract class CommonCompilerArguments : CommonToolArguments() {
                 "Unknown value for parameter -Xexplicit-api: '$explicitApi'. Value should be one of ${ExplicitApiMode.availableValues()}"
             )
             put(AnalysisFlags.extendedCompilerChecks, extendedCompilerChecks)
+            put(AnalysisFlags.allowKotlinPackage, allowKotlinPackage)
         }
     }
 
@@ -391,6 +410,10 @@ abstract class CommonCompilerArguments : CommonToolArguments() {
         HashMap<LanguageFeature, LanguageFeature.State>().apply {
             if (multiPlatform) {
                 put(LanguageFeature.MultiPlatformProjects, LanguageFeature.State.ENABLED)
+            }
+
+            if (unrestrictedBuilderInference) {
+                put(LanguageFeature.UnrestrictedBuilderInference, LanguageFeature.State.ENABLED)
             }
 
             if (newInference) {
@@ -515,7 +538,7 @@ abstract class CommonCompilerArguments : CommonToolArguments() {
         val languageVersionSettings = LanguageVersionSettingsImpl(
             languageVersion,
             ApiVersion.createByLanguageVersion(apiVersion),
-            configureAnalysisFlags(collector),
+            configureAnalysisFlags(collector, languageVersion),
             configureLanguageFeatures(collector)
         )
 

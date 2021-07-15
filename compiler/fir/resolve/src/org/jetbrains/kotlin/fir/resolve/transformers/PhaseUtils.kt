@@ -6,47 +6,21 @@
 package org.jetbrains.kotlin.fir.resolve.transformers
 
 import org.jetbrains.kotlin.fir.FirSession
-import org.jetbrains.kotlin.fir.FirSymbolOwner
-import org.jetbrains.kotlin.fir.declarations.FirDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
 import org.jetbrains.kotlin.fir.resolve.toSymbol
-import org.jetbrains.kotlin.fir.symbols.AbstractFirBasedSymbol
+import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
+import org.jetbrains.kotlin.fir.symbols.ensureResolved
 import org.jetbrains.kotlin.fir.types.ConeClassLikeType
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.FirTypeRef
 import org.jetbrains.kotlin.fir.types.coneTypeSafe
 
-fun AbstractFirBasedSymbol<*>.ensureResolved(
-    requiredPhase: FirResolvePhase,
-    // TODO: Currently, the parameter is unused but it's needed to guarantee that all call-sites are able to supply use-site session
-    // TODO: Decide which one session should be used and probably get rid of the parameter if use-site session is not needed
-    @Suppress("UNUSED_PARAMETER") useSiteSession: FirSession,
-) {
-    val fir = fir as FirDeclaration
-    val availablePhase = fir.resolvePhase
-    if (availablePhase >= requiredPhase) return
-    val resolver = fir.session.phaseManager
-        ?: error("phaseManager should be defined when working with FIR in phased mode")
-
-    resolver.ensureResolved(this, requiredPhase)
-}
-
-fun FirSymbolOwner<*>.ensureResolved(
-    requiredPhase: FirResolvePhase,
-    useSiteSession: FirSession,
-) {
-    symbol.ensureResolved(requiredPhase, useSiteSession)
-}
-
-fun AbstractFirBasedSymbol<*>.ensureResolvedForCalls(
-    useSiteSession: FirSession,
-) {
-    val fir = fir as FirDeclaration
+fun FirBasedSymbol<*>.ensureResolvedForCalls() {
     if (fir.resolvePhase >= FirResolvePhase.DECLARATIONS) return
 
 //    val requiredPhase = when (fir) {
-//        is FirFunction<*>, is FirProperty -> FirResolvePhase.CONTRACTS
+//        is FirFunction, is FirProperty -> FirResolvePhase.CONTRACTS
 //        else -> FirResolvePhase.STATUS
 //    }
 //
@@ -59,20 +33,22 @@ fun AbstractFirBasedSymbol<*>.ensureResolvedForCalls(
 
     val requiredPhase = FirResolvePhase.DECLARATIONS
 
-    ensureResolved(requiredPhase, useSiteSession)
+    ensureResolved(requiredPhase)
 }
 
 fun ConeKotlinType.ensureResolvedTypeDeclaration(
     useSiteSession: FirSession,
+    requiredPhase: FirResolvePhase = FirResolvePhase.DECLARATIONS,
 ) {
     if (this !is ConeClassLikeType) return
 
-    lookupTag.toSymbol(useSiteSession)?.ensureResolved(FirResolvePhase.DECLARATIONS, useSiteSession)
-    fullyExpandedType(useSiteSession).lookupTag.toSymbol(useSiteSession)?.ensureResolved(FirResolvePhase.DECLARATIONS, useSiteSession)
+    lookupTag.toSymbol(useSiteSession)?.ensureResolved(requiredPhase)
+    fullyExpandedType(useSiteSession).lookupTag.toSymbol(useSiteSession)?.ensureResolved(requiredPhase)
 }
 
 fun FirTypeRef.ensureResolvedTypeDeclaration(
     useSiteSession: FirSession,
+    requiredPhase: FirResolvePhase = FirResolvePhase.DECLARATIONS,
 ) {
-    coneTypeSafe<ConeKotlinType>()?.ensureResolvedTypeDeclaration(useSiteSession)
+    coneTypeSafe<ConeKotlinType>()?.ensureResolvedTypeDeclaration(useSiteSession, requiredPhase)
 }

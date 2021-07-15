@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.code
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.io.systemIndependentPath
 import junit.framework.TestCase
+import org.jetbrains.kotlin.config.LanguageFeature
 import java.io.File
 import java.util.*
 import java.util.regex.Pattern
@@ -53,6 +54,7 @@ class CodeConformanceTest : TestCase() {
                 "libraries/tools/kotlin-gradle-plugin-core/gradle_api_jar/build/tmp",
                 "libraries/tools/kotlin-js-tests/src/test/web/qunit.js",
                 "libraries/tools/kotlin-maven-plugin/target",
+                "libraries/tools/kotlin-source-map-loader/.gradle",
                 "libraries/tools/kotlin-test-js-runner/.gradle",
                 "libraries/tools/kotlin-test-js-runner/lib",
                 "libraries/tools/kotlin-test-js-runner/node_modules",
@@ -71,6 +73,7 @@ class CodeConformanceTest : TestCase() {
             File("."),
             listOf(
                 "build",
+                "buildSrc/build/generated-sources",
                 "buildSrc/prepare-deps/build",
                 "compiler/ir/serialization.js/build/fullRuntime",
                 "compiler/ir/serialization.js/build/reducedRuntime/src/libraries/stdlib/js-ir/runtime/longjs.kt",
@@ -96,6 +99,7 @@ class CodeConformanceTest : TestCase() {
                 "libraries/stdlib/js-v1/node_modules",
                 "libraries/stdlib/wasm/build",
                 "libraries/tools/kotlin-gradle-plugin-integration-tests/build",
+                "libraries/tools/kotlin-gradle-plugin-integration-tests/.testKitDir",
                 "libraries/tools/kotlin-maven-plugin-test/target",
                 "libraries/tools/kotlin-test-js-runner/.gradle",
                 "libraries/tools/kotlin-test-js-runner/lib",
@@ -170,18 +174,14 @@ class CodeConformanceTest : TestCase() {
 
         val atAuthorPattern = Pattern.compile("/\\*.+@author.+\\*/", Pattern.DOTALL)
 
-        val root = nonSourcesMatcher.root
-
         val tests = listOf(
             TestData(
                 "%d source files contain @author javadoc tag.\nPlease remove them or exclude in this test:\n%s"
-            ) { file, source ->
+            ) { _, source ->
                 // substring check is an optimization
                 "@author" in source && atAuthorPattern.matcher(source).find() &&
                         "ASM: a very small and fast Java bytecode manipulation framework" !in source &&
-                        "package org.jetbrains.kotlin.tools.projectWizard.settings.version.maven" !in source &&
-                        !file.relativeTo(root).systemIndependentPath.startsWith("kotlin-ultimate/ide/common-cidr-native") &&
-                        file.name != "CLionKonanProjectDataService.kt"
+                        "package org.jetbrains.kotlin.tools.projectWizard.settings.version.maven" !in source
             },
             TestData(
                 "%d source files use something from com.beust.jcommander.internal package.\n" +
@@ -354,7 +354,7 @@ class CodeConformanceTest : TestCase() {
 
         if (repoOccurrences.isNotEmpty()) {
             val repoOccurrencesStableOrder = repoOccurrences
-                .map { RepoOccurrences(it.repo, it.files.sortedBy { it.path }) }
+                .map { occurrence -> RepoOccurrences(occurrence.repo, occurrence.files.sortedBy { file -> file.path }) }
                 .sortedBy { it.repo }
             fail(
                 buildString {
@@ -379,7 +379,21 @@ class CodeConformanceTest : TestCase() {
 
         }
     }
+
+    fun testLanguageFeatureOrder() {
+        val values = enumValues<LanguageFeature>()
+        val enabledFeatures = values.filter { it.sinceVersion != null && it.defaultState == LanguageFeature.State.ENABLED }
+
+        if (enabledFeatures.sortedBy { it.sinceVersion!! } != enabledFeatures) {
+            val (a, b) = enabledFeatures.zipWithNext().first { (a, b) -> a.sinceVersion!! > b.sinceVersion!! }
+            fail(
+                "Please make sure LanguageFeature entries are sorted by sinceVersion to improve readability & reduce confusion.\n" +
+                        "The feature $b is out of order; its sinceVersion is ${b.sinceVersion}, yet it comes after $a, whose " +
+                        "sinceVersion is ${a.sinceVersion}.\n"
+            )
+        }
+    }
 }
 
 private fun String.ensureFileOrEndsWithSlash() =
-    if (endsWith("/") || "." in substringAfterLast('/')) this else this + "/"
+    if (endsWith("/") || "." in substringAfterLast('/')) this else "$this/"

@@ -1,5 +1,4 @@
 // !USE_EXPERIMENTAL: kotlin.contracts.ExperimentalContracts
-// !WITH_NEW_INFERENCE
 
 // FILE: contracts.kt
 
@@ -56,7 +55,7 @@ fun case_2(value_1: Int?, value_2: Int?, value_3: Any?) {
     val value_4: Int
     when (value_1.case_2(value_2, value_3) { value_4 = 10 }) {
         true -> {
-            <!AMBIGUITY!>println<!>(value_3?.<!UNRESOLVED_REFERENCE!>xor<!>(true))
+            <!OVERLOAD_RESOLUTION_AMBIGUITY!>println<!>(value_3?.<!UNRESOLVED_REFERENCE!>xor<!>(true))
             println(<!UNINITIALIZED_VARIABLE!>value_4<!>)
             println(value_1<!UNSAFE_CALL!>.<!>inv())
             println(value_2<!UNSAFE_CALL!>.<!>inv())

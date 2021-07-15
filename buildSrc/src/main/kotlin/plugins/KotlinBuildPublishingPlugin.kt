@@ -5,6 +5,7 @@
 
 package plugins
 
+import PublishToMavenLocalSerializable
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.attributes.Usage
@@ -13,10 +14,10 @@ import org.gradle.api.plugins.JavaBasePlugin
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.plugins.MavenPublishPlugin
+import org.gradle.api.publish.maven.tasks.PublishToMavenLocal
 import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.*
-import org.gradle.plugins.signing.Sign
 import org.gradle.plugins.signing.SigningExtension
 import org.gradle.plugins.signing.SigningPlugin
 import java.util.*
@@ -27,7 +28,6 @@ class KotlinBuildPublishingPlugin @Inject constructor(
 ) : Plugin<Project> {
     override fun apply(target: Project): Unit = with(target) {
         apply<MavenPublishPlugin>()
-        apply<SigningPlugin>()
 
         val publishedRuntime = configurations.maybeCreate(RUNTIME_CONFIGURATION).apply {
             isCanBeConsumed = false
@@ -68,7 +68,7 @@ class KotlinBuildPublishingPlugin @Inject constructor(
 
         configure<PublishingExtension> {
             publications {
-                create<MavenPublication>(PUBLICATION_NAME) {
+                create<MavenPublication>(project.mainPublicationName) {
                     from(kotlinLibraryComponent)
 
                     configureKotlinPomAttributes(project)
@@ -79,15 +79,25 @@ class KotlinBuildPublishingPlugin @Inject constructor(
     }
 
     companion object {
-        const val PUBLICATION_NAME = "Main"
+        const val DEFAULT_MAIN_PUBLICATION_NAME = "Main"
+        const val MAIN_PUBLICATION_NAME_PROPERTY = "MainPublicationName"
         const val REPOSITORY_NAME = "Maven"
         const val ADHOC_COMPONENT_NAME = "kotlinLibrary"
 
         const val COMPILE_CONFIGURATION = "publishedCompile"
         const val RUNTIME_CONFIGURATION = "publishedRuntime"
-
     }
 }
+
+var Project.mainPublicationName: String
+    get() {
+        return if (project.extra.has(KotlinBuildPublishingPlugin.MAIN_PUBLICATION_NAME_PROPERTY))
+            project.extra.get(KotlinBuildPublishingPlugin.MAIN_PUBLICATION_NAME_PROPERTY) as String
+        else KotlinBuildPublishingPlugin.DEFAULT_MAIN_PUBLICATION_NAME
+    }
+    set(value) {
+        project.extra.set(KotlinBuildPublishingPlugin.MAIN_PUBLICATION_NAME_PROPERTY, value)
+    }
 
 @OptIn(ExperimentalStdlibApi::class)
 private fun humanReadableName(name: String) =
@@ -132,10 +142,28 @@ fun Project.configureDefaultPublishing() {
         }
     }
 
-    configureSigning()
+    val signingRequired = project.providers.gradleProperty("signingRequired").forUseAtConfigurationTime().orNull?.toBoolean()
+        ?: project.providers.gradleProperty("isSonatypeRelease").forUseAtConfigurationTime().orNull?.toBoolean() ?: false
+
+    if (signingRequired) {
+        apply<SigningPlugin>()
+        configureSigning()
+    }
 
     tasks.register("install") {
         dependsOn(tasks.named("publishToMavenLocal"))
+    }
+
+    // workaround for Gradle configuration cache
+    // TODO: remove it when https://github.com/gradle/gradle/pull/16945 merged into used in build Gradle version
+    tasks.withType(PublishToMavenLocal::class.java) {
+        val originalTask = this
+        val serializablePublishTask =
+            tasks.register(originalTask.name + "Serializable", PublishToMavenLocalSerializable::class.java) {
+                publication = originalTask.publication
+            }
+        originalTask.onlyIf { false }
+        originalTask.dependsOn(serializablePublishTask)
     }
 
     tasks.withType<PublishToMavenRepository>()
@@ -144,19 +172,19 @@ fun Project.configureDefaultPublishing() {
 }
 
 private fun Project.configureSigning() {
-    val signingRequired = provider {
-        project.findProperty("signingRequired")?.toString()?.toBoolean()
-            ?: project.property("isSonatypeRelease") as Boolean
-    }
-
     configure<SigningExtension> {
-        setRequired(signingRequired)
         sign(extensions.getByType<PublishingExtension>().publications) // all publications
-        useGpgCmd()
-    }
 
-    tasks.withType<Sign>().configureEach {
-        setOnlyIf { signingRequired.get() }
+        val signKeyId = project.findProperty("signKeyId") as? String
+        if (!signKeyId.isNullOrBlank()) {
+            val signKeyPrivate = project.findProperty("signKeyPrivate") as? String
+                ?: error("Parameter `signKeyPrivate` not found")
+            val signKeyPassphrase = project.findProperty("signKeyPassphrase") as? String
+                ?: error("Parameter `signKeyPassphrase` not found")
+            useInMemoryPgpKeys(signKeyId, signKeyPrivate, signKeyPassphrase)
+        } else {
+            useGpgCmd()
+        }
     }
 }
 

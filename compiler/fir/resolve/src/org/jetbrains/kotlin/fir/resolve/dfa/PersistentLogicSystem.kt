@@ -42,7 +42,6 @@ class PersistentFlow : Flow {
     var logicStatements: PersistentImplications
     val level: Int
     var approvedTypeStatementsDiff: PersistentApprovedTypeStatements = persistentHashMapOf()
-    var updatedAliasDiff: PersistentSet<RealVariable> = persistentSetOf()
 
     /*
      * val x = a
@@ -135,7 +134,7 @@ abstract class PersistentLogicSystem(context: ConeInferenceContext) : LogicSyste
 
         val variables = flows.flatMap { it.approvedTypeStatements.keys }.toSet()
         for (variable in variables) {
-            val info = mergeOperation(flows.map { it.getApprovedTypeStatements(variable, commonFlow) }) ?: continue
+            val info = mergeOperation(flows.map { it.getApprovedTypeStatements(variable) }) ?: continue
             removeTypeStatementsAboutVariable(commonFlow, variable)
             val thereWereReassignments = variable.hasDifferentReassignments(flows)
             if (thereWereReassignments) {
@@ -204,7 +203,6 @@ abstract class PersistentLogicSystem(context: ConeInferenceContext) : LogicSyste
     }
 
     override fun removeLocalVariableAlias(flow: PersistentFlow, alias: RealVariable) {
-        flow.updatedAliasDiff += alias
         val original = flow.directAliasMap[alias]?.variable ?: return
         flow.directAliasMap = flow.directAliasMap.remove(alias)
         val variables = flow.backwardsAliasMap.getValue(original)
@@ -212,23 +210,13 @@ abstract class PersistentLogicSystem(context: ConeInferenceContext) : LogicSyste
     }
 
     @OptIn(DfaInternals::class)
-    private fun PersistentFlow.getApprovedTypeStatements(variable: RealVariable, parentFlow: PersistentFlow): MutableTypeStatement {
+    private fun PersistentFlow.getApprovedTypeStatements(variable: RealVariable): MutableTypeStatement {
         var flow = this
         val result = MutableTypeStatement(variable)
         val variableUnderAlias = directAliasMap[variable]
         if (variableUnderAlias == null) {
-            // get approved type statement even though the starting flow == parent flow
-            if (flow == parentFlow) {
-                flow.approvedTypeStatements[variable]?.let {
-                    result += it
-                }
-            } else {
-                while (flow != parentFlow) {
-                    flow.approvedTypeStatements[variable]?.let {
-                        result += it
-                    }
-                    flow = flow.previousFlow!!
-                }
+            flow.approvedTypeStatements[variable]?.let {
+                result += it
             }
         } else {
             result.exactType.addIfNotNull(variableUnderAlias.originalType)
@@ -300,7 +288,6 @@ abstract class PersistentLogicSystem(context: ConeInferenceContext) : LogicSyste
             } else {
                 flow.backwardsAliasMap.put(existedAlias, updatedBackwardsAliasList)
             }
-            flow.updatedAliasDiff = flow.updatedAliasDiff.add(variable)
         }
     }
 

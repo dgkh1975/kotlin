@@ -5,8 +5,10 @@
 
 package org.jetbrains.kotlin.idea.fir.low.level.api.util
 
-import org.jetbrains.kotlin.fir.containingClass
-import org.jetbrains.kotlin.fir.declarations.*
+import org.jetbrains.kotlin.fir.declarations.FirClassLikeDeclaration
+import org.jetbrains.kotlin.fir.declarations.FirDeclaration
+import org.jetbrains.kotlin.fir.declarations.FirFile
+import org.jetbrains.kotlin.fir.declarations.FirRegularClass
 import org.jetbrains.kotlin.fir.psi
 import org.jetbrains.kotlin.fir.realPsi
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProvider
@@ -14,13 +16,12 @@ import org.jetbrains.kotlin.idea.fir.low.level.api.api.InvalidFirElementTypeExce
 import org.jetbrains.kotlin.idea.fir.low.level.api.element.builder.getNonLocalContainingOrThisDeclaration
 import org.jetbrains.kotlin.idea.fir.low.level.api.file.builder.FirFileBuilder
 import org.jetbrains.kotlin.idea.fir.low.level.api.file.builder.ModuleFileCache
-import org.jetbrains.kotlin.idea.fir.low.level.api.providers.firIdeProvider
-import org.jetbrains.kotlin.idea.util.classIdIfNonLocal
-import org.jetbrains.kotlin.idea.util.getElementTextInContext
-import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
 
+/**
+ * 'Non-local' stands for not local classes/functions/etc.
+ */
 internal fun KtDeclaration.findSourceNonLocalFirDeclaration(
     firFileBuilder: FirFileBuilder,
     firSymbolProvider: FirSymbolProvider,
@@ -40,7 +41,7 @@ internal fun KtDeclaration.findFirDeclarationForAnyFirSourceDeclaration(
 ): FirDeclaration {
     val nonLocalDeclaration = getNonLocalContainingOrThisDeclaration()
         ?.findSourceNonLocalFirDeclaration(firFileBuilder, firSymbolProvider, moduleFileCache)
-        ?: firFileBuilder.buildRawFirFileWithCaching(containingKtFile, moduleFileCache, lazyBodiesMode = true)
+        ?: firFileBuilder.buildRawFirFileWithCaching(containingKtFile, moduleFileCache, preferLazyBodies = true)
     val originalDeclaration = originalDeclaration
     val fir = FirElementFinder.findElementIn<FirDeclaration>(nonLocalDeclaration) { firDeclaration ->
         firDeclaration.psi == this || firDeclaration.psi == originalDeclaration
@@ -64,7 +65,7 @@ private fun KtDeclaration.findSourceOfNonLocalFirDeclarationByTraversingWholeTre
     moduleFileCache: ModuleFileCache,
     containerFirFile: FirFile?,
 ): FirDeclaration? {
-    val firFile = containerFirFile ?: firFileBuilder.buildRawFirFileWithCaching(containingKtFile, moduleFileCache, lazyBodiesMode = true)
+    val firFile = containerFirFile ?: firFileBuilder.buildRawFirFileWithCaching(containingKtFile, moduleFileCache, preferLazyBodies = true)
     val originalDeclaration = originalDeclaration
     return FirElementFinder.findElementIn(firFile, goInside = { it is FirRegularClass }) { firDeclaration ->
         firDeclaration.psi == this || firDeclaration.psi == originalDeclaration
@@ -82,11 +83,11 @@ private fun KtDeclaration.findSourceNonLocalFirDeclarationByProvider(
         this is KtNamedDeclaration && (this is KtProperty || this is KtNamedFunction) -> {
             val containerClass = containingClassOrObject
             val declarations = if (containerClass != null) {
-                val containerClassFir = containerClass.findFir(firSymbolProvider)
+                val containerClassFir = containerClass.findFir(firSymbolProvider) as? FirRegularClass
                 containerClassFir?.declarations
             } else {
                 val ktFile = containingKtFile
-                val firFile = containerFirFile ?: firFileBuilder.buildRawFirFileWithCaching(ktFile, moduleFileCache, lazyBodiesMode = true)
+                val firFile = containerFirFile ?: firFileBuilder.buildRawFirFileWithCaching(ktFile, moduleFileCache, preferLazyBodies = true)
                 firFile.declarations
             }
             val original = originalDeclaration
@@ -100,8 +101,8 @@ private fun KtDeclaration.findSourceNonLocalFirDeclarationByProvider(
         this is KtConstructor<*> -> {
             val containingClass = containingClassOrObject
                 ?: error("Container class should be not null for KtConstructor")
-            val containerClassFir = containingClass.findFir(firSymbolProvider) ?: return null
-            containerClassFir.declarations.first { it.psi === this }
+            val containerClassFir = containingClass.findFir(firSymbolProvider) as? FirRegularClass ?: return null
+            containerClassFir.declarations.firstOrNull { it.psi === this }
         }
         this is KtTypeAlias -> findFir(firSymbolProvider)
         else -> error("Invalid container ${this::class}\n${getElementTextInContext()}")
@@ -116,37 +117,13 @@ private val ORIGINAL_KT_FILE_KEY = com.intellij.openapi.util.Key<KtFile>("ORIGIN
 var KtFile.originalKtFile by UserDataProperty(ORIGINAL_KT_FILE_KEY)
 
 
-private fun KtClassOrObject.findFir(firSymbolProvider: FirSymbolProvider): FirRegularClass? {
-    val classId = classIdIfNonLocal() ?: return null
+private fun KtClassLikeDeclaration.findFir(firSymbolProvider: FirSymbolProvider): FirClassLikeDeclaration? {
+    val classId = getClassId() ?: return null
     return executeWithoutPCE {
         firSymbolProvider.getClassLikeSymbolByFqName(classId)?.fir as? FirRegularClass
-            ?: error("Could not find class $classId")
     }
 }
 
-private fun KtTypeAlias.findFir(firSymbolProvider: FirSymbolProvider): FirTypeAlias? {
-    val typeAlias = ClassId(containingKtFile.packageFqName, nameAsSafeName)
-    return executeWithoutPCE {
-        // Finding a non-top-level type alias won't work
-        firSymbolProvider.getClassLikeSymbolByFqName(typeAlias)?.fir as? FirTypeAlias
-    }
-}
 
 val FirDeclaration.isGeneratedDeclaration
     get() = realPsi == null
-
-internal fun FirDeclaration.collectDesignation(): List<FirDeclaration> {
-    require(this is FirCallableDeclaration<*>)
-    val designation = mutableListOf<FirDeclaration>()
-    val firProvider = session.firIdeProvider
-    var containingClassId = containingClass()?.classId
-    while (containingClassId != null) {
-        val klass = firProvider.getFirClassifierByFqName(containingClassId)
-        if (klass != null) {
-            designation.add(klass)
-        }
-        containingClassId = containingClassId.outerClassId
-    }
-    designation.reverse()
-    return designation
-}

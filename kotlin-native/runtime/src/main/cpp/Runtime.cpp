@@ -31,11 +31,16 @@ struct InitNode {
   InitNode* next;
 };
 
-// This global is overriden by the compiler.
+// These globals are overriden by the compiler.
 RUNTIME_WEAK DestroyRuntimeMode Kotlin_destroyRuntimeMode = DESTROY_RUNTIME_ON_SHUTDOWN;
+RUNTIME_WEAK KInt Kotlin_gcAggressive = 0;
 
 DestroyRuntimeMode Kotlin_getDestroyRuntimeMode() {
     return Kotlin_destroyRuntimeMode;
+}
+
+bool Kotlin_getGcAggressive() {
+    return Kotlin_gcAggressive != 0;
 }
 
 namespace {
@@ -101,14 +106,20 @@ RuntimeState* initRuntime() {
   ::runtimeState = result;
 
   bool firstRuntime = false;
+  // We set this guard in the `switch` below, after memory initialization.
+  kotlin::ThreadStateGuard stateGuard;
   switch (Kotlin_getDestroyRuntimeMode()) {
       case DESTROY_RUNTIME_LEGACY:
           compareAndSwap(&globalRuntimeStatus, kGlobalRuntimeUninitialized, kGlobalRuntimeRunning);
           result->memoryState = InitMemory(false); // The argument will be ignored for legacy DestroyRuntimeMode
-          result->worker = WorkerInit(true);
+          // Switch thread state because worker and globals inits require the runnable state.
+          // This call may block if GC requested suspending threads.
+          stateGuard = kotlin::ThreadStateGuard(result->memoryState, kotlin::ThreadState::kRunnable);
+          result->worker = WorkerInit(result->memoryState, true);
           firstRuntime = atomicAdd(&aliveRuntimesCount, 1) == 1;
-          if (CurrentMemoryModel == MemoryModel::kExperimental) {
-              RuntimeCheck(firstRuntime, "Experimental MM does not support multiple mutator threads yet");
+          if (!kotlin::kSupportsMultipleMutators && !firstRuntime) {
+              konan::consoleErrorf("This GC implementation does not support multiple mutator threads.");
+              konan::abort();
           }
           break;
       case DESTROY_RUNTIME_ON_SHUTDOWN:
@@ -120,11 +131,15 @@ RuntimeState* initRuntime() {
               RuntimeAssert(lastStatus != kGlobalRuntimeShutdown, "Kotlin runtime was shut down. Cannot create new runtimes.");
           }
           firstRuntime = lastStatus == kGlobalRuntimeUninitialized;
-          if (CurrentMemoryModel == MemoryModel::kExperimental) {
-              RuntimeCheck(firstRuntime, "Experimental MM does not support multiple mutator threads yet");
+          if (!kotlin::kSupportsMultipleMutators && !firstRuntime) {
+              konan::consoleErrorf("This GC implementation does not support multiple mutator threads.");
+              konan::abort();
           }
           result->memoryState = InitMemory(firstRuntime);
-          result->worker = WorkerInit(true);
+          // Switch thread state because worker and globals inits require the runnable state.
+          // This call may block if GC requested suspending threads.
+          stateGuard = kotlin::ThreadStateGuard(result->memoryState, kotlin::ThreadState::kRunnable);
+          result->worker = WorkerInit(result->memoryState, true);
   }
 
   InitOrDeinitGlobalVariables(ALLOC_THREAD_LOCAL_GLOBALS, result->memoryState);
@@ -140,10 +155,12 @@ RuntimeState* initRuntime() {
   InitOrDeinitGlobalVariables(INIT_THREAD_LOCAL_GLOBALS, result->memoryState);
   RuntimeAssert(result->status == RuntimeStatus::kUninitialized, "Runtime must still be in the uninitialized state");
   result->status = RuntimeStatus::kRunning;
+
   return result;
 }
 
 void deinitRuntime(RuntimeState* state, bool destroyRuntime) {
+  AssertThreadState(state->memoryState, kotlin::ThreadState::kRunnable);
   RuntimeAssert(state->status == RuntimeStatus::kRunning, "Runtime must be in the running state");
   state->status = RuntimeStatus::kDestroying;
   // This may be called after TLS is zeroed out, so ::runtimeState and ::memoryState in Memory cannot be trusted.
@@ -162,8 +179,14 @@ void deinitRuntime(RuntimeState* state, bool destroyRuntime) {
   ClearTLS(state->memoryState);
   if (destroyRuntime)
     InitOrDeinitGlobalVariables(DEINIT_GLOBALS, state->memoryState);
+
+  // Worker deinit must be performed in the runnable state because
+  // Worker's destructor unregisters stable refs.
   auto workerId = GetWorkerId(state->worker);
   WorkerDeinit(state->worker);
+
+  // Do not use ThreadStateGuard because memoryState will be destroyed during DeinitMemory.
+  kotlin::SwitchThreadState(state->memoryState, kotlin::ThreadState::kNative);
   DeinitMemory(state->memoryState, destroyRuntime);
   konanDestructInstance(state);
   WorkerDestroyThreadDataIfNeeded(workerId);
@@ -172,6 +195,8 @@ void deinitRuntime(RuntimeState* state, bool destroyRuntime) {
 
 void Kotlin_deinitRuntimeCallback(void* argument) {
   auto* state = reinterpret_cast<RuntimeState*>(argument);
+  // This callback may be called from any state, make sure it runs in the runnable state.
+  kotlin::SwitchThreadState(state->memoryState, kotlin::ThreadState::kRunnable, /* reentrant = */ true);
   deinitRuntime(state, false);
 }
 
@@ -368,6 +393,32 @@ void Kotlin_Debugging_setForceCheckedShutdown(KBoolean value) {
             break;
     }
     g_forceCheckedShutdown = value;
+}
+
+KBoolean Kotlin_Debugging_isThreadStateRunnable() {
+    return kotlin::GetThreadState() == kotlin::ThreadState::kRunnable;
+}
+
+KBoolean Kotlin_Debugging_isThreadStateNative() {
+    return kotlin::GetThreadState() == kotlin::ThreadState::kNative;
+}
+
+KBoolean Kotlin_Debugging_isPermanent(KRef obj) {
+    return obj->permanent();
+}
+
+RUNTIME_NOTHROW KBoolean Kotlin_Debugging_isLocal(KRef obj) {
+    return obj->local();
+}
+
+RUNTIME_NOTHROW void Kotlin_initRuntimeIfNeededFromKotlin() {
+    switch (CurrentMemoryModel) {
+        case MemoryModel::kExperimental:
+            return;
+        case MemoryModel::kStrict:
+        case MemoryModel::kRelaxed:
+            Kotlin_initRuntimeIfNeeded();
+    }
 }
 
 }  // extern "C"

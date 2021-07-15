@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.backend.common.ir.allParameters
 import org.jetbrains.kotlin.backend.common.ir.allParametersCount
 import org.jetbrains.kotlin.backend.common.lower.inline.InlinerExpressionLocationHint
 import org.jetbrains.kotlin.backend.konan.*
+import org.jetbrains.kotlin.backend.konan.cgen.CBridgeOrigin
 import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.backend.konan.llvm.coverage.LLVMCoverageInstrumentation
@@ -105,7 +106,7 @@ internal class RTTIGeneratorVisitor(context: Context) : IrElementVisitorVoid {
 /**
  * Defines how to generate context-dependent operations.
  */
-internal interface CodeContext {
+private interface CodeContext {
 
     /**
      * Generates `return` [value] operation.
@@ -119,8 +120,6 @@ internal interface CodeContext {
     fun genContinue(destination: IrContinue)
 
     val exceptionHandler: ExceptionHandler
-
-    fun genThrow(exception: LLVMValueRef)
 
     val stackLocalsManager: StackLocalsManager
 
@@ -238,8 +237,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         override fun genContinue(destination: IrContinue) = unsupported()
 
         override val exceptionHandler get() = unsupported()
-
-        override fun genThrow(exception: LLVMValueRef) = unsupported()
 
         override val stackLocalsManager: StackLocalsManager get() = unsupported()
 
@@ -673,17 +670,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             }
         }
 
-        override val exceptionHandler get() = ExceptionHandler.Caller
-
-        override fun genThrow(exception: LLVMValueRef) {
-            val objHeaderPtr = functionGenerationContext.bitcast(codegen.kObjHeaderPtr, exception)
-            val args = listOf(objHeaderPtr)
-
-            functionGenerationContext.call(
-                    context.llvm.throwExceptionFunction, args, Lifetime.IRRELEVANT, this.exceptionHandler
-            )
-            functionGenerationContext.unreachable()
-        }
+        override val exceptionHandler: ExceptionHandler
+            get() = ExceptionHandler.Caller
 
         override val stackLocalsManager get() = functionGenerationContext.stackLocalsManager
 
@@ -940,7 +928,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         // however such optimization can lead to phi functions with zero entries, which is not allowed by LLVM;
         // TODO: find the better solution.
 
-        jump(destination, result)
+        functionGenerationContext.jump(destination, result)
     }
 
     //-------------------------------------------------------------------------//
@@ -962,11 +950,11 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     /**
      * Jumps to [target] passing [value].
      */
-    private fun jump(target: ContinuationBlock, value: LLVMValueRef?) {
+    private fun FunctionGenerationContext.jump(target: ContinuationBlock, value: LLVMValueRef?) {
         val entry = target.block
-        functionGenerationContext.br(entry)
+        br(entry)
         if (target.valuePhi != null) {
-            functionGenerationContext.assignPhis(target.valuePhi to value!!)
+            assignPhis(target.valuePhi to value!!)
         }
     }
 
@@ -1018,7 +1006,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     private fun evaluateThrow(expression: IrThrow): LLVMValueRef {
         val exception = evaluateExpression(expression.value)
-        currentCodeContext.genThrow(exception)
+        currentCodeContext.exceptionHandler.genThrow(functionGenerationContext, exception)
         return codegen.kNothingFakeValue
     }
 
@@ -1030,7 +1018,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     private inner abstract class CatchingScope : InnerScopeImpl() {
 
         /**
-         * The LLVM `landingpad` such that if invoked function throws an exception,
+         * The LLVM `landingpad` such that if an invoked function throws an exception,
          * then this exception is passed to [handler].
          */
         private val landingpad: LLVMBasicBlockRef by lazy {
@@ -1061,8 +1049,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             return irFunction?.endLocation
         }
 
-        private fun jumpToHandler(exception: LLVMValueRef) {
-            jump(this.handler, exception)
+        private fun FunctionGenerationContext.jumpToHandler(exception: LLVMValueRef) {
+            jump(handler, exception)
         }
 
         /**
@@ -1087,13 +1075,16 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             }
         }
 
-        override val exceptionHandler: ExceptionHandler get() = object : ExceptionHandler.Local() {
-            override val unwind get() = landingpad
-        }
+        override val exceptionHandler: ExceptionHandler
+            get() = object : ExceptionHandler.Local() {
+                override val unwind get() = landingpad
 
-        override fun genThrow(exception: LLVMValueRef) {
-            jumpToHandler(exception)
-        }
+                override fun genThrow(functionGenerationContext: FunctionGenerationContext, kotlinException: LLVMValueRef) {
+                    // Super class implementation would do too, so this is just an optimization:
+                    // use local jump instead of wrapping to C++ exception, throwing, catching and unwrapping it:
+                    functionGenerationContext.jumpToHandler(kotlinException)
+                }
+            }
 
         protected abstract fun genHandler(exception: LLVMValueRef)
     }
@@ -1134,7 +1125,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 }
             }
             // rethrow the exception if no clause can handle it.
-            outerContext.genThrow(exception)
+            outerContext.exceptionHandler.genThrow(functionGenerationContext, exception)
         }
     }
 
@@ -1186,6 +1177,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
         val whenEmittingContext = WhenEmittingContext(expression)
 
+        generateDebugTrambolineIf("when", expression)
         expression.branches.forEach {
             val bbNext = if (it == expression.branches.last())
                              null
@@ -1202,6 +1194,15 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             expression.type.isNothing() -> functionGenerationContext.kNothingFakeValue
             whenEmittingContext.resultPhi.isInitialized() -> whenEmittingContext.resultPhi.value
             else -> LLVMGetUndef(whenEmittingContext.llvmType)!!
+        }
+    }
+
+    private fun generateDebugTrambolineIf(name: String, expression: IrExpression) {
+        val generationContext = (currentCodeContext.functionScope() as? FunctionScope)?.functionGenerationContext
+                .takeIf { context.config.generateDebugTrampoline }
+        generationContext?.basicBlock(name, expression.startLocation)?.let {
+            generationContext.br(it)
+            generationContext.positionAtEnd(it)
         }
     }
 
@@ -1643,7 +1644,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             if (needMutationCheck(value.symbol.owner.parentAsClass)) {
                 functionGenerationContext.call(context.llvm.mutationCheck,
                         listOf(functionGenerationContext.bitcast(codegen.kObjHeaderPtr, thisPtr)),
-                        Lifetime.IRRELEVANT, ExceptionHandler.Caller)
+                        Lifetime.IRRELEVANT, currentCodeContext.exceptionHandler)
 
                 if (functionGenerationContext.isObjectType(valueToAssign.type))
                     functionGenerationContext.call(context.llvm.checkLifetimesConstraint, listOf(thisPtr, valueToAssign))
@@ -1823,11 +1824,11 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     }
 
     //-------------------------------------------------------------------------//
-
     private fun evaluateReturnableBlock(value: IrReturnableBlock): LLVMValueRef {
         context.log{"evaluateReturnableBlock         : ${value.statements.forEach { ir2string(it) }}"}
 
         val returnableBlockScope = ReturnableBlockScope(value)
+        generateDebugTrambolineIf("inline", value)
         using(returnableBlockScope) {
             using(VariableScope()) {
                 value.statements.forEach {
@@ -2140,11 +2141,11 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         using (SuspensionPointScope(expression.suspensionPointIdParameter, bbResume, id)) {
             continuationBlock(expression.type, expression.result.startLocation).run {
                 val normalResult = evaluateExpression(expression.result)
-                jump(this, normalResult)
+                functionGenerationContext.jump(this, normalResult)
 
                 functionGenerationContext.positionAtEnd(bbResume)
                 val resumeResult = evaluateExpression(expression.resumeResult)
-                jump(this, resumeResult)
+                functionGenerationContext.jump(this, resumeResult)
 
                 functionGenerationContext.positionAtEnd(this.block)
                 return this.value
@@ -2245,8 +2246,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     //-------------------------------------------------------------------------//
     private val kImmZero = Int32(0).llvm
     private val kImmOne  = Int32(1).llvm
-    private val kTrue    = Int1(1).llvm
-    private val kFalse   = Int1(0).llvm
+    private val kTrue    = Int1(true).llvm
+    private val kFalse   = Int1(false).llvm
 
     // TODO: Intrinsify?
     private fun evaluateOperatorCall(callee: IrCall, args: List<LLVMValueRef>): LLVMValueRef {
@@ -2327,17 +2328,43 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     //-------------------------------------------------------------------------//
 
+    private val IrFunction.needsNativeThreadState: Boolean
+        get() {
+            // We assume that call site thread state switching is required for interop calls only.
+            val result = context.memoryModel == MemoryModel.EXPERIMENTAL && origin == CBridgeOrigin.KOTLIN_TO_C_BRIDGE
+            if (result) {
+                check(isExternal)
+                check(!annotations.hasAnnotation(KonanFqNames.gcUnsafeCall))
+                check(annotations.hasAnnotation(RuntimeNames.filterExceptions))
+            }
+            return result
+        }
+
     private fun call(function: IrFunction, llvmFunction: LLVMValueRef, args: List<LLVMValueRef>,
                      resultLifetime: Lifetime): LLVMValueRef {
+        check(!function.isTypedIntrinsic)
 
+        val needsNativeThreadState = function.needsNativeThreadState
         val exceptionHandler = function.annotations.findAnnotation(RuntimeNames.filterExceptions)?.let {
             val foreignExceptionMode = ForeignExceptionMode.byValue(it.getAnnotationValueOrNull<String>("mode"))
-            functionGenerationContext.filteringExceptionHandler(currentCodeContext, foreignExceptionMode)
+            functionGenerationContext.filteringExceptionHandler(
+                    currentCodeContext.exceptionHandler,
+                    foreignExceptionMode,
+                    needsNativeThreadState
+            )
         } ?: currentCodeContext.exceptionHandler
 
+        if (needsNativeThreadState) {
+            functionGenerationContext.switchThreadState(ThreadState.Native)
+        }
+
         val result = call(llvmFunction, args, resultLifetime, exceptionHandler)
-        if (!function.isSuspend && function.returnType.isNothing()) {
-            functionGenerationContext.unreachable()
+
+        when {
+            !function.isSuspend && function.returnType.isNothing() ->
+                functionGenerationContext.unreachable()
+            needsNativeThreadState ->
+                functionGenerationContext.switchThreadState(ThreadState.Runnable)
         }
 
         if (LLVMGetReturnType(getFunctionType(llvmFunction)) == voidType) {
@@ -2431,6 +2458,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             return
 
         overrideRuntimeGlobal("Kotlin_destroyRuntimeMode", Int32(context.config.destroyRuntimeMode.value))
+        overrideRuntimeGlobal("Kotlin_gcAggressive", Int32(if (context.config.gcAggressive) 1 else 0))
     }
 
     //-------------------------------------------------------------------------//

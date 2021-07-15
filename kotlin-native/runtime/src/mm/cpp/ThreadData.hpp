@@ -16,9 +16,9 @@
 #include "ShadowStack.hpp"
 #include "StableRefRegistry.hpp"
 #include "ThreadLocalStorage.hpp"
-#include "ThreadState.hpp"
 #include "Types.h"
 #include "Utils.hpp"
+#include "ThreadSuspension.hpp"
 
 struct ObjHeader;
 
@@ -33,9 +33,9 @@ public:
         threadId_(threadId),
         globalsThreadQueue_(GlobalsRegistry::Instance()),
         stableRefThreadQueue_(StableRefRegistry::Instance()),
-        state_(ThreadState::kRunnable),
-        gc_(GlobalData::Instance().gc()),
-        objectFactoryThreadQueue_(GlobalData::Instance().objectFactory(), gc_) {}
+        gc_(GlobalData::Instance().gc(), *this),
+        objectFactoryThreadQueue_(GlobalData::Instance().objectFactory(), gc_),
+        suspensionData_(ThreadState::kNative) {}
 
     ~ThreadData() = default;
 
@@ -47,17 +47,19 @@ public:
 
     StableRefRegistry::ThreadQueue& stableRefThreadQueue() noexcept { return stableRefThreadQueue_; }
 
-    ThreadState state() noexcept { return state_; }
+    ThreadState state() noexcept { return suspensionData_.state(); }
 
-    ThreadState setState(ThreadState state) noexcept { return state_.exchange(state); }
+    ThreadState setState(ThreadState state) noexcept { return suspensionData_.setState(state); }
 
-    ObjectFactory<GC>::ThreadQueue& objectFactoryThreadQueue() noexcept { return objectFactoryThreadQueue_; }
+    ObjectFactory<gc::GC>::ThreadQueue& objectFactoryThreadQueue() noexcept { return objectFactoryThreadQueue_; }
 
     ShadowStack& shadowStack() noexcept { return shadowStack_; }
 
     KStdVector<std::pair<ObjHeader**, ObjHeader*>>& initializingSingletons() noexcept { return initializingSingletons_; }
 
-    GC::ThreadData& gc() noexcept { return gc_; }
+    gc::GC::ThreadData& gc() noexcept { return gc_; }
+
+    ThreadSuspensionData& suspensionData() { return suspensionData_; }
 
     void Publish() noexcept {
         // TODO: These use separate locks, which is inefficient.
@@ -77,11 +79,11 @@ private:
     GlobalsRegistry::ThreadQueue globalsThreadQueue_;
     ThreadLocalStorage tls_;
     StableRefRegistry::ThreadQueue stableRefThreadQueue_;
-    std::atomic<ThreadState> state_;
     ShadowStack shadowStack_;
-    GC::ThreadData gc_;
-    ObjectFactory<GC>::ThreadQueue objectFactoryThreadQueue_;
+    gc::GC::ThreadData gc_;
+    ObjectFactory<gc::GC>::ThreadQueue objectFactoryThreadQueue_;
     KStdVector<std::pair<ObjHeader**, ObjHeader*>> initializingSingletons_;
+    ThreadSuspensionData suspensionData_;
 };
 
 } // namespace mm

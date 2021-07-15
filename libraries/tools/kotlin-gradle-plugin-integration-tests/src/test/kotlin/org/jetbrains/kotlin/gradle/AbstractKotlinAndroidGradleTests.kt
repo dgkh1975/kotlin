@@ -132,14 +132,13 @@ open class KotlinAndroid36GradleIT : KotlinAndroid34GradleIT() {
             }
         }
 
-        // By default, no Android variant should be published in 1.3.20:
         val groupDir = "lib/build/repo/com/example/"
         build("publish") {
             assertSuccessful()
             assertFileExists(groupDir + "lib-jvmlib")
             assertFileExists(groupDir + "lib-jslib")
-            assertNoSuchFile(groupDir + "lib-androidlib")
-            assertNoSuchFile(groupDir + "lib-androidlib-debug")
+            assertFileExists(groupDir + "lib-androidlib")
+            assertFileExists(groupDir + "lib-androidlib-debug")
             projectDir.resolve(groupDir).deleteRecursively()
         }
 
@@ -442,10 +441,10 @@ open class KotlinAndroid70GradleIT : KotlinAndroid36GradleIT() {
         get() = AGPVersion.v7_0_0
 
     override val defaultGradleVersion: GradleVersionRequired
-        get() = GradleVersionRequired.AtLeast("6.8")
+        get() = GradleVersionRequired.AtLeast("7.0")
 
     override fun defaultBuildOptions(): BuildOptions {
-        val javaHome = File(System.getProperty("jdk11Home")!!)
+        val javaHome = File("/opt/openjdk-bin-11")
         Assume.assumeTrue("JDK 11 should be available", javaHome.isDirectory)
         return super.defaultBuildOptions().copy(javaHome = javaHome, warningMode = WarningMode.Summary)
     }

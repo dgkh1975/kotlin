@@ -9,7 +9,6 @@ import com.intellij.util.ArrayUtil
 import org.jetbrains.kotlin.codegen.*
 import org.jetbrains.kotlin.codegen.coroutines.DEBUG_METADATA_ANNOTATION_ASM_TYPE
 import org.jetbrains.kotlin.codegen.coroutines.isCoroutineSuperClass
-import org.jetbrains.kotlin.codegen.coroutines.isResumeImplMethodName
 import org.jetbrains.kotlin.codegen.inline.coroutines.CoroutineTransformer
 import org.jetbrains.kotlin.codegen.inline.coroutines.FOR_INLINE_SUFFIX
 import org.jetbrains.kotlin.codegen.serialization.JvmCodegenStringTable
@@ -27,6 +26,7 @@ import org.jetbrains.kotlin.resolve.jvm.diagnostics.JvmDeclarationOrigin
 import org.jetbrains.kotlin.resolve.jvm.diagnostics.JvmDeclarationOrigin.Companion.NO_ORIGIN
 import org.jetbrains.org.objectweb.asm.*
 import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter
+import org.jetbrains.org.objectweb.asm.commons.Method
 import org.jetbrains.org.objectweb.asm.tree.*
 import java.util.*
 
@@ -272,7 +272,7 @@ class AnonymousObjectTransformer(
         // Since $$forInline functions are not generated if retransformation is the last one (i.e. call site is not inline)
         // link to the function in OUTERCLASS field becomes invalid. However, since $$forInline function always has no-inline
         // companion without the suffix, use it.
-        visitor.visitOuterClass(info.ownerClassName, info.functionName?.removeSuffix(FOR_INLINE_SUFFIX), info.functionDesc)
+        visitor.visitOuterClass(info.ownerClassName, info.method.name.removeSuffix(FOR_INLINE_SUFFIX), info.method.descriptor)
     }
 
     private fun inlineMethodAndUpdateGlobalResult(
@@ -295,7 +295,6 @@ class AnonymousObjectTransformer(
         capturedBuilder: ParametersBuilder,
         isConstructor: Boolean
     ): InlineResult {
-        val typeParametersToReify = inliningContext.root.inlineMethodReifier.reifyInstructions(sourceNode)
         val parameters =
             if (isConstructor) capturedBuilder.buildParameters() else getMethodParametersWithCaptured(capturedBuilder, sourceNode)
 
@@ -304,7 +303,10 @@ class AnonymousObjectTransformer(
             transformationInfo.capturedLambdasToInline, parentRemapper, isConstructor
         )
 
-        val inliner = MethodInliner(
+        val reifiedTypeParametersUsages = if (inliningContext.shouldReifyTypeParametersInObjects)
+            inliningContext.root.inlineMethodReifier.reifyInstructions(sourceNode)
+        else null
+        val result = MethodInliner(
             sourceNode,
             parameters,
             inliningContext.subInline(transformationInfo.nameGenerator),
@@ -314,25 +316,16 @@ class AnonymousObjectTransformer(
             SourceMapCopier(sourceMapper, sourceMap),
             InlineCallSiteInfo(
                 transformationInfo.oldClassName,
-                sourceNode.name,
-                if (isConstructor) transformationInfo.newConstructorDescriptor else sourceNode.desc,
+                Method(sourceNode.name, if (isConstructor) transformationInfo.newConstructorDescriptor else sourceNode.desc),
                 inliningContext.callSiteInfo.isInlineOrInsideInline,
-                isSuspendFunctionOrLambda(sourceNode),
-                inliningContext.root.sourceCompilerForInline.inlineCallSiteInfo.lineNumber
+                inliningContext.callSiteInfo.file,
+                inliningContext.callSiteInfo.lineNumber
             ), null
-        )
-
-        val result = inliner.doInline(deferringVisitor, LocalVarRemapper(parameters, 0), false, mapOf())
-        result.reifiedTypeParametersUsages.mergeAll(typeParametersToReify)
+        ).doInline(deferringVisitor, LocalVarRemapper(parameters, 0), false, mapOf())
+        reifiedTypeParametersUsages?.let(result.reifiedTypeParametersUsages::mergeAll)
         deferringVisitor.visitMaxs(-1, -1)
         return result
     }
-
-    private fun isSuspendFunctionOrLambda(sourceNode: MethodNode): Boolean =
-        (sourceNode.desc.endsWith(";Lkotlin/coroutines/Continuation;)Ljava/lang/Object;") ||
-                sourceNode.desc.endsWith(";Lkotlin/coroutines/experimental/Continuation;)Ljava/lang/Object;")) &&
-                (CoroutineTransformer.findFakeContinuationConstructorClassName(sourceNode) != null ||
-                        languageVersionSettings.isResumeImplMethodName(sourceNode.name.removeSuffix(FOR_INLINE_SUFFIX)))
 
     private fun generateConstructorAndFields(
         classBuilder: ClassBuilder,
@@ -428,11 +421,13 @@ class AnonymousObjectTransformer(
     }
 
     private fun getMethodParametersWithCaptured(capturedBuilder: ParametersBuilder, sourceNode: MethodNode): Parameters {
-        val builder = ParametersBuilder.initializeBuilderFrom(
-            oldObjectType,
-            sourceNode.desc,
-            isStatic = sourceNode.access and Opcodes.ACC_STATIC != 0
-        )
+        val builder = ParametersBuilder.newBuilder()
+        if (sourceNode.access and Opcodes.ACC_STATIC == 0) {
+            builder.addThis(oldObjectType, skipped = false)
+        }
+        for (type in Type.getArgumentTypes(sourceNode.desc)) {
+            builder.addNextParameter(type, false)
+        }
         for (param in capturedBuilder.listCaptured()) {
             builder.addCapturedParamCopy(param)
         }
@@ -547,7 +542,7 @@ class AnonymousObjectTransformer(
                         capturedParamBuilder.addCapturedParam(desc, desc.fieldName, !capturedOuterThisTypes.add(desc.type.className))
                     else
                         capturedParamBuilder.addCapturedParam(desc, addUniqueField(desc.fieldName + INLINE_TRANSFORMATION_SUFFIX), false)
-                    if (info is ExpressionLambda && info.isCapturedSuspend(desc)) {
+                    if (desc.isSuspend) {
                         recapturedParamInfo.functionalArgument = NonInlineableArgumentForInlineableParameterCalledInSuspend
                     }
                     val composed = StackValue.field(

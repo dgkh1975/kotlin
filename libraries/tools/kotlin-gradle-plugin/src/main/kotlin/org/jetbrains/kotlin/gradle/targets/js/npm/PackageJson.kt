@@ -5,20 +5,17 @@
 
 package org.jetbrains.kotlin.gradle.targets.js.npm
 
-import com.google.gson.ExclusionStrategy
-import com.google.gson.FieldAttributes
-import com.google.gson.Gson
-import com.google.gson.GsonBuilder
+import com.google.gson.*
 import org.gradle.api.GradleException
-import org.gradle.api.tasks.Input
 import org.jetbrains.kotlin.gradle.internal.ensureParentDirsCreated
 import java.io.File
+import java.io.Serializable
 
 // Gson set nulls reflectively no matter on default values and non-null types
 class PackageJson(
     var name: String,
     var version: String
-) {
+) : Serializable {
     internal val customFields = mutableMapOf<String, Any?>()
 
     val empty: Boolean
@@ -108,13 +105,21 @@ class PackageJson(
 
         packageJsonFile.ensureParentDirsCreated()
         val jsonTree = gson.toJsonTree(this)
+        val previous = if (packageJsonFile.exists()) {
+            packageJsonFile.reader().use {
+                JsonParser.parseReader(it)
+            }
+        } else null
+
         customFields
             .forEach { (key, value) ->
                 val valueElement = gson.toJsonTree(value)
                 jsonTree.asJsonObject.add(key, valueElement)
             }
-        packageJsonFile.writer().use {
-            gson.toJson(jsonTree, it)
+        if (jsonTree != previous) {
+            packageJsonFile.writer().use {
+                gson.toJson(jsonTree, it)
+            }
         }
     }
 }
@@ -128,7 +133,8 @@ internal fun packageJson(
     name: String,
     version: String,
     main: String,
-    npmDependencies: Collection<NpmDependencyDeclaration>
+    npmDependencies: Collection<NpmDependencyDeclaration>,
+    packageJsonHandlers: List<PackageJson.() -> Unit>
 ): PackageJson {
 
     val packageJson = PackageJson(
@@ -155,9 +161,9 @@ internal fun packageJson(
         }
     }
 
-//    compilation.packageJsonHandlers.forEach {
-//        it(packageJson)
-//    }
+    packageJsonHandlers.forEach {
+        it(packageJson)
+    }
 
     return packageJson
 }

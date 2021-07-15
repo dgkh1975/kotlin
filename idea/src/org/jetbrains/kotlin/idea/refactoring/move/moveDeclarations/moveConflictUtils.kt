@@ -416,7 +416,7 @@ class MoveConflictChecker(
                     render(container),
                     render(referencedElement)
                 )
-                conflicts.putValue(element, message.capitalize())
+                conflicts.putValue(element, message.replaceFirstChar(Char::uppercaseChar))
             }
         }
     }
@@ -494,7 +494,7 @@ class MoveConflictChecker(
                                 render(declaration),
                                 render(target)
                             )
-                            conflicts.putValue(refExpr, message.capitalize())
+                            conflicts.putValue(refExpr, message.replaceFirstChar(Char::uppercaseChar))
                         }
                     }
             }
@@ -527,7 +527,7 @@ class MoveConflictChecker(
                         render(container),
                         render(memberToCheck)
                     )
-                    conflicts.putValue(element, message.capitalize())
+                    conflicts.putValue(element, message.replaceFirstChar(Char::uppercaseChar))
                 }
             }
         }
@@ -573,7 +573,8 @@ class MoveConflictChecker(
             val message = if (elementToMove == rootClass) {
                 KotlinBundle.message("text.sealed.class.0.must.be.moved.with.all.its.subclasses", rootClass.name.toString())
             } else {
-                val type = ElementDescriptionUtil.getElementDescription(elementToMove, UsageViewTypeLocation.INSTANCE).capitalize()
+                val type = ElementDescriptionUtil.getElementDescription(elementToMove, UsageViewTypeLocation.INSTANCE)
+                    .replaceFirstChar(Char::uppercaseChar)
                 KotlinBundle.message(
                     "text.0.1.must.be.moved.with.sealed.parent.class.and.all.its.subclasses",
                     type,
@@ -732,10 +733,11 @@ class MoveConflictChecker(
 
             val targetModule = moveTarget.getTargetModule(project) ?: return null
             val targetPackage = moveTarget.getTargetPackage() ?: return null
+            val targetDir = moveTarget.targetFile?.takeIf { it.isDirectory } ?: moveTarget.targetFile?.parent
 
             val className = classToMove.nameAsSafeName.asString()
 
-            if (otherHierarchyMembers.none { it.residesIn(targetModule, targetPackage) }) {
+            if (otherHierarchyMembers.none { it.residesIn(targetModule, targetPackage, targetDir) }) {
                 val hierarchyMembers = buildList { add(classToMove); addAll(otherHierarchyMembers) }.toNamesList()
                 return KotlinBundle.message(
                     "text.sealed.broken.hierarchy.none.in.target",
@@ -748,9 +750,10 @@ class MoveConflictChecker(
 
             val moduleToMoveFrom = classToMove.module ?: return null
             val packageToMoveFrom = classToMoveDesc.findPsiPackage(moduleToMoveFrom) ?: return null
+            val directoryToMoveFrom = classToMove.containingKtFile.containingDirectory?.virtualFile
 
             val membersRemainingInOriginalPackage =
-                otherHierarchyMembers.filter { it.residesIn(moduleToMoveFrom, packageToMoveFrom) && !isToBeMoved(it) }.toList()
+                otherHierarchyMembers.filter { it.residesIn(moduleToMoveFrom, packageToMoveFrom, directoryToMoveFrom) && !isToBeMoved(it) }.toList()
 
             if ((targetPackage != packageToMoveFrom || targetModule != moduleToMoveFrom) &&
                 membersRemainingInOriginalPackage.any { !isToBeMoved(it) }
@@ -764,10 +767,11 @@ class MoveConflictChecker(
             return null
         }
 
-        private fun KtClassOrObject.residesIn(targetModule: Module, targetPackage: PsiPackage): Boolean {
+        private fun KtClassOrObject.residesIn(targetModule: Module, targetPackage: PsiPackage, targetDir: VirtualFile?): Boolean {
             val myModule = module ?: return false
             val myPackage = descriptor?.findPsiPackage(myModule)
-            return myPackage == targetPackage && myModule == targetModule
+            val myDirectory = containingKtFile.containingDirectory?.virtualFile
+            return myPackage == targetPackage && myModule == targetModule && myDirectory == targetDir
         }
 
         private fun DeclarationDescriptor.findPsiPackage(module: Module): PsiPackage? {

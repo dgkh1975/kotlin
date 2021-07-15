@@ -10,9 +10,11 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/collections/MutableList<E>
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: false
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: ABSTRACT
   name: add
@@ -31,9 +33,11 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/collections/MutableList<E>
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: false
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: ABSTRACT
   name: add
@@ -52,9 +56,11 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/collections/MutableList<E>
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: false
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: ABSTRACT
   name: addAll
@@ -73,9 +79,11 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/collections/MutableList<E>
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: false
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: ABSTRACT
   name: addAll
@@ -94,9 +102,11 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/collections/MutableList<E>
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: false
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: ABSTRACT
   name: clear
@@ -115,9 +125,11 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/collections/MutableList<E>
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: false
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: ABSTRACT
   name: listIterator
@@ -136,9 +148,11 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/collections/MutableList<E>
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: false
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: ABSTRACT
   name: listIterator
@@ -157,9 +171,11 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/collections/MutableList<E>
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: false
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: ABSTRACT
   name: remove
@@ -178,9 +194,11 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/collections/MutableList<E>
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: false
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: ABSTRACT
   name: removeAll
@@ -199,9 +217,11 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/collections/MutableList<E>
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: false
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: ABSTRACT
   name: removeAt
@@ -220,9 +240,11 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/collections/MutableList<E>
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: false
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: ABSTRACT
   name: retainAll
@@ -241,9 +263,11 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/collections/MutableList<E>
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: true
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: ABSTRACT
   name: set
@@ -262,9 +286,11 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/collections/MutableList<E>
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: false
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: ABSTRACT
   name: subList
@@ -283,13 +309,15 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/collections/MutableList<E>
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: true
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: ABSTRACT
   name: contains
-  origin: INTERSECTION_OVERRIDE
+  origin: LIBRARY
   receiverType: null
   symbolKind: MEMBER
   typeParameters: []
@@ -304,13 +332,15 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/collections/MutableList<E>
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: false
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: ABSTRACT
   name: containsAll
-  origin: INTERSECTION_OVERRIDE
+  origin: LIBRARY
   receiverType: null
   symbolKind: MEMBER
   typeParameters: []
@@ -325,9 +355,11 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/collections/MutableList<E>
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: true
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: ABSTRACT
   name: get
@@ -346,9 +378,11 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/collections/MutableList<E>
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: false
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: ABSTRACT
   name: indexOf
@@ -363,17 +397,19 @@ KtFirFunctionSymbol:
   annotatedType: [] kotlin/Boolean
   annotationClassIds: []
   annotations: []
-  callableIdIfNonLocal: kotlin/collections/MutableList.isEmpty
-  dispatchType: kotlin/collections/MutableList<E>
+  callableIdIfNonLocal: kotlin/collections/List.isEmpty
+  dispatchType: kotlin/collections/List<E>
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: false
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: ABSTRACT
   name: isEmpty
-  origin: INTERSECTION_OVERRIDE
+  origin: LIBRARY
   receiverType: null
   symbolKind: MEMBER
   typeParameters: []
@@ -388,9 +424,11 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/collections/MutableList<E>
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: true
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: ABSTRACT
   name: iterator
@@ -409,9 +447,11 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/collections/MutableList<E>
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: false
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: ABSTRACT
   name: lastIndexOf
@@ -427,20 +467,21 @@ KtFirKotlinPropertySymbol:
   annotationClassIds: []
   annotations: []
   callableIdIfNonLocal: kotlin/collections/List.size
-  dispatchType: kotlin/collections/MutableList<E>
-  getter: null
+  dispatchType: kotlin/collections/List<E>
+  getter: KtFirPropertyGetterSymbol(<getter>)
   hasBackingField: false
-  hasGetter: false
+  hasGetter: true
   hasSetter: false
   initializer: null
   isConst: false
   isExtension: false
   isLateInit: false
   isOverride: false
+  isStatic: false
   isVal: true
   modality: ABSTRACT
   name: size
-  origin: INTERSECTION_OVERRIDE
+  origin: LIBRARY
   receiverType: null
   setter: null
   symbolKind: MEMBER
@@ -454,9 +495,11 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/Any
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: true
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: OPEN
   name: equals
@@ -475,9 +518,11 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/Any
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: false
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: OPEN
   name: hashCode
@@ -496,9 +541,11 @@ KtFirFunctionSymbol:
   dispatchType: kotlin/Any
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: false
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: OPEN
   name: toString

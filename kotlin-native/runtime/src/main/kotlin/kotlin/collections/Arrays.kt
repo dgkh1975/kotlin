@@ -7,7 +7,10 @@ package kotlin.collections
 
 import kotlin.internal.PureReifiable
 
-/** Returns the array if it's not `null`, or an empty array otherwise. */
+/**
+ * Returns the array if it's not `null`, or an empty array otherwise.
+ * @sample samples.collections.Arrays.Usage.arrayOrEmpty
+ */
 public actual inline fun <reified T> Array<out T>?.orEmpty(): Array<out T> = this ?: emptyArray<T>()
 
 internal fun checkCopyOfRangeArguments(fromIndex: Int, toIndex: Int, size: Int) {
@@ -23,7 +26,8 @@ internal fun checkCopyOfRangeArguments(fromIndex: Int, toIndex: Int, size: Int) 
  * Returns a string representation of the contents of the subarray of the specified array as if it is [List].
  */
 @kotlin.internal.InlineOnly
-@Deprecated("This function will become internal soon.", level = DeprecationLevel.WARNING)
+@Deprecated("This function will become internal soon.")
+@DeprecatedSinceKotlin(warningSince = "1.4", errorSince = "1.5")
 public inline fun <T> Array<out T>.subarrayContentToString(offset: Int, length: Int): String {
     val sb = StringBuilder(2 + length * 3)
     sb.append("[")
@@ -110,6 +114,7 @@ internal actual fun <T> copyToArrayImpl(collection: Collection<*>, array: Array<
  *
  * Allocates an array of runtime type `T` having its size equal to the size of this collection
  * and populates the array with the elements of this collection.
+ * @sample samples.collections.Collections.Collections.collectionToTypedArray
  */
 public actual inline fun <reified T> Collection<T>.toTypedArray(): Array<T> {
     val result = arrayOfNulls<T>(size)

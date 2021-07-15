@@ -10,6 +10,11 @@ interface Commonizer<T, R> {
     fun commonizeWith(next: T): Boolean
 }
 
+fun <T, R> Commonizer<T, R>.commonize(values: List<T>): R? {
+    values.forEach { value -> if (!commonizeWith(value)) return null }
+    return result
+}
+
 abstract class AbstractStandardCommonizer<T, R> : Commonizer<T, R> {
     private enum class State {
         EMPTY,
@@ -26,6 +31,12 @@ abstract class AbstractStandardCommonizer<T, R> : Commonizer<T, R> {
         get() = when (state) {
             State.EMPTY -> failInEmptyState()
             State.ERROR -> failInErrorState()
+            State.IN_PROGRESS -> commonizationResult()
+        }
+
+    val resultOrNull: R?
+        get() = when (state) {
+            State.EMPTY, State.ERROR -> null
             State.IN_PROGRESS -> commonizationResult()
         }
 

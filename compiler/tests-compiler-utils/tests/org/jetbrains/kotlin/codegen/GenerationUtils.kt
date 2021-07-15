@@ -9,6 +9,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElementFinder
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.ProjectScope
+import org.jetbrains.kotlin.ObsoleteTestInfrastructure
 import org.jetbrains.kotlin.TestsCompiletimeError
 import org.jetbrains.kotlin.analyzer.AnalysisResult
 import org.jetbrains.kotlin.asJava.finder.JavaElementFinder
@@ -17,8 +18,10 @@ import org.jetbrains.kotlin.backend.jvm.JvmGeneratorExtensionsImpl
 import org.jetbrains.kotlin.backend.jvm.JvmIrCodegenFactory
 import org.jetbrains.kotlin.backend.jvm.jvmPhases
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
+import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
+import org.jetbrains.kotlin.cli.common.messages.GroupingMessageCollector
+import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.common.output.writeAllTo
-import org.jetbrains.kotlin.cli.js.messageCollectorLogger
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.cli.jvm.compiler.NoScopeRecordCliBindingTrace
 import org.jetbrains.kotlin.cli.jvm.compiler.TopDownAnalyzerFacadeForJVM
@@ -42,6 +45,7 @@ import org.jetbrains.kotlin.resolve.CompilerEnvironment
 import org.jetbrains.kotlin.resolve.lazy.JvmResolveUtil
 import org.jetbrains.kotlin.resolve.lazy.declarations.FileBasedDeclarationProviderFactory
 import org.jetbrains.kotlin.util.DummyLogger
+import org.jetbrains.kotlin.util.Logger
 import java.io.File
 
 object GenerationUtils {
@@ -91,6 +95,7 @@ object GenerationUtils {
         return state
     }
 
+    @OptIn(ObsoleteTestInfrastructure::class)
     private fun compileFilesUsingFrontendIR(
         project: Project,
         files: List<KtFile>,
@@ -108,11 +113,15 @@ object GenerationUtils {
 
         // TODO: add running checkers and check that it's safe to compile
         val firAnalyzerFacade = FirAnalyzerFacade(session, configuration.languageVersionSettings, files)
-        val extensions = JvmGeneratorExtensionsImpl()
+        val extensions = JvmGeneratorExtensionsImpl(configuration)
         val (moduleFragment, symbolTable, components) = firAnalyzerFacade.convertToIr(extensions)
         val dummyBindingContext = NoScopeRecordCliBindingTrace().bindingContext
 
-        val codegenFactory = JvmIrCodegenFactory(configuration.get(CLIConfigurationKeys.PHASE_CONFIG) ?: PhaseConfig(jvmPhases))
+        val codegenFactory = JvmIrCodegenFactory(
+            configuration,
+            configuration.get(CLIConfigurationKeys.PHASE_CONFIG) ?: PhaseConfig(jvmPhases),
+            jvmGeneratorExtensions = extensions
+        )
 
         // Create and initialize the test module and its dependencies
         val container = TopDownAnalyzerFacadeForJVM.createContainer(
@@ -136,6 +145,17 @@ object GenerationUtils {
 
         generationState.factory.done()
         return generationState
+    }
+
+    fun messageCollectorLogger(collector: MessageCollector) = object : Logger {
+        override fun warning(message: String) = collector.report(CompilerMessageSeverity.STRONG_WARNING, message)
+        override fun error(message: String) = collector.report(CompilerMessageSeverity.ERROR, message)
+        override fun log(message: String) = collector.report(CompilerMessageSeverity.LOGGING, message)
+        override fun fatal(message: String): Nothing {
+            collector.report(CompilerMessageSeverity.ERROR, message)
+            (collector as? GroupingMessageCollector)?.flush()
+            kotlin.error(message)
+        }
     }
 
     private fun compileFilesUsingStandardMode(
@@ -178,7 +198,10 @@ object GenerationUtils {
             files, configuration
         ).codegenFactory(
             if (isIrBackend)
-                JvmIrCodegenFactory(configuration.get(CLIConfigurationKeys.PHASE_CONFIG) ?: PhaseConfig(jvmPhases))
+                JvmIrCodegenFactory(
+                    configuration,
+                    configuration.get(CLIConfigurationKeys.PHASE_CONFIG) ?: PhaseConfig(jvmPhases),
+                )
             else DefaultCodegenFactory
         ).isIrBackend(isIrBackend).apply(configureGenerationState).build()
         if (analysisResult.shouldGenerateCode) {

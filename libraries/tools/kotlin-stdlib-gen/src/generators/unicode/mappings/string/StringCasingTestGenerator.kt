@@ -57,9 +57,7 @@ internal class StringCasingTestGenerator(private val outputDir: File) {
             writer.appendLine("@SharedImmutable")
             writer.appendLine("private val $rangesArrayName = arrayOf<IntRange>(")
             ranges.forEach {
-                val start = it.rangeStart.hexToInt().toHexIntLiteral()
-                val end = it.rangeEnd.hexToInt().toHexIntLiteral()
-                writer.appendLine("    $start..$end,")
+                writer.appendLine("    ${it.hexIntRangeLiteral()},")
             }
             writer.appendLine(")")
             writer.appendLine()
@@ -67,7 +65,6 @@ internal class StringCasingTestGenerator(private val outputDir: File) {
         }
     }
 
-    @OptIn(ExperimentalStdlibApi::class)
     private fun test(rangesArrayName: String, functionName: String): String = """
         class ${functionName.replaceFirstChar { it.uppercase() }}Test {
             @Test

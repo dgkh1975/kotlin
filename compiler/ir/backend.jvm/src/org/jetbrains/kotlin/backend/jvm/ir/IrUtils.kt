@@ -6,13 +6,10 @@
 package org.jetbrains.kotlin.backend.jvm.ir
 
 import org.jetbrains.kotlin.backend.common.ir.ir2string
-import org.jetbrains.kotlin.backend.common.lower.IrLoweringContext
-import org.jetbrains.kotlin.backend.jvm.JvmBackendContext
-import org.jetbrains.kotlin.backend.jvm.JvmCachedDeclarations
-import org.jetbrains.kotlin.backend.jvm.JvmLoweredDeclarationOrigin
-import org.jetbrains.kotlin.backend.jvm.JvmSymbols
+import org.jetbrains.kotlin.backend.jvm.*
 import org.jetbrains.kotlin.backend.jvm.codegen.isInlineOnly
 import org.jetbrains.kotlin.backend.jvm.codegen.isJvmInterface
+import org.jetbrains.kotlin.backend.jvm.codegen.representativeUpperBound
 import org.jetbrains.kotlin.backend.jvm.lower.inlineclasses.unboxInlineClass
 import org.jetbrains.kotlin.codegen.inline.coroutines.FOR_INLINE_SUFFIX
 import org.jetbrains.kotlin.config.JvmDefaultMode
@@ -24,6 +21,7 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.PsiIrFileEntry
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
+import org.jetbrains.kotlin.ir.builders.IrGeneratorContextBase
 import org.jetbrains.kotlin.ir.builders.Scope
 import org.jetbrains.kotlin.ir.builders.declarations.buildProperty
 import org.jetbrains.kotlin.ir.declarations.*
@@ -41,6 +39,7 @@ import org.jetbrains.kotlin.ir.types.impl.IrStarProjectionImpl
 import org.jetbrains.kotlin.ir.types.impl.makeTypeProjection
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.load.java.JavaDescriptorVisibilities
 import org.jetbrains.kotlin.load.java.JvmAbi
@@ -66,12 +65,11 @@ fun IrType.eraseTypeParameters() = when (this) {
     is IrErrorType -> this
     is IrSimpleType ->
         when (val owner = classifier.owner) {
-            is IrClass -> IrSimpleTypeImpl(
-                classifier,
-                hasQuestionMark,
-                arguments.map { it.eraseTypeParameters() },
-                annotations
-            )
+            is IrScript -> {
+                assert(arguments.isEmpty()) { "Script can't be generic: " + owner.render() }
+                IrSimpleTypeImpl(classifier, hasQuestionMark, emptyList(), annotations)
+            }
+            is IrClass -> IrSimpleTypeImpl(classifier, hasQuestionMark, arguments.map { it.eraseTypeParameters() }, annotations)
             is IrTypeParameter -> {
                 val upperBound = owner.erasedUpperBound
                 IrSimpleTypeImpl(
@@ -124,6 +122,11 @@ val IrType.erasedUpperBound: IrClass
  * the value is not reboxed and reunboxed by the codegen by using the unsafeCoerceIntrinsic.
  */
 fun IrType.defaultValue(startOffset: Int, endOffset: Int, context: JvmBackendContext): IrExpression {
+    val classifier = this.classifierOrNull
+    if (classifier is IrTypeParameterSymbol) {
+        return classifier.owner.representativeUpperBound.defaultValue(startOffset, endOffset, context)
+    }
+
     if (this !is IrSimpleType || hasQuestionMark || classOrNull?.owner?.isInline != true)
         return IrConstImpl.defaultValueForType(startOffset, endOffset, this)
 
@@ -188,7 +191,7 @@ class JvmIrBuilder(
     startOffset: Int = UNDEFINED_OFFSET,
     endOffset: Int = UNDEFINED_OFFSET
 ) : IrBuilderWithScope(
-    IrLoweringContext(backendContext),
+    IrGeneratorContextBase(backendContext.irBuiltIns),
     Scope(symbol),
     startOffset,
     endOffset
@@ -213,10 +216,8 @@ fun IrDeclaration.isInCurrentModule(): Boolean =
 // "not learned through smartcasting".
 fun IrExpression.isSmartcastFromHigherThanNullable(context: JvmBackendContext): Boolean {
     return when (this) {
-        is IrTypeOperatorCall -> operator == IrTypeOperator.IMPLICIT_CAST && !argument.type.isSubtypeOf(
-            type.makeNullable(),
-            context.irBuiltIns
-        )
+        is IrTypeOperatorCall ->
+            operator == IrTypeOperator.IMPLICIT_CAST && !argument.type.isSubtypeOf(type.makeNullable(), context.typeSystem)
         is IrGetValue -> {
             // Check if the variable initializer is smartcast. In FIR, if the subject of a `when` is smartcast,
             // the IMPLICIT_CAST is in the initializer of the variable for the subject.
@@ -228,7 +229,7 @@ fun IrExpression.isSmartcastFromHigherThanNullable(context: JvmBackendContext): 
 }
 
 fun IrElement.replaceThisByStaticReference(
-    cachedDeclarations: JvmCachedDeclarations,
+    cachedFields: CachedFieldsForObjectInstances,
     irClass: IrClass,
     oldThisReceiverParameter: IrValueParameter
 ) {
@@ -238,7 +239,7 @@ fun IrElement.replaceThisByStaticReference(
                 IrGetFieldImpl(
                     expression.startOffset,
                     expression.endOffset,
-                    cachedDeclarations.getPrivateFieldForObjectInstance(irClass).symbol,
+                    cachedFields.getPrivateFieldForObjectInstance(irClass).symbol,
                     irClass.defaultType
                 )
             } else super.visitGetValue(expression)
@@ -349,10 +350,6 @@ val IrDeclaration.isStaticInlineClassReplacement: Boolean
     get() = origin == JvmLoweredDeclarationOrigin.STATIC_INLINE_CLASS_REPLACEMENT
             || origin == JvmLoweredDeclarationOrigin.STATIC_INLINE_CLASS_CONSTRUCTOR
 
-fun IrDeclaration.isFromJava(): Boolean =
-    origin == IrDeclarationOrigin.IR_EXTERNAL_JAVA_DECLARATION_STUB ||
-            parent is IrDeclaration && (parent as IrDeclaration).isFromJava()
-
 val IrType.upperBound: IrType
     get() = erasedUpperBound.symbol.starProjectedType
 
@@ -403,3 +400,15 @@ fun IrFile.getKtFile(): KtFile? =
 
 fun IrType.isInlineClassType(): Boolean =
     erasedUpperBound.isInline
+
+inline fun IrElement.hasChild(crossinline block: (IrElement) -> Boolean): Boolean {
+    var result = false
+    acceptChildren(object : IrElementVisitorVoid {
+        override fun visitElement(element: IrElement) = when {
+            result -> Unit
+            block(element) -> result = true
+            else -> element.acceptChildren(this, null)
+        }
+    }, null)
+    return result
+}

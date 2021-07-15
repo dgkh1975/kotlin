@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.test.frontend.classic.handlers
 
 import org.jetbrains.kotlin.codeMetaInfo.clearTextFromDiagnosticMarkup
+import org.jetbrains.kotlin.test.WrappedException
 import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives
 import org.jetbrains.kotlin.test.directives.model.DirectivesContainer
 import org.jetbrains.kotlin.test.model.AfterAnalysisChecker
@@ -21,7 +22,7 @@ class FirTestDataConsistencyHandler(testServices: TestServices) : AfterAnalysisC
     override val directives: List<DirectivesContainer>
         get() = listOf(FirDiagnosticsDirectives)
 
-    override fun check(failedAssertions: List<Throwable>) {
+    override fun check(failedAssertions: List<WrappedException>) {
         val moduleStructure = testServices.moduleStructure
         val testData = moduleStructure.originalTestDataFiles.first()
         if (testData.extension == "kts") return
@@ -37,9 +38,15 @@ class FirTestDataConsistencyHandler(testServices: TestServices) : AfterAnalysisC
             originalFileContent = originalFileContent.replace("\r\n", "\n")
             firFileContent = firFileContent.replace("\r\n", "\n")
         }
-        testServices.assertions.assertEquals(originalFileContent, firFileContent) {
-            "Original and fir test data aren't identical. " +
-                    "Please, add changes from ${testData.name} to ${firTestData.name}"
+        if (originalFileContent != firFileContent) {
+            testServices.assertions.assertEqualsToFile(
+                firTestData,
+                originalFileContent,
+                message = {
+                    "Original and fir test data aren't identical. " +
+                            "Please, add changes from ${testData.name} to ${firTestData.name}"
+                }
+            )
         }
     }
 

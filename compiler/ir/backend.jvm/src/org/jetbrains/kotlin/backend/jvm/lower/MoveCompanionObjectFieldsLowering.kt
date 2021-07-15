@@ -102,7 +102,7 @@ private class MoveOrCopyCompanionObjectFieldsLowering(val context: JvmBackendCon
             IrAnonymousInitializerImpl(startOffset, endOffset, origin, newSymbol, isStatic = true).apply {
                 parent = newParent
                 body = this@with.body.patchDeclarationParents(newParent)
-                replaceThisByStaticReference(context.cachedDeclarations, oldParent, oldParent.thisReceiver!!)
+                replaceThisByStaticReference(context.cachedDeclarations.fieldsForObjectInstances, oldParent, oldParent.thisReceiver!!)
             }
         }
 
@@ -122,7 +122,7 @@ private class MoveOrCopyCompanionObjectFieldsLowering(val context: JvmBackendCon
                 correspondingPropertySymbol = property.symbol
                 annotations += oldField.annotations
                 initializer = with(oldField.initializer!!) {
-                    IrExpressionBodyImpl(startOffset, endOffset, (expression as IrConst<*>).copy())
+                    IrExpressionBodyImpl(startOffset, endOffset, (expression as IrConst<*>).shallowCopy())
                 }
 
                 if (oldProperty.parentAsClass.visibility == DescriptorVisibilities.PRIVATE) {

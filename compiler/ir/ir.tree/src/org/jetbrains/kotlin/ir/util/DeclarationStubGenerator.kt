@@ -22,6 +22,7 @@ import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.lazy.*
+import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
 import org.jetbrains.kotlin.ir.expressions.impl.IrErrorExpressionImpl
 import org.jetbrains.kotlin.ir.linkage.IrProvider
 import org.jetbrains.kotlin.ir.symbols.IrFieldSymbol
@@ -41,9 +42,14 @@ import org.jetbrains.kotlin.utils.addToStdlib.safeAs
 abstract class DeclarationStubGenerator(
     val moduleDescriptor: ModuleDescriptor,
     val symbolTable: SymbolTable,
+    val irBuiltIns: IrBuiltIns,
     val extensions: StubGeneratorExtensions = StubGeneratorExtensions.EMPTY,
 ) : IrProvider {
     protected val lazyTable = symbolTable.lazyWrapper
+
+    init {
+        extensions.registerDeclarations(symbolTable)
+    }
 
     val lock: IrLock
         get() = symbolTable.lock
@@ -89,7 +95,7 @@ abstract class DeclarationStubGenerator(
         val packageFragment = directMember.containingDeclaration as? PackageFragmentDescriptor ?: return null
         val containerSource = directMember.safeAs<DescriptorWithContainerSource>()?.containerSource ?: return null
         return facadeClassMap.getOrPut(containerSource) {
-            extensions.generateFacadeClass(symbolTable.irFactory, containerSource)?.also { facade ->
+            extensions.generateFacadeClass(symbolTable.irFactory, containerSource, this)?.also { facade ->
                 val packageStub = generateOrGetEmptyExternalPackageFragmentStub(packageFragment)
                 facade.parent = packageStub
                 packageStub.declarations.add(facade)
@@ -337,7 +343,7 @@ abstract class DeclarationStubGenerator(
 
     private fun findDescriptorBySignature(signature: IdSignature): DeclarationDescriptor? = when (signature) {
             is IdSignature.AccessorSignature -> findDescriptorForAccessorSignature(signature)
-            is IdSignature.PublicSignature -> findDescriptorForPublicSignature(signature)
+            is IdSignature.CommonSignature -> findDescriptorForPublicSignature(signature)
             else -> error("only PublicSignature or AccessorSignature should reach this point, got $signature")
         }
 
@@ -347,7 +353,7 @@ abstract class DeclarationStubGenerator(
         return propertyDescriptor.accessors.singleOrNull { it.name.asString() == shortName }
     }
 
-    private fun findDescriptorForPublicSignature(signature: IdSignature.PublicSignature): DeclarationDescriptor? {
+    private fun findDescriptorForPublicSignature(signature: IdSignature.CommonSignature): DeclarationDescriptor? {
         val packageDescriptor = moduleDescriptor.getPackage(signature.packageFqName())
         val nameSegments = signature.nameSegments
         val toplevelDescriptors = packageDescriptor.memberScope.getDescriptorsFiltered { name -> name.asString() == nameSegments.first() }

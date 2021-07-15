@@ -166,6 +166,14 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     var lightDebugDeprecated: Boolean = false
 
     @Argument(
+            value = "-Xg-generate-debug-trampoline",
+            valueDescription = "{disable|enable}",
+            description = """generates trampolines to make debugger breakpoint resolution more accurate (inlines, when, etc.)"""
+    )
+    var generateDebugTrampolineString: String? = null
+
+
+    @Argument(
             value = MAKE_CACHE,
             valueDescription = "<path>",
             description = "Path of the library to be compiled to cache",
@@ -186,6 +194,9 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
 
     @Argument(value = "-Xprint-bitcode", deprecatedName = "--print_bitcode", description = "Print llvm bitcode")
     var printBitCode: Boolean = false
+
+    @Argument(value = "-Xcheck-state-at-external-calls", description = "Check all calls of possibly long external functions are done in Native state")
+    var checkExternalCalls: Boolean = false
 
     @Argument(value = "-Xprint-descriptors", deprecatedName = "--print_descriptors", description = "Print descriptor tree")
     var printDescriptors: Boolean = false
@@ -297,8 +308,21 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     @Argument(value="-Xdestroy-runtime-mode", valueDescription = "<mode>", description = "When to destroy runtime. 'legacy' and 'on-shutdown' are currently supported. NOTE: 'legacy' mode is deprecated and will be removed.")
     var destroyRuntimeMode: String? = "on-shutdown"
 
-    override fun configureAnalysisFlags(collector: MessageCollector): MutableMap<AnalysisFlag<*>, Any> =
-            super.configureAnalysisFlags(collector).also {
+    @Argument(value="-Xgc", valueDescription = "<gc>", description = "GC to use, 'noop' and 'stms' are currently supported. Works only with -memory-model experimental")
+    var gc: String? = null
+
+    @Argument(value="-Xgc-aggressive", description = "Make GC agressive. Works only with -memory-model experimental")
+    var gcAggressive: Boolean = false
+
+    @Argument(
+            value = "-Xcheck-compatibility-with-lld",
+            valueDescription = "{disable|enable}",
+            description = "Check that linker flags are compatible with LLD."
+    )
+    var checkLldCompatibility: String? = null
+
+    override fun configureAnalysisFlags(collector: MessageCollector, languageVersion: LanguageVersion): MutableMap<AnalysisFlag<*>, Any> =
+            super.configureAnalysisFlags(collector, languageVersion).also {
                 val useExperimental = it[AnalysisFlags.useExperimental] as List<*>
                 it[AnalysisFlags.useExperimental] = useExperimental + listOf("kotlin.ExperimentalUnsignedTypes")
                 if (printIr)

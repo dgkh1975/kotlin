@@ -60,17 +60,17 @@ internal open class LetterRangesWriter(protected val strategy: RangesWritingStra
         }
 
         /**
-         * Returns `true` if this character is a lower case letter.
+         * Returns `true` if this character is a lower case letter, or it has contributory property Other_Lowercase.
          */
         internal fun Char.isLowerCaseImpl(): Boolean {
-            return getLetterType() == 1
+            return getLetterType() == 1 || code.isOtherLowercase()
         }
 
         /**
-         * Returns `true` if this character is an upper case letter.
+         * Returns `true` if this character is an upper case letter, or it has contributory property Other_Uppercase.
          */
         internal fun Char.isUpperCaseImpl(): Boolean {
-            return getLetterType() == 2
+            return getLetterType() == 2 || code.isOtherUppercase()
         }
 
         /**
@@ -81,7 +81,7 @@ internal open class LetterRangesWriter(protected val strategy: RangesWritingStra
          *   - `0` otherwise.
          */
         private fun Char.getLetterType(): Int {
-            val ch = this.toInt()
+            val ch = this.code
             val index = ${indexOf("ch")}
 
             val rangeStart = ${startAt("index")}
@@ -164,7 +164,7 @@ internal class VarLenBase64LetterRangesWriter(strategy: RangesWritingStrategy) :
                 val toBase64 = "$TO_BASE64"
                 val fromBase64 = IntArray(128)
                 for (i in toBase64.indices) {
-                    fromBase64[toBase64[i].toInt()] = i
+                    fromBase64[toBase64[i].code] = i
                 }
                 
                 // rangeStartDiff.length = ${base64RangeStartDiff.length}

@@ -1,5 +1,4 @@
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlin.pill.PillExtension
 
 plugins {
@@ -15,11 +14,13 @@ val kotlinGradlePluginTest = project(":kotlin-gradle-plugin").sourceSets.named("
 
 dependencies {
     testImplementation(project(":kotlin-gradle-plugin"))
+    testImplementation(project(":kotlin-project-model"))
     testImplementation(project(":kotlin-tooling-metadata"))
     testImplementation(kotlinGradlePluginTest)
     testImplementation(project(":kotlin-gradle-subplugin-example"))
     testImplementation(project(":kotlin-allopen"))
     testImplementation(project(":kotlin-noarg"))
+    testImplementation(project(":kotlin-lombok"))
     testImplementation(project(":kotlin-sam-with-receiver"))
     testImplementation(project(":kotlin-test:kotlin-test-jvm"))
     testImplementation(project(":native:kotlin-native-utils"))
@@ -39,8 +40,9 @@ dependencies {
     testImplementation(commonDep("org.jetbrains.intellij.deps", "trove4j"))
 
     testImplementation(gradleApi())
+    testImplementation(gradleTestKit())
     testImplementation("com.google.code.gson:gson:${rootProject.extra["versions.jar.gson"]}")
-    testApiJUnit5(vintageEngine = true)
+    testApiJUnit5(vintageEngine = true, jupiterParams = true)
 
     testRuntimeOnly(projectRuntimeJar(":kotlin-android-extensions"))
     testRuntimeOnly(project(":compiler:tests-mutes"))
@@ -58,31 +60,38 @@ val isTeamcityBuild = project.kotlinBuildProperties.isTeamcityBuild ||
         try {
             project.providers.gradleProperty("gradle.integration.tests.split.tasks").forUseAtConfigurationTime().orNull
                 ?.toBoolean() ?: false
-        } catch (_: Exception) { false }
+        } catch (_: Exception) {
+            false
+        }
 
-fun Test.includeMppAndAndroid(include: Boolean) {
-    if (isTeamcityBuild) {
-        val mppAndAndroidTestPatterns = listOf("*Multiplatform*", "*Mpp*", "*Android*")
-        val filter = if (include)
-            filter.includePatterns
-        else
-            filter.excludePatterns
-        filter.addAll(mppAndAndroidTestPatterns)
-    }
+
+val cleanTestKitCacheTask = tasks.register<Delete>("cleanTestKitCache") {
+    group = "Build"
+    description = "Deletes temporary Gradle TestKit cache"
+
+    delete(project.file(".testKitDir"))
 }
 
-fun Test.includeNative(include: Boolean) {
+fun Test.includeMppAndAndroid(include: Boolean) = includeTestsWithPattern(include) {
+    addAll(listOf("*Multiplatform*", "*Mpp*", "*Android*"))
+}
+
+fun Test.includeNative(include: Boolean) = includeTestsWithPattern(include) {
+    addAll(listOf("org.jetbrains.kotlin.gradle.native.*", "*Commonizer*"))
+}
+
+fun Test.includeTestsWithPattern(include: Boolean, patterns: (MutableSet<String>).() -> Unit) {
     if (isTeamcityBuild) {
         val filter = if (include)
             filter.includePatterns
         else
             filter.excludePatterns
-        filter.add("org.jetbrains.kotlin.gradle.native.*")
+        filter.patterns()
     }
 }
 
 fun Test.advanceGradleVersion() {
-    val gradleVersionForTests = "7.0-rc-1"
+    val gradleVersionForTests = "7.0"
     systemProperty("kotlin.gradle.version.for.tests", gradleVersionForTests)
 }
 
@@ -94,6 +103,7 @@ projectTest(
 ) {
     includeMppAndAndroid(false)
     includeNative(false)
+    if (isTeamcityBuild) finalizedBy(cleanTestKitCacheTask)
 }
 
 projectTest(
@@ -104,6 +114,8 @@ projectTest(
     advanceGradleVersion()
     includeMppAndAndroid(false)
     includeNative(false)
+
+    if (isTeamcityBuild) finalizedBy(cleanTestKitCacheTask)
 }
 
 if (isTeamcityBuild) {
@@ -113,6 +125,7 @@ if (isTeamcityBuild) {
         jUnit5Enabled = true
     ) {
         includeNative(true)
+        finalizedBy(cleanTestKitCacheTask)
     }
 
     projectTest(
@@ -122,6 +135,7 @@ if (isTeamcityBuild) {
     ) {
         advanceGradleVersion()
         includeNative(true)
+        finalizedBy(cleanTestKitCacheTask)
     }
 
     projectTest(
@@ -130,6 +144,7 @@ if (isTeamcityBuild) {
         jUnit5Enabled = true
     ) {
         includeMppAndAndroid(true)
+        finalizedBy(cleanTestKitCacheTask)
     }
 
     projectTest(
@@ -139,22 +154,47 @@ if (isTeamcityBuild) {
     ) {
         advanceGradleVersion()
         includeMppAndAndroid(true)
+        finalizedBy(cleanTestKitCacheTask)
+    }
+}
+
+val KGP_TEST_TASKS_GROUP = "Kotlin Gradle Plugin Verification"
+
+val simpleTestsTask = tasks.register<Test>("kgpSimpleTests") {
+    group = KGP_TEST_TASKS_GROUP
+    description = "Run only simple tests for Kotlin Gradle Plugin"
+    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 4).coerceAtLeast(1)
+
+    useJUnitPlatform {
+        includeTags("SimpleKGP")
+        includeEngines("junit-jupiter")
+    }
+}
+
+// Daemon tests could run only sequentially as they could not be shared between parallel test builds
+val daemonsTestsTask = tasks.register<Test>("kgpDaemonTests") {
+    group = KGP_TEST_TASKS_GROUP
+    description = "Run only Gradle and Kotlin daemon tests for Kotlin Gradle Plugin"
+    maxParallelForks = 1
+
+    mustRunAfter(simpleTestsTask)
+
+    useJUnitPlatform {
+        includeTags("DaemonsKGP")
+        includeEngines("junit-jupiter")
     }
 }
 
 tasks.named<Task>("check") {
     dependsOn("testAdvanceGradleVersion")
+    dependsOn(simpleTestsTask, daemonsTestsTask)
     if (isTeamcityBuild) {
         dependsOn("testAdvanceGradleVersionMppAndAndroid")
         dependsOn("testMppAndAndroid")
         dependsOn("testNative")
         dependsOn("testAdvanceGradleVersionNative")
+        finalizedBy(cleanTestKitCacheTask)
     }
-}
-
-tasks.withType<KotlinCompile> {
-    kotlinOptions.jdkHome = rootProject.extra["JDK_18"] as String
-    kotlinOptions.jvmTarget = "1.8"
 }
 
 tasks.withType<Test> {
@@ -164,23 +204,41 @@ tasks.withType<Test> {
     dependsOn(":kotlin-gradle-plugin:validatePlugins")
     dependsOnKotlinGradlePluginInstall()
 
-    executable = "${rootProject.extra["JDK_18"]!!}/bin/java"
-
     systemProperty("kotlinVersion", rootProject.extra["kotlinVersion"] as String)
     systemProperty("runnerGradleVersion", gradle.gradleVersion)
-    systemProperty("jdk9Home", rootProject.extra["JDK_9"] as String)
-    systemProperty("jdk10Home", rootProject.extra["JDK_10"] as String)
-    systemProperty("jdk11Home", rootProject.extra["JDK_11"] as String)
 
+    val installCocoapods = project.findProperty("installCocoapods") as String?
+    if (installCocoapods != null) {
+        systemProperty("installCocoapods", installCocoapods)
+    }
+
+    val jdk9Provider = project.getToolchainLauncherFor(JdkMajorVersion.JDK_9).map { it.metadata.installationPath.asFile.absolutePath }
+    val jdk10Provider = project.getToolchainLauncherFor(JdkMajorVersion.JDK_10).map { it.metadata.installationPath.asFile.absolutePath }
+    val jdk11Provider = project.getToolchainLauncherFor(JdkMajorVersion.JDK_11).map { it.metadata.installationPath.asFile.absolutePath }
     val mavenLocalRepo = project.providers.systemProperty("maven.repo.local").forUseAtConfigurationTime().orNull
-    if (mavenLocalRepo != null) {
-        systemProperty("maven.repo.local", mavenLocalRepo)
+
+    // Query required JDKs paths only on execution phase to avoid triggering auto-download on project configuration phase
+    doFirst {
+        systemProperty("jdk9Home", jdk9Provider.get())
+        systemProperty("jdk10Home", jdk10Provider.get())
+        systemProperty("jdk11Home", jdk11Provider.get())
+        if (mavenLocalRepo != null) {
+            systemProperty("maven.repo.local", mavenLocalRepo)
+        }
     }
 
     useAndroidSdk()
 
-    maxHeapSize = "512m"
-    useJUnitPlatform()
+    val shouldApplyJunitPlatform = name !in setOf(
+        simpleTestsTask.name,
+        daemonsTestsTask.name
+    )
+    if (shouldApplyJunitPlatform) {
+        maxHeapSize = "512m"
+        useJUnitPlatform {
+            includeEngines("junit-vintage")
+        }
+    }
 
     testLogging {
         // set options for log level LIFECYCLE
@@ -201,7 +259,8 @@ tasks.withType<Test> {
         addTestListener(object : TestListener {
             override fun afterSuite(desc: TestDescriptor, result: TestResult) {
                 if (desc.parent == null) { // will match the outermost suite
-                    val output = "Results: ${result.resultType} (${result.testCount} tests, ${result.successfulTestCount} successes, ${result.failedTestCount} failures, ${result.skippedTestCount} skipped)"
+                    val output =
+                        "Results: ${result.resultType} (${result.testCount} tests, ${result.successfulTestCount} successes, ${result.failedTestCount} failures, ${result.skippedTestCount} skipped)"
                     val startItem = "|  "
                     val endItem = "  |"
                     val repeatLength = startItem.length + output.length + endItem.length

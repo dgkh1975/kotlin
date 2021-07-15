@@ -7,15 +7,25 @@ package org.jetbrains.kotlin.commonizer
 
 import java.io.File
 import java.io.Serializable
-import kotlin.jvm.Throws
 
-public interface Commonizer : Serializable {
+public interface CInteropCommonizer : Serializable {
     @Throws(Throwable::class)
     public fun commonizeLibraries(
         konanHome: File,
         inputLibraries: Set<File>,
-        dependencyLibraries: Set<File>,
-        outputCommonizerTarget: SharedCommonizerTarget,
-        outputDirectory: File
+        dependencyLibraries: Set<CommonizerDependency>,
+        outputTargets: Set<SharedCommonizerTarget>,
+        outputDirectory: File,
+        logLevel: CommonizerLogLevel = CommonizerLogLevel.Quiet
+    )
+}
+
+public interface NativeDistributionCommonizer : Serializable {
+    @Throws(Throwable::class)
+    public fun commonizeNativeDistribution(
+        konanHome: File,
+        outputDirectory: File,
+        outputTargets: Set<SharedCommonizerTarget>,
+        logLevel: CommonizerLogLevel = CommonizerLogLevel.Quiet
     )
 }

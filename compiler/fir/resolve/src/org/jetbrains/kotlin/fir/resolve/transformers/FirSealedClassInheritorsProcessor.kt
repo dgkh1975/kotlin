@@ -9,19 +9,23 @@ import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.*
+import org.jetbrains.kotlin.fir.declarations.utils.classId
+import org.jetbrains.kotlin.fir.declarations.utils.modality
 import org.jetbrains.kotlin.fir.expressions.FirStatement
 import org.jetbrains.kotlin.fir.resolve.ScopeSession
-import org.jetbrains.kotlin.fir.resolve.firProvider
 import org.jetbrains.kotlin.fir.resolve.getSymbolByLookupTag
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProvider
 import org.jetbrains.kotlin.fir.resolve.symbolProvider
+import org.jetbrains.kotlin.fir.symbols.ensureResolved
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassifierSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirTypeAliasSymbol
 import org.jetbrains.kotlin.fir.types.ConeLookupTagBasedType
 import org.jetbrains.kotlin.fir.types.FirTypeRef
 import org.jetbrains.kotlin.fir.types.coneType
-import org.jetbrains.kotlin.fir.visitors.*
+import org.jetbrains.kotlin.fir.visitors.FirDefaultVisitor
+import org.jetbrains.kotlin.fir.visitors.FirTransformer
+import org.jetbrains.kotlin.fir.visitors.transformSingle
 import org.jetbrains.kotlin.name.ClassId
 
 class FirSealedClassInheritorsProcessor(
@@ -30,11 +34,12 @@ class FirSealedClassInheritorsProcessor(
 ) : FirGlobalResolveProcessor(session, scopeSession) {
     override fun process(files: Collection<FirFile>) {
         val sealedClassInheritorsMap = mutableMapOf<FirRegularClass, MutableList<ClassId>>()
-        files.forEach { it.accept(InheritorsCollector, sealedClassInheritorsMap) }
+        val inheritorsCollector = InheritorsCollector(session)
+        files.forEach { it.accept(inheritorsCollector, sealedClassInheritorsMap) }
         files.forEach { it.transformSingle(InheritorsTransformer(sealedClassInheritorsMap), null) }
     }
 
-    object InheritorsCollector : FirDefaultVisitor<Unit, MutableMap<FirRegularClass, MutableList<ClassId>>>() {
+    class InheritorsCollector(val session: FirSession) : FirDefaultVisitor<Unit, MutableMap<FirRegularClass, MutableList<ClassId>>>() {
         override fun visitElement(element: FirElement, data: MutableMap<FirRegularClass, MutableList<ClassId>>) {}
 
         override fun visitFile(file: FirFile, data: MutableMap<FirRegularClass, MutableList<ClassId>>) {
@@ -48,7 +53,7 @@ class FirSealedClassInheritorsProcessor(
                 data.computeIfAbsent(regularClass) { mutableListOf() }
             }
 
-            val symbolProvider = regularClass.session.symbolProvider
+            val symbolProvider = session.symbolProvider
 
             for (typeRef in regularClass.superTypeRefs) {
                 val parent = extractClassFromTypeRef(symbolProvider, typeRef).takeIf { it?.modality == Modality.SEALED } ?: continue
@@ -65,7 +70,7 @@ class FirSealedClassInheritorsProcessor(
             return when (classLikeSymbol) {
                 is FirRegularClassSymbol -> classLikeSymbol.fir
                 is FirTypeAliasSymbol -> {
-                    classLikeSymbol.ensureResolved(FirResolvePhase.SUPER_TYPES, symbolProvider.session)
+                    classLikeSymbol.ensureResolved(FirResolvePhase.SUPER_TYPES)
                     extractClassFromTypeRef(symbolProvider, classLikeSymbol.fir.expandedTypeRef)
                 }
                 else -> null
@@ -73,24 +78,24 @@ class FirSealedClassInheritorsProcessor(
         }
     }
 
-    class InheritorsTransformer(private val inheritorsMap: MutableMap<FirRegularClass, MutableList<ClassId>>) : FirTransformer<Nothing?>() {
-        override fun <E : FirElement> transformElement(element: E, data: Nothing?): CompositeTransformResult<E> {
-            return element.compose()
+    class InheritorsTransformer(private val inheritorsMap: MutableMap<FirRegularClass, MutableList<ClassId>>) : FirTransformer<Any?>() {
+        override fun <E : FirElement> transformElement(element: E, data: Any?): E {
+            return element
         }
 
-        override fun transformFile(file: FirFile, data: Nothing?): CompositeTransformResult<FirDeclaration> {
-            return (file.transformChildren(this, data) as FirFile).compose()
+        override fun transformFile(file: FirFile, data: Any?): FirFile {
+            return (file.transformChildren(this, data) as FirFile)
         }
 
-        override fun transformRegularClass(regularClass: FirRegularClass, data: Nothing?): CompositeTransformResult<FirStatement> {
+        override fun transformRegularClass(regularClass: FirRegularClass, data: Any?): FirStatement {
             if (regularClass.modality == Modality.SEALED) {
                 val inheritors = inheritorsMap.remove(regularClass)
                 if (inheritors != null) {
-                    regularClass.sealedInheritors = inheritors
+                    regularClass.setSealedClassInheritors(inheritors)
                 }
             }
-            if (inheritorsMap.isEmpty()) return regularClass.compose()
-            return (regularClass.transformChildren(this, data) as FirRegularClass).compose()
+            if (inheritorsMap.isEmpty()) return regularClass
+            return (regularClass.transformChildren(this, data) as FirRegularClass)
         }
     }
 

@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.commonizer.core
 
+import org.jetbrains.kotlin.commonizer.cir.CirRegularTypeProjection
 import org.jetbrains.kotlin.commonizer.cir.CirStarTypeProjection
 import org.jetbrains.kotlin.commonizer.cir.CirTypeProjection
-import org.jetbrains.kotlin.commonizer.cir.CirRegularTypeProjection
 import org.jetbrains.kotlin.commonizer.mergedtree.CirKnownClassifiers
 import org.jetbrains.kotlin.types.Variance
 
@@ -16,7 +16,7 @@ class TypeArgumentCommonizer(
 ) : AbstractStandardCommonizer<CirTypeProjection, CirTypeProjection>() {
     private var isStar = false
     private lateinit var projectionKind: Variance
-    private val type = TypeCommonizer(classifiers)
+    private val type = TypeCommonizer(classifiers).asCommonizer()
 
     override fun commonizationResult() = if (isStar) CirStarTypeProjection else CirRegularTypeProjection(
         projectionKind = projectionKind,

@@ -36,9 +36,6 @@ native {
     val hostLibffiDir = rootProject.project(":kotlin-native").extra["${host}LibffiDir"]
     val cflags = mutableListOf("-I$hostLibffiDir/include",
                                *platformManager.hostPlatform.clang.hostCompilerArgsForJni)
-    if (!HostManager.hostIsMingw) {
-        cflags += "-fPIC"
-    }
     suffixes {
         (".c" to ".$obj") {
             tool(*platformManager.hostPlatform.clang.clangC("").toTypedArray())
@@ -75,8 +72,7 @@ sourceSets.main.get().java.srcDir("src/jvm/kotlin")
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     kotlinOptions {
-        freeCompilerArgs = listOf("-Xuse-experimental=kotlin.ExperimentalUnsignedTypes",
-                                  "-Xuse-experimental=kotlin.Experimental",
+        freeCompilerArgs = listOf("-Xopt-in=kotlin.ExperimentalUnsignedTypes",
                                   "-Xopt-in=kotlin.RequiresOptIn",
                                   "-Xinline-classes",
                                   "-Xskip-prerelease-check")
@@ -86,8 +82,9 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 
 
 val nativelibs = project.tasks.create<Copy>("nativelibs") {
-    dependsOn(solib("callbacks"))
+    val callbacksSolib = solib("callbacks")
+    dependsOn(callbacksSolib)
 
-    from("$buildDir/")
+    from("$buildDir/$callbacksSolib")
     into("$buildDir/nativelibs/")
 }

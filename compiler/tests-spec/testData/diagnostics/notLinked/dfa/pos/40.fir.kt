@@ -60,7 +60,7 @@ fun case_6(x: Any?) {
 
 // TESTCASE NUMBER: 7
 fun case_7(x: Boolean?) {
-    if (x != null && x!!) {
+    if (x != null && x<!UNNECESSARY_NOT_NULL_ASSERTION!>!!<!>) {
         <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.Boolean? & kotlin.Boolean")!>x<!>.not()
         <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.Boolean")!>select(x)<!>.not()
     }
@@ -108,7 +108,7 @@ fun case_11(x: Any?) {
  * ISSUES: KT-30376
  */
 fun case_12(x: Any?) {
-    if (x!! as Boolean?) {
+    if (<!CONDITION_TYPE_MISMATCH!>x!! as Boolean?<!>) {
         <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.Any? & kotlin.Any")!>x<!>.<!UNRESOLVED_REFERENCE!>not<!>()
         <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.Any")!>select(x)<!>.<!UNRESOLVED_REFERENCE!>not<!>()
     }
@@ -133,8 +133,8 @@ fun case_13(x: Any?) {
  */
 fun case_14(x: Any?) {
     if (x == null) {
-        <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.Any?")!>x<!>
-        <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.Any?")!>x<!>?.equals(10)
+        <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.Any? & kotlin.Any?")!>x<!>
+        <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.Any? & kotlin.Any?")!>x<!>?.equals(10)
         <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.Any")!>x!!<!>.equals(10)
         <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.Any? & kotlin.Any")!>x<!>.equals(10)
     }
@@ -147,8 +147,8 @@ fun case_14(x: Any?) {
  */
 fun case_15(x: Any?) {
     if (x !== null) else {
-        <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.Any?")!>x<!>
-        <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.Any?")!>x<!>?.equals(10)
+        <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.Any? & kotlin.Any?")!>x<!>
+        <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.Any? & kotlin.Any?")!>x<!>?.equals(10)
         <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.Any")!>x!!<!>.equals(10)
         <!DEBUG_INFO_EXPRESSION_TYPE("kotlin.Any? & kotlin.Any")!>x<!>.equals(10)
     }

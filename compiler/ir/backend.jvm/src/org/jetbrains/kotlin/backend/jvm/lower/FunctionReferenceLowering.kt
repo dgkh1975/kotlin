@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
 import org.jetbrains.kotlin.backend.common.ir.*
 import org.jetbrains.kotlin.backend.common.lower.SamEqualsHashCodeMethodsGenerator
+import org.jetbrains.kotlin.backend.common.lower.parents
 import org.jetbrains.kotlin.backend.common.phaser.makeIrFilePhase
 import org.jetbrains.kotlin.backend.jvm.JvmBackendContext
 import org.jetbrains.kotlin.backend.jvm.JvmLoweredDeclarationOrigin
@@ -18,7 +19,6 @@ import org.jetbrains.kotlin.backend.jvm.lower.indy.LambdaMetafactoryArguments
 import org.jetbrains.kotlin.backend.jvm.lower.indy.LambdaMetafactoryArgumentsBuilder
 import org.jetbrains.kotlin.backend.jvm.lower.indy.SamDelegatingLambdaBlock
 import org.jetbrains.kotlin.backend.jvm.lower.indy.SamDelegatingLambdaBuilder
-import org.jetbrains.kotlin.backend.jvm.lower.inlineclasses.InlineClassAbi
 import org.jetbrains.kotlin.config.JvmClosureGenerationScheme
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
@@ -26,11 +26,9 @@ import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.builders.declarations.*
 import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.declarations.impl.IrFunctionImpl
 import org.jetbrains.kotlin.ir.expressions.*
-import org.jetbrains.kotlin.ir.expressions.impl.IrClassReferenceImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionReferenceImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrGetObjectValueImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrInstanceInitializerCallImpl
+import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
@@ -38,6 +36,7 @@ import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.load.java.JvmAnnotationNames
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.SpecialNames
+import org.jetbrains.kotlin.util.OperatorNameConventions
 
 internal val functionReferencePhase = makeIrFilePhase(
     ::FunctionReferenceLowering,
@@ -113,6 +112,108 @@ internal class FunctionReferenceLowering(private val context: JvmBackendContext)
         return FunctionReferenceBuilder(reference).build()
     }
 
+    override fun visitCall(expression: IrCall): IrExpression {
+        if (expression.symbol.owner.isInvokeOperator()) {
+            when (val receiver = expression.dispatchReceiver) {
+                is IrFunctionReference -> {
+                    rewriteDirectInvokeToFunctionReference(expression, receiver)?.let {
+                        it.transformChildrenVoid()
+                        return it
+                    }
+                }
+                is IrBlock -> {
+                    val last = receiver.statements.last()
+                    if (last is IrFunctionReference) {
+                        rewriteDirectInvokeToLambda(expression, receiver, last)?.let {
+                            it.transformChildrenVoid()
+                            return it
+                        }
+                    }
+                }
+            }
+        }
+
+        expression.transformChildrenVoid(this)
+        return expression
+    }
+
+    private fun IrFunction.isInvokeOperator(): Boolean {
+        // For now, it's enough to check that the function name is 'invoke',
+        // because later we are looking at the dispatch receiver and check whether it's a function reference
+        // or a block returning a function reference.
+        return name == OperatorNameConventions.INVOKE
+    }
+
+    private fun rewriteDirectInvokeToLambda(irInvokeCall: IrCall, irBlock: IrBlock, lastFunRef: IrFunctionReference): IrExpression? {
+        val callee = lastFunRef.symbol.owner
+        if (callee.origin != IrDeclarationOrigin.LOCAL_FUNCTION_FOR_LAMBDA && !callee.isAnonymousFunction)
+            return null
+        if (callee.parents.any { it is IrSimpleFunction && it.isInline }) {
+            // TODO investigate why inliner gets confused when we pass it a function with some optimized direct invoke.
+            return null
+        }
+        val irDirectCall = rewriteDirectInvokeToFunctionReference(irInvokeCall, lastFunRef)
+            ?: return null
+
+        // We track instances of IrFunctionImpl corresponding to direct invoked lambdas,
+        // so we can perform optimization on it later in ExpressionCodegen.kt
+        if (callee is IrFunctionImpl) context.directInvokedLambdas.add(callee.attributeOwnerId)
+        val newBlock = IrBlockImpl(irBlock.startOffset, irBlock.endOffset, irDirectCall.type)
+        newBlock.statements.addAll(irBlock.statements)
+        newBlock.statements[newBlock.statements.lastIndex] = irDirectCall
+        return newBlock
+    }
+
+    private fun rewriteDirectInvokeToFunctionReference(irInvokeCall: IrCall, irFunRef: IrFunctionReference): IrExpression? {
+        // TODO deal with type parameters somehow?
+        // It seems we can't encounter them in the code written by user,
+        // but this might be important later if we actually perform inlining and optimizations on IR.
+        return when (val irFun = irFunRef.symbol.owner) {
+            is IrSimpleFunction -> {
+                if (irFun.typeParameters.isNotEmpty()) return null
+                IrCallImpl(
+                    irInvokeCall.startOffset, irInvokeCall.endOffset, irInvokeCall.type,
+                    irFun.symbol,
+                    typeArgumentsCount = irFun.typeParameters.size, valueArgumentsCount = irFun.valueParameters.size
+                ).apply {
+                    copyReceiverAndValueArgumentsForDirectInvoke(irFunRef, irInvokeCall)
+                }
+            }
+            is IrConstructor ->
+                IrConstructorCallImpl(
+                    irInvokeCall.startOffset, irInvokeCall.endOffset, irInvokeCall.type,
+                    irFun.symbol,
+                    typeArgumentsCount = irFun.typeParameters.size,
+                    constructorTypeArgumentsCount = 0,
+                    valueArgumentsCount = irFun.valueParameters.size
+                ).apply {
+                    copyReceiverAndValueArgumentsForDirectInvoke(irFunRef, irInvokeCall)
+                }
+            else ->
+                throw AssertionError("Simple function or constructor expected: ${irFun.render()}")
+        }
+    }
+
+    private fun IrFunctionAccessExpression.copyReceiverAndValueArgumentsForDirectInvoke(
+        irFunRef: IrFunctionReference,
+        irInvokeCall: IrFunctionAccessExpression
+    ) {
+        val irFun = irFunRef.symbol.owner
+        var invokeArgIndex = 0
+        if (irFun.dispatchReceiverParameter != null) {
+            dispatchReceiver = irFunRef.dispatchReceiver ?: irInvokeCall.getValueArgument(invokeArgIndex++)
+        }
+        if (irFun.extensionReceiverParameter != null) {
+            extensionReceiver = irFunRef.extensionReceiver ?: irInvokeCall.getValueArgument(invokeArgIndex++)
+        }
+        if (invokeArgIndex + valueArgumentsCount != irInvokeCall.valueArgumentsCount) {
+            throw AssertionError("Mismatching value arguments: $invokeArgIndex arguments used for receivers\n${irInvokeCall.dump()}")
+        }
+        for (i in 0 until valueArgumentsCount) {
+            putValueArgument(i, irInvokeCall.getValueArgument(invokeArgIndex++))
+        }
+    }
+
     private fun wrapLambdaReferenceWithIndySamConversion(
         expression: IrBlock,
         reference: IrFunctionReference,
@@ -130,6 +231,19 @@ internal class FunctionReferenceLowering(private val context: JvmBackendContext)
             expression
         else
             FunctionReferenceBuilder(expression).build()
+    }
+
+    private fun getDeclarationParentForDelegatingLambda(): IrDeclarationParent {
+        for (s in allScopes.asReversed()) {
+            val scopeOwner = s.scope.scopeOwnerSymbol.owner
+            if (scopeOwner is IrDeclarationParent) {
+                return scopeOwner
+            }
+        }
+        throw AssertionError(
+            "No IrDeclarationParent found in scopes:\n" +
+                    allScopes.joinToString(separator = "\n") { "  " + it.scope.scopeOwnerSymbol.owner.render() }
+        )
     }
 
     // Handle SAM conversions which wrap a function reference:
@@ -153,7 +267,7 @@ internal class FunctionReferenceLowering(private val context: JvmBackendContext)
             invokable.statements.last() as IrFunctionReference
         } else if (shouldGenerateIndySamConversions && canGenerateIndySamConversionOnFunctionalExpression(samSuperType, invokable)) {
             val lambdaBlock = SamDelegatingLambdaBuilder(context)
-                .build(invokable, samSuperType, currentScope!!.scope.scopeOwnerSymbol)
+                .build(invokable, samSuperType, currentScope!!.scope.scopeOwnerSymbol, getDeclarationParentForDelegatingLambda())
             val lambdaMetafactoryArguments = LambdaMetafactoryArgumentsBuilder(context, crossinlineLambdas)
                 .getLambdaMetafactoryArgumentsOrNull(lambdaBlock.ref, samSuperType, false)
                 ?: return super.visitTypeOperator(expression)
@@ -174,7 +288,11 @@ internal class FunctionReferenceLowering(private val context: JvmBackendContext)
             }
         }
 
-        return FunctionReferenceBuilder(reference, samSuperType).build()
+        // Erase generic arguments in the SAM type, because they are not easy to approximate correctly otherwise,
+        // and LambdaMetafactory also uses erased type.
+        val erasedSamSuperType = samSuperType.erasedUpperBound.rawType(context)
+
+        return FunctionReferenceBuilder(reference, erasedSamSuperType).build()
     }
 
     private fun canGenerateIndySamConversionOnFunctionalExpression(samSuperType: IrType, expression: IrExpression): Boolean {
@@ -270,6 +388,7 @@ internal class FunctionReferenceLowering(private val context: JvmBackendContext)
         // The type of the reference is KFunction<in A1, ..., in An, out R>
         private val parameterTypes = (irFunctionReference.type as IrSimpleType).arguments.map { (it as IrTypeProjection).type }
         private val argumentTypes = parameterTypes.dropLast(1)
+        private val referenceReturnType = parameterTypes.last()
 
         private val typeArgumentsMap = irFunctionReference.typeSubstitutionMap
 
@@ -400,7 +519,7 @@ internal class FunctionReferenceLowering(private val context: JvmBackendContext)
                         irString(callee.originalName.asString())
                     }
                     createLegacyMethodOverride(irSymbols.functionReferenceGetOwner.owner) {
-                        calculateOwner(callee.parent, backendContext)
+                        calculateOwner(callee.parent)
                     }
                 }
 
@@ -408,7 +527,7 @@ internal class FunctionReferenceLowering(private val context: JvmBackendContext)
                     generateSamEqualsHashCodeMethods(boundReceiverVar)
                 }
                 if (isKotlinFunInterface) {
-                    functionReferenceClass.addFakeOverrides(context.irBuiltIns)
+                    functionReferenceClass.addFakeOverrides(backendContext.typeSystem)
                 }
 
                 +functionReferenceClass
@@ -468,11 +587,8 @@ internal class FunctionReferenceLowering(private val context: JvmBackendContext)
                 returnType = functionReferenceClass.defaultType
                 isPrimary = true
             }.apply {
-                // Add receiver parameter for bound function references
-                if (samSuperType == null) {
-                    boundReceiver?.let { (param, arg) ->
-                        valueParameters += param.copyTo(irFunction = this, index = 0, type = arg.type)
-                    }
+                if (samSuperType == null && boundReceiver != null) {
+                    addValueParameter("receiver", context.irBuiltIns.anyNType)
                 }
 
                 // Super constructor:
@@ -516,8 +632,8 @@ internal class FunctionReferenceLowering(private val context: JvmBackendContext)
             }
             if (!isLambda && useOptimizedSuperClass) {
                 val callableReferenceTarget = adaptedReferenceOriginalTarget ?: callee
-                val owner = calculateOwnerKClass(callableReferenceTarget.parent, backendContext)
-                call.putValueArgument(index++, kClassToJavaClass(owner, backendContext))
+                val owner = calculateOwnerKClass(callableReferenceTarget.parent)
+                call.putValueArgument(index++, kClassToJavaClass(owner))
                 call.putValueArgument(index++, irString(callableReferenceTarget.originalName.asString()))
                 call.putValueArgument(index++, generateSignature(callableReferenceTarget.symbol))
                 call.putValueArgument(index, irInt(getFunctionReferenceFlags(callableReferenceTarget)))
@@ -557,18 +673,11 @@ internal class FunctionReferenceLowering(private val context: JvmBackendContext)
         private fun createInvokeMethod(receiverVar: IrValueDeclaration?): IrSimpleFunction =
             functionReferenceClass.addFunction {
                 setSourceRange(if (isLambda) callee else irFunctionReference)
-                name =
-                    if (samSuperType == null && callee.returnType.isInlineClassType() &&
-                        context.state.functionsWithInlineClassReturnTypesMangled
-                    ) {
-                        // For functions with inline class return type we need to mangle the invoke method.
-                        // Otherwise, bridge lowering may fail to generate bridges for inline class types erasing to Any.
-                        val suffix = InlineClassAbi.hashReturnSuffix(callee)
-                        Name.identifier("${superMethod.name.asString()}-${suffix}")
-                    } else superMethod.name
-                returnType = callee.returnType
+                name = superMethod.name
+                returnType = referenceReturnType
                 isSuspend = callee.isSuspend
             }.apply {
+                metadata = functionReferenceClass.metadata
                 overriddenSymbols += superMethod.symbol
                 dispatchReceiverParameter = buildReceiverParameter(
                     this,
@@ -598,7 +707,7 @@ internal class FunctionReferenceLowering(private val context: JvmBackendContext)
 
             body = context.createJvmIrBuilder(symbol, startOffset, endOffset).run {
                 var unboundIndex = 0
-                irExprBody(irCall(callee).apply {
+                val call = irCall(callee.symbol, referenceReturnType).apply {
                     for (typeParameter in irFunctionReference.symbol.owner.allTypeParameters) {
                         putTypeArgument(typeParameter.index, typeArgumentsMap[typeParameter.symbol])
                     }
@@ -629,7 +738,13 @@ internal class FunctionReferenceLowering(private val context: JvmBackendContext)
                                 irGet(valueParameters[unboundIndex++])
                         }?.let { putArgument(callee, parameter, it) }
                     }
-                })
+                }
+                irExprBody(
+                    if (irFunctionReference.symbol.owner.isArrayOf())
+                        call.transform(VarargLowering(this@FunctionReferenceLowering.context), null)
+                    else
+                        call
+                )
             }
         }
 
@@ -694,31 +809,31 @@ internal class FunctionReferenceLowering(private val context: JvmBackendContext)
                 startOffset, endOffset, context.irBuiltIns.kClassClass.starProjectedType, context.irBuiltIns.kClassClass, classType
             )
 
-        internal fun IrBuilderWithScope.kClassToJavaClass(kClassReference: IrExpression, context: JvmBackendContext) =
-            irGet(context.ir.symbols.javaLangClass.starProjectedType, null, context.ir.symbols.kClassJava.owner.getter!!.symbol).apply {
+        internal fun JvmIrBuilder.kClassToJavaClass(kClassReference: IrExpression) =
+            irGet(irSymbols.javaLangClass.starProjectedType, null, irSymbols.kClassJava.owner.getter!!.symbol).apply {
                 extensionReceiver = kClassReference
             }
 
-        internal fun IrBuilderWithScope.javaClassReference(classType: IrType, context: JvmBackendContext) =
-            kClassToJavaClass(kClassReference(classType), context)
+        internal fun JvmIrBuilder.javaClassReference(classType: IrType) =
+            kClassToJavaClass(kClassReference(classType))
 
-        internal fun IrBuilderWithScope.calculateOwner(irContainer: IrDeclarationParent, context: JvmBackendContext): IrExpression {
-            val kClass = calculateOwnerKClass(irContainer, context)
+        internal fun JvmIrBuilder.calculateOwner(irContainer: IrDeclarationParent): IrExpression {
+            val kClass = calculateOwnerKClass(irContainer)
 
             if ((irContainer as? IrClass)?.isFileClass != true && irContainer !is IrPackageFragment)
                 return kClass
 
-            return irCall(context.ir.symbols.getOrCreateKotlinPackage).apply {
-                putValueArgument(0, kClassToJavaClass(kClass, context))
+            return irCall(irSymbols.getOrCreateKotlinPackage).apply {
+                putValueArgument(0, kClassToJavaClass(kClass))
                 // Note that this name is not used in reflection. There should be the name of the referenced declaration's
                 // module instead, but there's no nice API to obtain that name here yet
                 // TODO: write the referenced declaration's module name and use it in reflection
-                putValueArgument(1, irString(context.state.moduleName))
+                putValueArgument(1, irString(backendContext.state.moduleName))
             }
         }
 
-        internal fun IrBuilderWithScope.calculateOwnerKClass(irContainer: IrDeclarationParent, context: JvmBackendContext): IrExpression =
-            kClassReference(getOwnerKClassType(irContainer, context))
+        internal fun JvmIrBuilder.calculateOwnerKClass(irContainer: IrDeclarationParent): IrExpression =
+            kClassReference(getOwnerKClassType(irContainer, backendContext))
 
         internal fun getOwnerKClassType(irContainer: IrDeclarationParent, context: JvmBackendContext): IrType =
             if (irContainer is IrClass) irContainer.defaultType
@@ -736,5 +851,3 @@ internal class FunctionReferenceLowering(private val context: JvmBackendContext)
             declaration.parent.let { it is IrClass && it.isFileClass }
     }
 }
-
-

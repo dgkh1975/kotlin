@@ -9,7 +9,7 @@ import org.jetbrains.kotlin.builtins.jvm.JvmBuiltInsSignatures
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.FirClass
 import org.jetbrains.kotlin.fir.declarations.FirRegularClass
-import org.jetbrains.kotlin.fir.declarations.classId
+import org.jetbrains.kotlin.fir.declarations.utils.classId
 import org.jetbrains.kotlin.fir.resolve.defaultType
 import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutor
 import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutorByMap
@@ -24,7 +24,7 @@ import org.jetbrains.kotlin.name.Name
 
 class JvmMappedScope(
     private val session: FirSession,
-    private val firKotlinClass: FirClass<*>,
+    private val firKotlinClass: FirClass,
     private val firJavaClass: FirRegularClass,
     private val declaredMemberScope: FirScope,
     private val javaMappedClassUseSiteScope: FirTypeScope,
@@ -35,7 +35,8 @@ class JvmMappedScope(
     private val substitutor = ConeSubstitutorByMap(
         firJavaClass.typeParameters.zip(firKotlinClass.typeParameters).map { (javaParameter, kotlinParameter) ->
             javaParameter.symbol to ConeTypeParameterTypeImpl(ConeTypeParameterLookupTag(kotlinParameter.symbol), isNullable = false)
-        }.toMap()
+        }.toMap(),
+        session
     )
     private val kotlinDispatchReceiverType = firKotlinClass.defaultType()
 
@@ -130,7 +131,7 @@ class JvmMappedScope(
 
         // NOTE: No-arg constructors
         @OptIn(ExperimentalStdlibApi::class)
-        private val additionalHiddenConstructors = buildSet {
+        private val additionalHiddenConstructors = buildSet<String> {
             // kotlin.text.String pseudo-constructors should be used instead of java.lang.String constructors
             listOf(
                 "",

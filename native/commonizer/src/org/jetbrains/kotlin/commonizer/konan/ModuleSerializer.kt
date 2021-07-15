@@ -5,7 +5,10 @@
 
 package org.jetbrains.kotlin.commonizer.konan
 
-import org.jetbrains.kotlin.commonizer.*
+import org.jetbrains.kotlin.commonizer.CommonizerOutputFileLayout
+import org.jetbrains.kotlin.commonizer.CommonizerParameters
+import org.jetbrains.kotlin.commonizer.CommonizerTarget
+import org.jetbrains.kotlin.commonizer.ResultsConsumer
 import org.jetbrains.kotlin.library.SerializedMetadata
 import org.jetbrains.kotlin.library.impl.BaseWriterImpl
 import org.jetbrains.kotlin.library.impl.BuiltInsPlatform
@@ -15,18 +18,20 @@ import java.io.File
 
 internal class ModuleSerializer(
     private val destination: File,
-    private val outputLayout: CommonizerOutputLayout,
 ) : ResultsConsumer {
-    override fun consume(target: CommonizerTarget, moduleResult: ResultsConsumer.ModuleResult) {
-        val librariesDestination = outputLayout.getTargetDirectory(destination, target)
+    override fun consume(parameters: CommonizerParameters, target: CommonizerTarget, moduleResult: ResultsConsumer.ModuleResult) {
+        val librariesDestination = CommonizerOutputFileLayout.resolveCommonizedDirectory(destination, target)
         when (moduleResult) {
             is ResultsConsumer.ModuleResult.Commonized -> {
                 val libraryDestination = librariesDestination.resolve(moduleResult.fileSystemCompatibleLibraryName)
                 writeLibrary(moduleResult.metadata, moduleResult.manifest, libraryDestination)
             }
             is ResultsConsumer.ModuleResult.Missing -> {
-                val missingModuleLocation = moduleResult.originalLocation
-                missingModuleLocation.copyRecursively(librariesDestination.resolve(moduleResult.fileSystemCompatibleLibraryName))
+                val missingModuleSourceLocation = moduleResult.originalLocation
+                val missingModuleDestinationLocation = librariesDestination.resolve(moduleResult.fileSystemCompatibleLibraryName)
+                if (!missingModuleDestinationLocation.exists()) {
+                    missingModuleSourceLocation.copyRecursively(librariesDestination.resolve(moduleResult.fileSystemCompatibleLibraryName))
+                }
             }
         }
     }
@@ -42,13 +47,13 @@ private fun writeLibrary(
         moduleName = manifestData.uniqueName,
         versions = manifestData.versions,
         builtInsPlatform = BuiltInsPlatform.NATIVE,
-        nativeTargets = emptyList(), // will be overwritten with NativeSensitiveManifestData.applyTo() below
+        nativeTargets = emptyList(), // will be overwritten with addManifest(manifestData) below
         nopack = true,
         shortName = manifestData.shortName,
         layout = layout
     )
     library.addMetadata(metadata)
-    manifestData.applyTo(library.base as BaseWriterImpl)
+    (library.base as BaseWriterImpl).addManifest(manifestData)
     library.commit()
 }
 

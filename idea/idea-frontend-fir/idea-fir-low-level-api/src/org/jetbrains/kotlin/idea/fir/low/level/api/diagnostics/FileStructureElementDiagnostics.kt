@@ -10,22 +10,23 @@ import com.intellij.util.SmartList
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirPsiDiagnostic
 import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.idea.fir.low.level.api.api.DiagnosticCheckerFilter
-import org.jetbrains.kotlin.idea.fir.low.level.api.file.structure.FileStructureElement
+import org.jetbrains.kotlin.idea.fir.low.level.api.file.builder.LockProvider
 
 internal class FileStructureElementDiagnostics(
     private val firFile: FirFile,
+    private val lockProvider: LockProvider<FirFile>,
     private val retriever: FileStructureElementDiagnosticRetriever
 ) {
     private val diagnosticByCommonCheckers: FileStructureElementDiagnosticList by lazy {
-        retriever.retrieve(firFile, FileStructureElementDiagnosticsCollector.USUAL_COLLECTOR)
+        retriever.retrieve(firFile, FileStructureElementDiagnosticsCollector.USUAL_COLLECTOR, lockProvider)
     }
 
     private val diagnosticByExtendedCheckers: FileStructureElementDiagnosticList by lazy {
-        retriever.retrieve(firFile, FileStructureElementDiagnosticsCollector.EXTENDED_COLLECTOR)
+        retriever.retrieve(firFile, FileStructureElementDiagnosticsCollector.EXTENDED_COLLECTOR, lockProvider)
     }
 
-    fun diagnosticsFor(filter: DiagnosticCheckerFilter, element: PsiElement): List<FirPsiDiagnostic<*>> =
-        SmartList<FirPsiDiagnostic<*>>().apply {
+    fun diagnosticsFor(filter: DiagnosticCheckerFilter, element: PsiElement): List<FirPsiDiagnostic> =
+        SmartList<FirPsiDiagnostic>().apply {
             if (filter.runCommonCheckers) {
                 addAll(diagnosticByCommonCheckers.diagnosticsFor(element))
             }
@@ -35,7 +36,7 @@ internal class FileStructureElementDiagnostics(
         }
 
 
-    inline fun forEach(filter: DiagnosticCheckerFilter, action: (List<FirPsiDiagnostic<*>>) -> Unit) {
+    inline fun forEach(filter: DiagnosticCheckerFilter, action: (List<FirPsiDiagnostic>) -> Unit) {
         if (filter.runCommonCheckers) {
             diagnosticByCommonCheckers.forEach(action)
         }

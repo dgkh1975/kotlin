@@ -6,18 +6,18 @@
 package org.jetbrains.kotlin.idea.frontend.api.fir.components
 
 import com.intellij.psi.PsiElement
-import com.intellij.psi.util.parentOfType
 import org.jetbrains.kotlin.fir.FirFakeSourceElementKind
 import org.jetbrains.kotlin.fir.psi
-import org.jetbrains.kotlin.idea.frontend.api.ValidityToken
+import org.jetbrains.kotlin.idea.fir.low.level.api.util.parentOfType
+import org.jetbrains.kotlin.idea.frontend.api.tokens.ValidityToken
 import org.jetbrains.kotlin.idea.frontend.api.components.KtSymbolContainingDeclarationProvider
 import org.jetbrains.kotlin.idea.frontend.api.fir.KtFirAnalysisSession
 import org.jetbrains.kotlin.idea.frontend.api.fir.symbols.KtFirSymbol
 import org.jetbrains.kotlin.idea.frontend.api.symbols.*
 import org.jetbrains.kotlin.idea.frontend.api.symbols.markers.KtSymbolKind
 import org.jetbrains.kotlin.idea.frontend.api.symbols.markers.KtSymbolWithKind
-import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.psi.KtDeclaration
+import org.jetbrains.kotlin.psi.KtObjectLiteralExpression
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 
 internal class KtFirSymbolContainingDeclarationProvider(
@@ -27,6 +27,14 @@ internal class KtFirSymbolContainingDeclarationProvider(
     override fun getContainingDeclaration(symbol: KtSymbolWithKind): KtSymbolWithKind? {
         if (symbol is KtPackageSymbol) return null
         if (symbol.symbolKind == KtSymbolKind.TOP_LEVEL) return null
+        if (symbol is KtCallableSymbol) {
+            val classId = symbol.callableIdIfNonLocal?.classId
+            if (classId != null) {
+                with(analysisSession) {
+                    return classId.getCorrespondingToplevelClassOrObjectSymbol()
+                }
+            }
+        }
         return when (symbol.origin) {
             KtSymbolOrigin.SOURCE, KtSymbolOrigin.SOURCE_MEMBER_GENERATED ->
                 getContainingDeclarationForKotlinInSourceSymbol(symbol)
@@ -46,16 +54,19 @@ internal class KtFirSymbolContainingDeclarationProvider(
 
     private fun getContainingDeclarationForKotlinInSourceSymbol(symbol: KtSymbolWithKind): KtSymbolWithKind = with(analysisSession) {
         require(symbol.origin == KtSymbolOrigin.SOURCE || symbol.origin == KtSymbolOrigin.SOURCE_MEMBER_GENERATED)
-        val psi = symbol.getPsi()
 
-        check(psi is KtDeclaration) { "PSI of kotlin declaration should be KtDeclaration" }
+        val psi = when (val psi = symbol.getPsi()) {
+            is KtDeclaration -> psi
+            is KtObjectLiteralExpression -> psi.objectDeclaration
+            else -> error { "PSI of kotlin declaration should be KtDeclaration but was ${psi::class.simpleName}" }
+        }
+
         val containingDeclaration = when (symbol.origin) {
             KtSymbolOrigin.SOURCE -> psi.parentOfType()
                 ?: error("Containing declaration should present for non-toplevel declaration")
             KtSymbolOrigin.SOURCE_MEMBER_GENERATED -> psi
             else -> error("Unsupported declaration origin ${symbol.origin}")
         }
-
 
         return with(analysisSession) {
             val containingSymbol = containingDeclaration.getSymbol()

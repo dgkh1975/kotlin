@@ -13,13 +13,13 @@ import org.jetbrains.kotlin.backend.konan.descriptors.enumEntries
 import org.jetbrains.kotlin.backend.konan.descriptors.kotlinNativeInternal
 import org.jetbrains.kotlin.backend.konan.llvm.findMainEntryPoint
 import org.jetbrains.kotlin.backend.konan.lower.TestProcessor
-import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.builtins.UnsignedType
 import org.jetbrains.kotlin.config.coroutinesIntrinsicsPackageFqName
 import org.jetbrains.kotlin.config.coroutinesPackageFqName
 import org.jetbrains.kotlin.config.languageVersionSettings
-import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.descriptors.ClassDescriptor
+import org.jetbrains.kotlin.descriptors.findClassAcrossModuleDependencies
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
@@ -29,7 +29,10 @@ import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.typeWith
-import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.util.ReferenceSymbolTable
+import org.jetbrains.kotlin.ir.util.SymbolTable
+import org.jetbrains.kotlin.ir.util.constructors
+import org.jetbrains.kotlin.ir.util.referenceFunction
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
@@ -38,6 +41,11 @@ import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.Variance
 import kotlin.properties.Delegates
+
+object KonanNameConventions {
+    val setWithoutBoundCheck = Name.special("<setWithoutBoundCheck>")
+    val getWithoutBoundCheck = Name.special("<getWithoutBoundCheck>")
+}
 
 // This is what Context collects about IR.
 internal class KonanIr(context: Context, irModule: IrModuleFragment): Ir<Context>(context, irModule) {
@@ -63,6 +71,7 @@ internal class KonanSymbols(
     val nativePointed = symbolTable.referenceClass(context.interopBuiltIns.nativePointed)
     val nativePtrType = nativePtr.typeWith(arguments = emptyList())
     val nonNullNativePtr = symbolTable.referenceClass(context.nonNullNativePtr)
+    val nonNullNativePtrType = nonNullNativePtr.typeWith(arguments = emptyList())
 
     val immutableBlobOf = symbolTable.referenceSimpleFunction(context.immutableBlobOf)
 
@@ -90,7 +99,7 @@ internal class KonanSymbols(
 
     val integerConversions = allIntegerClasses.flatMap { fromClass ->
         allIntegerClasses.map { toClass ->
-            val name = Name.identifier("to${toClass.descriptor.name.asString().capitalize()}")
+            val name = Name.identifier("to${toClass.descriptor.name.asString().replaceFirstChar(Char::uppercaseChar)}")
             val descriptor = if (fromClass in signedIntegerClasses && toClass in unsignedIntegerClasses) {
                 builtInsPackage("kotlin")
                         .getContributedFunctions(name, NoLookupLocation.FROM_BACKEND)
@@ -205,6 +214,10 @@ internal class KonanSymbols(
 
     val nativeMemUtils = symbolTable.referenceClass(context.interopBuiltIns.nativeMemUtils)
 
+    val nativeHeap = symbolTable.referenceClass(context.interopBuiltIns.nativeHeap)
+
+    val interopGetPtr = symbolTable.referenceSimpleFunction(context.interopBuiltIns.interopGetPtr)
+
     val readBits = interopFunction("readBits")
     val writeBits = interopFunction("writeBits")
 
@@ -222,11 +235,11 @@ internal class KonanSymbols(
     val getNativeNullPtr = symbolTable.referenceSimpleFunction(context.getNativeNullPtr)
 
     val boxCachePredicates = BoxCache.values().associate {
-        it to internalFunction("in${it.name.toLowerCase().capitalize()}BoxCache")
+        it to internalFunction("in${it.name.lowercase().replaceFirstChar(Char::uppercaseChar)}BoxCache")
     }
 
     val boxCacheGetters = BoxCache.values().associate {
-        it to internalFunction("getCached${it.name.toLowerCase().capitalize()}Box")
+        it to internalFunction("getCached${it.name.lowercase().replaceFirstChar(Char::uppercaseChar)}Box")
     }
 
     val immutableBlob = symbolTable.referenceClass(
@@ -267,7 +280,7 @@ internal class KonanSymbols(
 
     override val throwNullPointerException = internalFunction("ThrowNullPointerException")
 
-    override val throwNoWhenBranchMatchedException = internalFunction("ThrowNoWhenBranchMatchedException")
+    val throwNoWhenBranchMatchedException = internalFunction("ThrowNoWhenBranchMatchedException")
 
     override val throwTypeCastException = internalFunction("ThrowTypeCastException")
 
@@ -322,7 +335,6 @@ internal class KonanSymbols(
                 } ?: error(descriptor.toString())
         return symbolTable.referenceSimpleFunction(functionDescriptor)
     }
-    override val copyRangeTo get() = TODO()
 
     fun getNoParamFunction(name: Name, receiverType: KotlinType): IrFunctionSymbol {
         val descriptor = receiverType.memberScope.getContributedFunctions(name, NoLookupLocation.FROM_BACKEND)
@@ -562,6 +574,10 @@ internal class KonanSymbols(
     val baseClassSuite   = getKonanTestClass("BaseClassSuite")
     val topLevelSuite    = getKonanTestClass("TopLevelSuite")
     val testFunctionKind = getKonanTestClass("TestFunctionKind")
+
+    override val getWithoutBoundCheckName: Name? = KonanNameConventions.getWithoutBoundCheck
+
+    override val setWithoutBoundCheckName: Name? = KonanNameConventions.setWithoutBoundCheck
 
     private val testFunctionKindCache = TestProcessor.FunctionKind.values().associate {
         val symbol = if (it.runtimeKindString.isEmpty())

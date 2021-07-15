@@ -1,4 +1,3 @@
-// !WITH_NEW_INFERENCE
 // !CHECK_TYPE
 // !DIAGNOSTICS: -UNUSED_PARAMETER
 data class A(val x: Int, val y: String)
@@ -36,19 +35,19 @@ fun bar() {
     }
 
     foobar { (a, b), (c, d) ->
-        <!UNRESOLVED_REFERENCE!>a<!> checkType { <!INAPPLICABLE_CANDIDATE!>_<!><Int>() }
-        <!UNRESOLVED_REFERENCE!>b<!> checkType { <!INAPPLICABLE_CANDIDATE!>_<!><String>() }
+        a checkType { _<Int>() }
+        b checkType { _<String>() }
         c checkType { _<Double>() }
         d checkType { _<Short>() }
     }
 
-    foo { (a: String, b) ->
+    foo { (<!COMPONENT_FUNCTION_RETURN_TYPE_MISMATCH!>a: String<!>, b) ->
         a checkType { <!INAPPLICABLE_CANDIDATE!>_<!><Int>() }
         b checkType { _<String>() }
     }
 
-    <!INAPPLICABLE_CANDIDATE!>foo<!> { (a, b): B ->
+    foo <!ARGUMENT_TYPE_MISMATCH!>{ (a, b): B ->
         a checkType { _<Double>() }
         b checkType { _<Short>() }
-    }
+    }<!>
 }

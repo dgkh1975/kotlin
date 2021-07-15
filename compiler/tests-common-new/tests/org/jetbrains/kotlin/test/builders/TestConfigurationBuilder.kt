@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.test.directives.model.DirectivesContainer
 import org.jetbrains.kotlin.test.impl.TestConfigurationImpl
 import org.jetbrains.kotlin.test.model.*
 import org.jetbrains.kotlin.test.services.*
+import kotlin.io.path.Path
 
 @DefaultsDsl
 @OptIn(TestInfrastructureInternals::class)
@@ -27,6 +28,7 @@ class TestConfigurationBuilder {
     private val sourcePreprocessors: MutableList<Constructor<SourceFilePreprocessor>> = mutableListOf()
     private val additionalMetaInfoProcessors: MutableList<Constructor<AdditionalMetaInfoProcessor>> = mutableListOf()
     private val environmentConfigurators: MutableList<Constructor<EnvironmentConfigurator>> = mutableListOf()
+    private val preAnalysisHandlers: MutableList<Constructor<PreAnalysisHandler>> = mutableListOf()
 
     private val additionalSourceProviders: MutableList<Constructor<AdditionalSourceProvider>> = mutableListOf()
     private val moduleStructureTransformers: MutableList<ModuleStructureTransformer> = mutableListOf()
@@ -69,7 +71,10 @@ class TestConfigurationBuilder {
         return """$this|$other"""
     }
 
-    private fun String.toMatchingRegexString(): String = """^${replace("*", ".*")}$"""
+    private fun String.toMatchingRegexString(): String = when (this) {
+        "*" -> ".*"
+        else -> """^.*/(${replace("*", ".*")})$"""
+    }
 
     fun forTestsMatching(pattern: Regex, configuration: TestConfigurationBuilder.() -> Unit) {
         configurationsByPositiveTestDataCondition += pattern to configuration
@@ -111,8 +116,12 @@ class TestConfigurationBuilder {
         handlers += constructor
     }
 
-    fun useSourcePreprocessor(vararg preprocessors: Constructor<SourceFilePreprocessor>) {
-        sourcePreprocessors += preprocessors
+    fun useSourcePreprocessor(vararg preprocessors: Constructor<SourceFilePreprocessor>, needToPrepend: Boolean = false) {
+        if (needToPrepend) {
+            sourcePreprocessors.addAll(0, preprocessors.toList())
+        } else {
+            sourcePreprocessors.addAll(preprocessors)
+        }
     }
 
     fun useDirectives(vararg directives: DirectivesContainer) {
@@ -121,6 +130,10 @@ class TestConfigurationBuilder {
 
     fun useConfigurators(vararg environmentConfigurators: Constructor<EnvironmentConfigurator>) {
         this.environmentConfigurators += environmentConfigurators
+    }
+
+    fun usePreAnalysisHandlers(vararg handlers: Constructor<PreAnalysisHandler>) {
+        this.preAnalysisHandlers += handlers
     }
 
     fun useMetaInfoProcessors(vararg updaters: Constructor<AdditionalMetaInfoProcessor>) {
@@ -158,13 +171,16 @@ class TestConfigurationBuilder {
     }
 
     fun build(testDataPath: String): TestConfiguration {
+        // We use URI here because we use '/' in our codebase, and URI also uses it (unlike OS-dependent `toString()`)
+        val absoluteTestDataPath = Path(testDataPath).normalize().toUri().toString()
+
         for ((regex, configuration) in configurationsByPositiveTestDataCondition) {
-            if (regex.matches(testDataPath)) {
+            if (regex.matches(absoluteTestDataPath)) {
                 this.configuration()
             }
         }
         for ((regex, configuration) in configurationsByNegativeTestDataCondition) {
-            if (!regex.matches(testDataPath)) {
+            if (!regex.matches(absoluteTestDataPath)) {
                 this.configuration()
             }
         }
@@ -178,6 +194,7 @@ class TestConfigurationBuilder {
             additionalMetaInfoProcessors,
             environmentConfigurators,
             additionalSourceProviders,
+            preAnalysisHandlers,
             moduleStructureTransformers,
             metaTestConfigurators,
             afterAnalysisCheckers,

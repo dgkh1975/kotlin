@@ -25,6 +25,7 @@ import org.jetbrains.kotlin.ir.util.referenceFunction
 import org.jetbrains.kotlin.konan.target.*
 import org.jetbrains.kotlin.name.isChildOf
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.annotations.*
 import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.resolve.descriptorUtil.*
@@ -366,6 +367,7 @@ private class ExportedElement(val kind: ElementKind,
             |extern "C" KObjHeader* ${cname}_instance(KObjHeader**);
             |static $objectClassC ${cname}_instance_impl(void) {
             |  Kotlin_initRuntimeIfNeeded();
+            |  ScopedRunnableState stateGuard;
             |  KObjHolder result_holder;
             |  KObjHeader* result = ${cname}_instance(result_holder.slot());
             |  return $objectClassC { .pinned = CreateStablePointer(result)};
@@ -384,6 +386,7 @@ private class ExportedElement(val kind: ElementKind,
               |extern "C" KObjHeader* $cname(KObjHeader**);
               |static $enumClassC ${cname}_impl(void) {
               |  Kotlin_initRuntimeIfNeeded();
+              |  ScopedRunnableState stateGuard;
               |  KObjHolder result_holder;
               |  KObjHeader* result = $cname(result_holder.slot());
               |  return $enumClassC { .pinned = CreateStablePointer(result)};
@@ -428,6 +431,9 @@ private class ExportedElement(val kind: ElementKind,
         val builder = StringBuilder()
         builder.append("$visibility ${owner.translateType(cfunction[0])} ${cnameImpl}(${cfunction.drop(1).
                 mapIndexed { index, it -> "${owner.translateType(it)} arg${index}" }.joinToString(", ")}) {\n")
+        // TODO: do we really need that in every function?
+        builder.append("  Kotlin_initRuntimeIfNeeded();\n")
+        builder.append("  ScopedRunnableState stateGuard;\n");
         val args = ArrayList(cfunction.drop(1).mapIndexed { index, pair ->
             translateArgument("arg$index", pair, Direction.C_TO_KOTLIN, builder)
         })
@@ -435,8 +441,6 @@ private class ExportedElement(val kind: ElementKind,
         val isConstructor = declaration is ConstructorDescriptor
         val isObjectReturned = !isConstructor && owner.isMappedToReference(cfunction[0].type)
         val isStringReturned = owner.isMappedToString(cfunction[0].type)
-        // TODO: do we really need that in every function?
-        builder.append("  Kotlin_initRuntimeIfNeeded();\n")
         builder.append("   try {\n")
         if (isObjectReturned || isStringReturned) {
             builder.append("  KObjHolder result_holder;\n")
@@ -532,7 +536,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
     internal fun paramsToUniqueNames(params: List<ParameterDescriptor>): Map<ParameterDescriptor, String> {
         paramNamesRecorded.clear()
         return params.associate {
-            val name = translateName(it.name.asString()) 
+            val name = translateName(it.name)
             val count = paramNamesRecorded.getOrDefault(name, 0)
             paramNamesRecorded[name] = count + 1
             if (count == 0) {
@@ -636,7 +640,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
     override fun visitPackageFragmentDescriptor(descriptor: PackageFragmentDescriptor, ignored: Void?): Boolean {
         val fqName = descriptor.fqName
         val packageScope = packageScopes.getOrPut(fqName) {
-            val name = if (fqName.isRoot) "root" else translateName(fqName.shortName().asString())
+            val name = if (fqName.isRoot) "root" else translateName(fqName.shortName())
             val scope = ExportedElementScope(ScopeKind.PACKAGE, name)
             scopes.last().scopes += scope
             scope
@@ -763,7 +767,11 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         }
     }
 
+    private fun ExportedElementScope.hasNonEmptySubScopes(): Boolean = elements.isNotEmpty() || scopes.any { it.hasNonEmptySubScopes() }
+
     private fun makeScopeDefinitions(scope: ExportedElementScope, kind: DefinitionKind, indent: Int) {
+        if (!scope.hasNonEmptySubScopes())
+            return
         if (kind == DefinitionKind.C_HEADER_STRUCT) output("struct {", indent)
         if (kind == DefinitionKind.C_SOURCE_STRUCT) output(".${scope.name} = {", indent)
         scope.elements.forEach { makeElementDefinition(it, kind, indent + 1) }
@@ -810,8 +818,8 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         val exportedSymbol = "${prefix}_symbols"
         exportedSymbols += exportedSymbol
 
-        output("#ifndef KONAN_${prefix.toUpperCase()}_H")
-        output("#define KONAN_${prefix.toUpperCase()}_H")
+        output("#ifndef KONAN_${prefix.uppercase()}_H")
+        output("#define KONAN_${prefix.uppercase()}_H")
         // TODO: use namespace for C++ case?
         output("""
         #ifdef __cplusplus
@@ -882,7 +890,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         }  /* extern "C" */
         #endif""".trimIndent())
 
-        output("#endif  /* KONAN_${prefix.toUpperCase()}_H */")
+        output("#endif  /* KONAN_${prefix.uppercase()}_H */")
 
         outputStreamWriter.close()
         println("Produced library API in ${prefix}_api.h")
@@ -914,6 +922,8 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         |void EnterFrame(KObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
         |void LeaveFrame(KObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
         |void Kotlin_initRuntimeIfNeeded();
+        |void Kotlin_mm_switchThreadStateRunnable() RUNTIME_NOTHROW;
+        |void Kotlin_mm_switchThreadStateNative() RUNTIME_NOTHROW;
         |void TerminateWithUnhandledException(KObjHeader*) RUNTIME_NORETURN;
         |
         |KObjHeader* CreateStringFromCString(const char*, KObjHeader**);
@@ -956,6 +966,16 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         |    KObjHeader* GetExceptionObject() noexcept;
         |};
         |
+        |class ScopedRunnableState {
+        |public:
+        |   ScopedRunnableState() noexcept { Kotlin_mm_switchThreadStateRunnable(); }
+        |   ~ScopedRunnableState() { Kotlin_mm_switchThreadStateNative(); }
+        |   ScopedRunnableState(const ScopedRunnableState&) = delete;
+        |   ScopedRunnableState(ScopedRunnableState&&) = delete;
+        |   ScopedRunnableState& operator=(const ScopedRunnableState&) = delete;
+        |   ScopedRunnableState& operator=(ScopedRunnableState&&) = delete;
+        |};
+        |
         |static void DisposeStablePointerImpl(${prefix}_KNativePtr ptr) {
         |  DisposeStablePointer(ptr);
         |}
@@ -963,6 +983,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         |  DisposeCString((char*)ptr);
         |}
         |static ${prefix}_KBoolean IsInstanceImpl(${prefix}_KNativePtr ref, const ${prefix}_KType* type) {
+        |  ScopedRunnableState stateGuard;
         |  KObjHolder holder;
         |  return IsInstance(DerefStablePointer(ref, holder.slot()), (const KTypeInfo*)type);
         |}
@@ -977,6 +998,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
             output("extern \"C\" KObjHeader* Kotlin_box${it.shortNameForPredefinedType}($parameter$maybeComma KObjHeader**);")
             output("static ${translateType(nullableIt)} ${it.createNullableNameForPredefinedType}Impl($parameter) {")
             output("Kotlin_initRuntimeIfNeeded();", 1)
+            output("ScopedRunnableState stateGuard;", 1)
             output("KObjHolder result_holder;", 1)
             output("KObjHeader* result = Kotlin_box${it.shortNameForPredefinedType}($argument result_holder.slot());", 1)
             output("return ${translateType(nullableIt)} { .pinned = CreateStablePointer(result) };", 1)
@@ -1052,11 +1074,13 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         return type.isUnit() || type.isNothing()
     }
 
-    fun translateName(name: String): String {
+    fun translateName(name: Name): String {
+        val nameString = name.asString()
         return when {
-            simpleNameMapping.contains(name) -> simpleNameMapping[name]!!
-            cKeywords.contains(name) -> "${name}_"
-            else -> name
+            simpleNameMapping.contains(nameString) -> simpleNameMapping[nameString]!!
+            cKeywords.contains(nameString) -> "${nameString}_"
+            name.isSpecial -> nameString.replace("[<> ]".toRegex(), "_")
+            else -> nameString
         }
     }
 

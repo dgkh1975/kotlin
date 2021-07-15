@@ -5,11 +5,12 @@
 
 package org.jetbrains.kotlin.codegen
 
+import org.jetbrains.kotlin.ObsoleteTestInfrastructure
 import org.jetbrains.kotlin.test.KotlinTestUtils
-import org.jetbrains.kotlin.utils.addToStdlib.firstNotNullResult
 import org.jetbrains.kotlin.utils.sure
 import java.io.File
 
+@ObsoleteTestInfrastructure(replacer = "org.jetbrains.kotlin.test.runners.codegen.AbstractBytecodeListingTest")
 abstract class AbstractBytecodeListingTest : CodegenTestCase() {
     override fun doMultiFileTest(wholeFile: File, files: List<TestFile>) {
         compile(files)
@@ -26,7 +27,7 @@ abstract class AbstractBytecodeListingTest : CodegenTestCase() {
         }
 
         val txtFile =
-            prefixes.firstNotNullResult { File(wholeFile.parentFile, wholeFile.nameWithoutExtension + "$it.txt").takeIf(File::exists) }
+            prefixes.firstNotNullOfOrNull { File(wholeFile.parentFile, wholeFile.nameWithoutExtension + "$it.txt").takeIf(File::exists) }
                 .sure { "No testData file exists: ${wholeFile.nameWithoutExtension}.txt" }
 
         KotlinTestUtils.assertEqualsToFile(txtFile, actualTxt)

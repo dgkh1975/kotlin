@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.test.runners
 
 import org.jetbrains.kotlin.platform.jvm.JvmPlatforms
 import org.jetbrains.kotlin.test.TestJdkKind
+import org.jetbrains.kotlin.test.bind
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
 import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives.COMPARE_WITH_LIGHT_TREE
 import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives.FIR_DUMP
@@ -28,71 +29,7 @@ import org.jetbrains.kotlin.test.services.fir.FirOldFrontendMetaConfigurator
 
 abstract class AbstractFirDiagnosticTest : AbstractKotlinCompilerTest() {
     override fun TestConfigurationBuilder.configuration() {
-        globalDefaults {
-            frontend = FrontendKinds.FIR
-            targetPlatform = JvmPlatforms.defaultJvmPlatform
-            dependencyKind = DependencyKind.Source
-        }
-
-        enableMetaInfoHandler()
-
-        useConfigurators(
-            ::CommonEnvironmentConfigurator,
-            ::JvmEnvironmentConfigurator,
-        )
-
-        useAdditionalSourceProviders(
-            ::AdditionalDiagnosticsSourceFilesProvider,
-            ::CoroutineHelpersSourceFilesProvider,
-        )
-        useFrontendFacades(::FirFrontendFacade)
-        useFrontendHandlers(
-            ::FirDiagnosticsHandler,
-            ::FirDumpHandler,
-            ::FirCfgDumpHandler,
-            ::FirCfgConsistencyHandler,
-        )
-
-        useMetaInfoProcessors(::PsiLightTreeMetaInfoProcessor)
-
-        forTestsMatching("compiler/testData/diagnostics/*") {
-            useAfterAnalysisCheckers(
-                ::FirIdenticalChecker,
-                ::FirFailingTestSuppressor,
-            )
-            useMetaTestConfigurators(::FirOldFrontendMetaConfigurator)
-        }
-
-        forTestsMatching("compiler/fir/analysis-tests/testData/*") {
-            defaultDirectives {
-                +FIR_DUMP
-                +COMPARE_WITH_LIGHT_TREE
-            }
-        }
-
-        forTestsMatching(
-            "compiler/testData/diagnostics/testsWithStdLib/*" or
-                    "compiler/fir/analysis-tests/testData/resolveWithStdlib/*" or
-                    "compiler/testData/diagnostics/tests/unsignedTypes/*"
-        ) {
-            defaultDirectives {
-                +WITH_STDLIB
-            }
-        }
-
-        forTestsMatching("compiler/fir/analysis-tests/testData/resolve/extendedCheckers/*") {
-            defaultDirectives {
-                +WITH_EXTENDED_CHECKERS
-            }
-        }
-
-        forTestsMatching("compiler/testData/diagnostics/tests/testsWithJava15/*") {
-            defaultDirectives {
-                JDK_KIND with TestJdkKind.FULL_JDK_15
-                +WITH_STDLIB
-                +WITH_REFLECT
-            }
-        }
+        baseFirDiagnosticTestConfiguration()
     }
 }
 
@@ -103,6 +40,76 @@ abstract class AbstractFirDiagnosticsWithLightTreeTest : AbstractFirDiagnosticTe
             defaultDirectives {
                 +USE_LIGHT_TREE
             }
+        }
+    }
+}
+
+
+// `baseDir` is used in Kotlin plugin from IJ infra
+fun TestConfigurationBuilder.baseFirDiagnosticTestConfiguration(baseDir: String = ".") {
+    globalDefaults {
+        frontend = FrontendKinds.FIR
+        targetPlatform = JvmPlatforms.defaultJvmPlatform
+        dependencyKind = DependencyKind.Source
+    }
+
+    enableMetaInfoHandler()
+
+    useConfigurators(
+        ::CommonEnvironmentConfigurator,
+        ::JvmEnvironmentConfigurator,
+    )
+
+    useAdditionalSourceProviders(
+        ::AdditionalDiagnosticsSourceFilesProvider.bind(baseDir),
+        ::CoroutineHelpersSourceFilesProvider.bind(baseDir),
+    )
+    useFrontendFacades(::FirFrontendFacade)
+    useFrontendHandlers(
+        ::FirDiagnosticsHandler,
+        ::FirDumpHandler,
+        ::FirCfgDumpHandler,
+        ::FirCfgConsistencyHandler,
+        ::FirNoImplicitTypesHandler,
+    )
+
+    useMetaInfoProcessors(::PsiLightTreeMetaInfoProcessor)
+
+    forTestsMatching("compiler/testData/diagnostics/*") {
+        useAfterAnalysisCheckers(
+            ::FirIdenticalChecker,
+            ::FirFailingTestSuppressor,
+        )
+        useMetaTestConfigurators(::FirOldFrontendMetaConfigurator)
+    }
+
+    forTestsMatching("compiler/fir/analysis-tests/testData/*") {
+        defaultDirectives {
+            +FIR_DUMP
+        }
+    }
+
+    forTestsMatching(
+        "compiler/testData/diagnostics/testsWithStdLib/*" or
+                "compiler/fir/analysis-tests/testData/resolveWithStdlib/*" or
+                "compiler/testData/diagnostics/tests/unsignedTypes/*"
+    ) {
+        defaultDirectives {
+            +WITH_STDLIB
+        }
+    }
+
+    forTestsMatching("compiler/fir/analysis-tests/testData/resolve/extendedCheckers/*") {
+        defaultDirectives {
+            +WITH_EXTENDED_CHECKERS
+        }
+    }
+
+    forTestsMatching("compiler/testData/diagnostics/tests/testsWithJava15/*") {
+        defaultDirectives {
+            JDK_KIND with TestJdkKind.FULL_JDK_15
+            +WITH_STDLIB
+            +WITH_REFLECT
         }
     }
 }

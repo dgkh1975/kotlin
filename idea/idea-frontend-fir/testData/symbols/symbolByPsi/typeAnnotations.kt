@@ -112,27 +112,31 @@ KtFirNamedClassOrObjectSymbol:
   visibility: Public
 
 KtFirValueParameterSymbol:
-  annotatedType: [Anno2()] I
+  annotatedType: [Anno2()] @R|Anno2|()  I
   annotationClassIds: []
   annotations: []
   callableIdIfNonLocal: null
   hasDefaultValue: false
+  isExtension: false
   isVararg: false
   name: arg
   origin: SOURCE
+  receiverType: null
   symbolKind: LOCAL
 
 KtFirFunctionSymbol:
-  annotatedType: [Anno3()] I
+  annotatedType: [Anno3()] @R|Anno3|()  I
   annotationClassIds: []
   annotations: []
   callableIdIfNonLocal: /X.f
   dispatchType: X
   isExtension: false
   isExternal: false
+  isInfix: false
   isInline: false
   isOperator: false
   isOverride: false
+  isStatic: false
   isSuspend: false
   modality: FINAL
   name: f
@@ -144,7 +148,7 @@ KtFirFunctionSymbol:
   visibility: Public
 
 KtFirKotlinPropertySymbol:
-  annotatedType: [Anno4()] I
+  annotatedType: [Anno4()] @R|Anno4|()  I
   annotationClassIds: []
   annotations: []
   callableIdIfNonLocal: /X.x
@@ -158,6 +162,7 @@ KtFirKotlinPropertySymbol:
   isExtension: false
   isLateInit: false
   isOverride: false
+  isStatic: false
   isVal: true
   modality: FINAL
   name: x
@@ -181,7 +186,7 @@ KtFirNamedClassOrObjectSymbol:
   modality: FINAL
   name: X
   origin: SOURCE
-  superTypes: [[Anno1()] I]
+  superTypes: [[Anno1()] @R|Anno1|()  I]
   symbolKind: TOP_LEVEL
   typeParameters: []
   visibility: Public

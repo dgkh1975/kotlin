@@ -36,6 +36,12 @@ interface SessionHolder {
     val scopeSession: ScopeSession
 }
 
+data class SessionHolderImpl(override val session: FirSession, override val scopeSession: ScopeSession) : SessionHolder {
+    companion object {
+        fun createWithEmptyScopeSession(session: FirSession): SessionHolderImpl = SessionHolderImpl(session, ScopeSession())
+    }
+}
+
 abstract class BodyResolveComponents : SessionHolder {
     abstract val returnTypeCalculator: ReturnTypeCalculator
     abstract val implicitReceiverStack: ImplicitReceiverStack
@@ -146,6 +152,7 @@ enum class FirTowerDataMode {
     NESTED_CLASS,
     COMPANION_OBJECT,
     CONSTRUCTOR_HEADER,
+    ENUM_ENTRY,
     SPECIAL,
 }
 
@@ -154,6 +161,7 @@ class FirTowerDataContextsForClassParts(
     forNestedClasses: FirTowerDataContext? = null,
     forCompanionObject: FirTowerDataContext? = null,
     forConstructorHeaders: FirTowerDataContext? = null,
+    forEnumEntries: FirTowerDataContext? = null,
     val primaryConstructorPureParametersScope: FirLocalScope? = null,
     val primaryConstructorAllParametersScope: FirLocalScope? = null,
 ) {
@@ -164,6 +172,7 @@ class FirTowerDataContextsForClassParts(
         modeMap[NESTED_CLASS] = forNestedClasses
         modeMap[COMPANION_OBJECT] = forCompanionObject
         modeMap[CONSTRUCTOR_HEADER] = forConstructorHeaders
+        modeMap[ENUM_ENTRY] = forEnumEntries
     }
 
     var mode: FirTowerDataMode = MEMBER_DECLARATION
@@ -179,9 +188,12 @@ class FirTowerDataContextsForClassParts(
             modeMap[mode] = value
         }
 
-    fun setAnonymousFunctionContext(symbol: FirAnonymousFunctionSymbol) {
-        mode = SPECIAL
-        modeMap[SPECIAL] = towerDataContextForAnonymousFunctions.getValue(symbol)
+    fun setAnonymousFunctionContextIfAny(symbol: FirAnonymousFunctionSymbol) {
+        val context = towerDataContextForAnonymousFunctions[symbol]
+        if (context != null) {
+            mode = SPECIAL
+            modeMap[SPECIAL] = context
+        }
     }
 
     fun setCallableReferenceContextIfAny(access: FirCallableReferenceAccess) {
@@ -208,16 +220,16 @@ fun SessionHolder.collectImplicitReceivers(
 
     val implicitCompanionValues = mutableListOf<ImplicitReceiverValue<*>>()
     val implicitReceiverValue = when (owner) {
-        is FirClass<*> -> {
+        is FirClass -> {
             val towerElementsForClass = collectTowerDataElementsForClass(owner, type)
             implicitCompanionValues.addAll(towerElementsForClass.implicitCompanionValues)
 
             towerElementsForClass.thisReceiver
         }
-        is FirFunction<*> -> {
+        is FirFunction -> {
             ImplicitExtensionReceiverValue(owner.symbol, type, session, scopeSession)
         }
-        is FirVariable<*> -> {
+        is FirVariable -> {
             ImplicitExtensionReceiverValue(owner.symbol, type, session, scopeSession)
         }
         else -> {
@@ -227,7 +239,7 @@ fun SessionHolder.collectImplicitReceivers(
     return ImplicitReceivers(implicitReceiverValue, implicitCompanionValues)
 }
 
-fun SessionHolder.collectTowerDataElementsForClass(owner: FirClass<*>, defaultType: ConeKotlinType): TowerElementsForClass {
+fun SessionHolder.collectTowerDataElementsForClass(owner: FirClass, defaultType: ConeKotlinType): TowerElementsForClass {
     val allImplicitCompanionValues = mutableListOf<ImplicitReceiverValue<*>>()
 
     val companionObject = (owner as? FirRegularClass)?.companionObject
@@ -270,7 +282,7 @@ fun SessionHolder.collectTowerDataElementsForClass(owner: FirClass<*>, defaultTy
     )
 }
 
-private fun FirClass<*>.staticScope(sessionHolder: SessionHolder) =
+private fun FirClass.staticScope(sessionHolder: SessionHolder) =
     scopeProvider.getStaticScope(this, sessionHolder.session, sessionHolder.scopeSession)
 
 class TowerElementsForClass(

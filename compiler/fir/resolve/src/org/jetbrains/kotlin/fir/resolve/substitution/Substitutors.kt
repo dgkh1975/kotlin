@@ -5,8 +5,10 @@
 
 package org.jetbrains.kotlin.fir.resolve.substitution
 
+import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.resolve.inference.inferenceComponents
 import org.jetbrains.kotlin.fir.symbols.impl.FirTypeParameterSymbol
+import org.jetbrains.kotlin.fir.typeContext
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
 import org.jetbrains.kotlin.types.TypeApproximatorConfiguration
@@ -14,12 +16,13 @@ import org.jetbrains.kotlin.types.model.TypeConstructorMarker
 import org.jetbrains.kotlin.types.model.TypeSubstitutorMarker
 import org.jetbrains.kotlin.types.model.typeConstructor
 
-abstract class AbstractConeSubstitutor : ConeSubstitutor() {
+abstract class AbstractConeSubstitutor(private val typeContext: ConeTypeContext) : ConeSubstitutor() {
     private fun wrapProjection(old: ConeTypeProjection, newType: ConeKotlinType): ConeTypeProjection {
         return when (old) {
             is ConeStarProjection -> old
             is ConeKotlinTypeProjectionIn -> ConeKotlinTypeProjectionIn(newType)
             is ConeKotlinTypeProjectionOut -> ConeKotlinTypeProjectionOut(newType)
+            is ConeKotlinTypeConflictingProjection -> ConeKotlinTypeConflictingProjection(newType)
             is ConeKotlinType -> newType
             else -> old
         }
@@ -34,8 +37,8 @@ abstract class AbstractConeSubstitutor : ConeSubstitutor() {
 
     fun ConeKotlinType?.updateNullabilityIfNeeded(originalType: ConeKotlinType): ConeKotlinType? {
         return when {
-            originalType is ConeDefinitelyNotNullType -> this?.withNullability(ConeNullability.NOT_NULL)
-            originalType.isMarkedNullable -> this?.withNullability(ConeNullability.NULLABLE)
+            originalType is ConeDefinitelyNotNullType -> this?.withNullability(ConeNullability.NOT_NULL, typeContext)
+            originalType.isMarkedNullable -> this?.withNullability(ConeNullability.NULLABLE, typeContext)
             else -> this
         }
     }
@@ -43,7 +46,7 @@ abstract class AbstractConeSubstitutor : ConeSubstitutor() {
     override fun substituteOrNull(type: ConeKotlinType): ConeKotlinType? {
         val newType = substituteType(type)
         if (newType != null && type is ConeDefinitelyNotNullType) {
-            return newType.makeConeTypeDefinitelyNotNullOrNotNull()
+            return newType.makeConeTypeDefinitelyNotNullOrNotNull(typeContext)
         }
         return (newType ?: type.substituteRecursive())
     }
@@ -81,8 +84,8 @@ abstract class AbstractConeSubstitutor : ConeSubstitutor() {
     }
 
     private fun ConeDefinitelyNotNullType.substituteOriginal(): ConeKotlinType? {
-        val substituted = substituteOrNull(original)?.withNullability(ConeNullability.NOT_NULL) ?: return null
-        return ConeDefinitelyNotNullType.create(substituted) ?: substituted
+        val substituted = substituteOrNull(original)?.withNullability(ConeNullability.NOT_NULL, typeContext) ?: return null
+        return ConeDefinitelyNotNullType.create(substituted, typeContext) ?: substituted
     }
 
     private fun ConeFlexibleType.substituteBounds(): ConeFlexibleType? {
@@ -130,13 +133,13 @@ abstract class AbstractConeSubstitutor : ConeSubstitutor() {
 
 }
 
-fun substitutorByMap(substitution: Map<FirTypeParameterSymbol, ConeKotlinType>): ConeSubstitutor {
+fun substitutorByMap(substitution: Map<FirTypeParameterSymbol, ConeKotlinType>, useSiteSession: FirSession): ConeSubstitutor {
     // If all arguments match parameters, then substitutor isn't needed
     if (substitution.all { (parameterSymbol, argumentType) ->
             (argumentType as? ConeTypeParameterType)?.lookupTag?.typeParameterSymbol == parameterSymbol
         }
     ) return ConeSubstitutor.Empty
-    return ConeSubstitutorByMap(substitution)
+    return ConeSubstitutorByMap(substitution, useSiteSession)
 }
 
 data class ChainedSubstitutor(private val first: ConeSubstitutor, private val second: ConeSubstitutor) : ConeSubstitutor() {
@@ -152,13 +155,15 @@ fun ConeSubstitutor.chain(other: ConeSubstitutor): ConeSubstitutor {
     return ChainedSubstitutor(this, other)
 }
 
-data class ConeSubstitutorByMap(val substitution: Map<FirTypeParameterSymbol, ConeKotlinType>) : AbstractConeSubstitutor() {
+data class ConeSubstitutorByMap(
+    val substitution: Map<FirTypeParameterSymbol, ConeKotlinType>,
+    val useSiteSession: FirSession
+) : AbstractConeSubstitutor(useSiteSession.typeContext) {
     override fun substituteType(type: ConeKotlinType): ConeKotlinType? {
         if (type !is ConeTypeParameterType) return null
         val result = substitution[type.lookupTag.symbol].updateNullabilityIfNeeded(type) ?: return null
-        val session = type.lookupTag.symbol.fir.session
-        if (type.isUnsafeVarianceType(session)) {
-            return session.inferenceComponents.approximator.approximateToSuperType(
+        if (type.isUnsafeVarianceType(useSiteSession)) {
+            return useSiteSession.inferenceComponents.approximator.approximateToSuperType(
                 result, TypeApproximatorConfiguration.FinalApproximationAfterResolutionAndInference
             ) ?: result
         }
@@ -168,8 +173,7 @@ data class ConeSubstitutorByMap(val substitution: Map<FirTypeParameterSymbol, Co
 
 fun createTypeSubstitutorByTypeConstructor(map: Map<TypeConstructorMarker, ConeKotlinType>, context: ConeTypeContext): ConeSubstitutor {
     if (map.isEmpty()) return ConeSubstitutor.Empty
-    return object : AbstractConeSubstitutor(),
-        TypeSubstitutorMarker {
+    return object : AbstractConeSubstitutor(context), TypeSubstitutorMarker {
         override fun substituteType(type: ConeKotlinType): ConeKotlinType? {
             if (type !is ConeLookupTagBasedType && type !is ConeStubType) return null
             val new = map[type.typeConstructor(context)] ?: return null
