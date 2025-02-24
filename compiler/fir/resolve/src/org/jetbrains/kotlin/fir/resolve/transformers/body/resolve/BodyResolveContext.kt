@@ -75,6 +75,9 @@ class BodyResolveContext(
     @set:PrivateForInline
     var containers: ArrayDeque<FirDeclaration> = ArrayDeque()
 
+    val topContainerForTypeResolution: FirDeclaration?
+        get() = containers.lastOrNull { it is FirTypeParameterRefsOwner && it !is FirAnonymousFunction }
+
     @PrivateForInline
     val whenSubjectImportingScopes: ArrayDeque<FirWhenSubjectImportingScope?> = ArrayDeque()
 
@@ -808,6 +811,15 @@ class BodyResolveContext(
                 f()
             }
         }
+    }
+
+    @OptIn(PrivateForInline::class)
+    fun <T> withAnonymousFunctionIncludingTypeParameters(
+        anonymousFunction: FirAnonymousFunction,
+        holder: SessionHolder,
+        f: () -> T
+    ): T = withTypeParametersOf(anonymousFunction) {
+        withAnonymousFunction(anonymousFunction, holder, f)
     }
 
     @OptIn(PrivateForInline::class)

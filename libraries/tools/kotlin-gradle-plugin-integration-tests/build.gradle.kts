@@ -42,6 +42,9 @@ tasks.withType(AbstractKotlinCompile::class.java).configureEach {
 }
 
 val kotlinGradlePluginTest = project(":kotlin-gradle-plugin").sourceSets.named("test").map { it.output }
+val applePrivacyManifestPluginClasses = configurations.detachedConfiguration(
+    dependencies.create(dependencies.project(":kotlin-privacy-manifests-plugin"))
+).also { it.isTransitive = false }
 
 dependencies {
     testImplementation(project(":kotlin-gradle-plugin")) {
@@ -111,13 +114,16 @@ dependencies {
     testCompileOnly(project(":kotlin-gradle-plugin-test-utils-embeddable"))
     testRuntimeOnly(project(":kotlin-gradle-plugin-test-utils-embeddable")) { isTransitive = false }
 
+    applePrivacyManifestPluginClasses.dependencies.all {
+        testCompileOnly(this) { (this as ModuleDependency).isTransitive = false }
+    }
+
     // AGP classes for buildScriptInjection's
     testImplementation(libs.android.gradle.plugin.gradle.api) { isTransitive = false }
 
     testImplementation(project(path = ":examples:annotation-processor-example"))
     testImplementation(kotlinStdlib("jdk8"))
     testImplementation(project(":kotlin-parcelize-compiler"))
-    testImplementation(commonDependency("org.jetbrains.intellij.deps", "trove4j"))
     testImplementation(libs.kotlinx.serialization.json)
     testImplementation(libs.ktor.client.cio)
     testImplementation(libs.ktor.client.mock)
@@ -400,11 +406,22 @@ tasks.withType<Test>().configureEach {
     dependsOn(":examples:annotation-processor-example:install")
     dependsOn(":kotlin-dom-api-compat:install")
     dependsOn(cleanUserHomeKonanDir)
+    dependsOn(applePrivacyManifestPluginClasses)
 
     systemProperty("kotlinVersion", rootProject.extra["kotlinVersion"] as String)
     systemProperty("runnerGradleVersion", gradle.gradleVersion)
     systemProperty("composeSnapshotVersion", composeRuntimeSnapshot.versions.snapshot.version.get())
     systemProperty("composeSnapshotId", composeRuntimeSnapshot.versions.snapshot.id.get())
+
+    val applePrivacyManifestPluginClasspath = provider {
+        applePrivacyManifestPluginClasses.files.joinToString(":")
+    }
+    doFirst {
+        systemProperty(
+            "applePrivacyManifestPluginClasspath",
+            applePrivacyManifestPluginClasspath.get(),
+        )
+    }
 
     // Add kotlin.gradle.autoDebugIT=false to local.properties to opt out of implicit withDebug when debugging the tests in IDE
     val autoDebugIT = kotlinBuildProperties.getBoolean("kotlin.gradle.autoDebugIT", true)

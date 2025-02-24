@@ -576,8 +576,7 @@ public abstract class org/jetbrains/kotlin/gradle/plugin/DefaultKotlinBasePlugin
 	public synthetic fun apply (Ljava/lang/Object;)V
 	public fun apply (Lorg/gradle/api/Project;)V
 	public fun getPluginVersion ()Ljava/lang/String;
-	protected final fun setupAttributeMatchingStrategy (Lorg/gradle/api/Project;Z)V
-	public static synthetic fun setupAttributeMatchingStrategy$default (Lorg/jetbrains/kotlin/gradle/plugin/DefaultKotlinBasePlugin;Lorg/gradle/api/Project;ZILjava/lang/Object;)V
+	protected final fun setupAttributeMatchingStrategy (Lorg/gradle/api/Project;)V
 	public fun whenBuildEvaluated (Lorg/gradle/api/Project;)V
 }
 
@@ -2429,7 +2428,6 @@ public final class org/jetbrains/kotlin/gradle/targets/js/JsCompilationExecution
 
 public final class org/jetbrains/kotlin/gradle/targets/js/KotlinJsCompilerAttribute : java/lang/Enum, java/io/Serializable, org/gradle/api/Named {
 	public static final field Companion Lorg/jetbrains/kotlin/gradle/targets/js/KotlinJsCompilerAttribute$Companion;
-	public static final field both Lorg/jetbrains/kotlin/gradle/targets/js/KotlinJsCompilerAttribute;
 	public static final field ir Lorg/jetbrains/kotlin/gradle/targets/js/KotlinJsCompilerAttribute;
 	public static final field legacy Lorg/jetbrains/kotlin/gradle/targets/js/KotlinJsCompilerAttribute;
 	public fun getName ()Ljava/lang/String;

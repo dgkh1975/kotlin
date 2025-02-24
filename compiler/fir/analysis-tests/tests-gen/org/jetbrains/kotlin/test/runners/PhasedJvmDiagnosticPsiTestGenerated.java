@@ -8317,6 +8317,12 @@ public class PhasedJvmDiagnosticPsiTestGenerated extends AbstractPhasedJvmDiagno
         }
 
         @Test
+        @TestMetadata("deadCodeElvis.kt")
+        public void testDeadCodeElvis() {
+          runTest("compiler/testData/diagnostics/tests/controlFlowAnalysis/deadCode/deadCodeElvis.kt");
+        }
+
+        @Test
         @TestMetadata("deadCodeFromDifferentSources.kt")
         public void testDeadCodeFromDifferentSources() {
           runTest("compiler/testData/diagnostics/tests/controlFlowAnalysis/deadCode/deadCodeFromDifferentSources.kt");
@@ -54969,6 +54975,12 @@ public class PhasedJvmDiagnosticPsiTestGenerated extends AbstractPhasedJvmDiagno
       }
 
       @Test
+      @TestMetadata("jkjSyntheticProperty.kt")
+      public void testJkjSyntheticProperty() {
+        runTest("compiler/fir/analysis-tests/testData/resolve/scopes/jkjSyntheticProperty.kt");
+      }
+
+      @Test
       @TestMetadata("kotlinAccessorsLikeFunctionsThrowJavaClass.kt")
       public void testKotlinAccessorsLikeFunctionsThrowJavaClass() {
         runTest("compiler/fir/analysis-tests/testData/resolve/scopes/kotlinAccessorsLikeFunctionsThrowJavaClass.kt");
@@ -56253,6 +56265,12 @@ public class PhasedJvmDiagnosticPsiTestGenerated extends AbstractPhasedJvmDiagno
       }
 
       @Test
+      @TestMetadata("annotationAllUseSiteTargetCompilable.kt")
+      public void testAnnotationAllUseSiteTargetCompilable() {
+        runTest("compiler/fir/analysis-tests/testData/resolveWithStdlib/annotations/annotationAllUseSiteTargetCompilable.kt");
+      }
+
+      @Test
       @TestMetadata("annotationDefaultTargetFirstOnly.kt")
       public void testAnnotationDefaultTargetFirstOnly() {
         runTest("compiler/fir/analysis-tests/testData/resolveWithStdlib/annotations/annotationDefaultTargetFirstOnly.kt");
@@ -56283,9 +56301,21 @@ public class PhasedJvmDiagnosticPsiTestGenerated extends AbstractPhasedJvmDiagno
       }
 
       @Test
+      @TestMetadata("combinationOfAllNotAllAndDefaultTarget.kt")
+      public void testCombinationOfAllNotAllAndDefaultTarget() {
+        runTest("compiler/fir/analysis-tests/testData/resolveWithStdlib/annotations/combinationOfAllNotAllAndDefaultTarget.kt");
+      }
+
+      @Test
       @TestMetadata("multipleAnnotationsWithAllUseSiteTarget.kt")
       public void testMultipleAnnotationsWithAllUseSiteTarget() {
         runTest("compiler/fir/analysis-tests/testData/resolveWithStdlib/annotations/multipleAnnotationsWithAllUseSiteTarget.kt");
+      }
+
+      @Test
+      @TestMetadata("multipleAnnotationsWithDefaultTarget.kt")
+      public void testMultipleAnnotationsWithDefaultTarget() {
+        runTest("compiler/fir/analysis-tests/testData/resolveWithStdlib/annotations/multipleAnnotationsWithDefaultTarget.kt");
       }
     }
 
