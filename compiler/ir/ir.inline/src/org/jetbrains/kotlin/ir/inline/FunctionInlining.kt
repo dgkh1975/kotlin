@@ -141,20 +141,6 @@ private class CallInlining(
 ) {
     private val elementsWithLocationToPatch = hashSetOf<IrGetValue>()
 
-    val inlineFunctionBodyPreprocessor = run {
-        val typeParameters =
-            when (callee) {
-                is IrConstructor -> callee.parentAsClass.typeParameters
-                is IrSimpleFunction -> callee.typeParameters
-            }
-        val typeArguments =
-            callSite.typeArguments.indices.associate {
-                typeParameters[it].symbol to callSite.typeArguments[it]
-            }
-        InlineFunctionBodyPreprocessor(typeArguments, parent, inlineFunctionResolver.callInlinerStrategy)
-    }
-
-
     fun inline() = inlineFunction(callSite, callee, callee.originalFunction)
 
     private fun inlineFunction(
@@ -162,6 +148,20 @@ private class CallInlining(
         callee: IrFunction,
         originalInlinedElement: IrElement,
     ): IrBlock {
+        val inlineFunctionBodyPreprocessor = run {
+            // TODO KT-76105 Please make some decent housekeeping around here
+            val typeParameters =
+                when (callee) {
+                    is IrConstructor -> callee.parentAsClass.typeParameters
+                    is IrSimpleFunction -> callee.typeParameters
+                }
+            val typeArguments =
+                callSite.typeArguments.indices.associate {
+                    typeParameters[it].symbol to callSite.typeArguments[it]
+                }
+            InlineFunctionBodyPreprocessor(typeArguments, parent, inlineFunctionResolver.callInlinerStrategy)
+        }
+
         val copiedCallee = inlineFunctionBodyPreprocessor.preprocess(callee).apply {
             parent = callee.parent
         }
@@ -265,7 +265,9 @@ private class CallInlining(
             if (!isLambdaCall(expression))
                 return super.visitCall(expression)
 
-            val dispatchReceiver = expression.dispatchReceiver?.unwrapAdditionalImplicitCastsIfNeeded() as IrGetValue
+            // Here `isLambdaCall` guarantees that `expression` is call of `Function.invoke`.
+            // So `expression.arguments.first()` is exactly dispatch receiver and not some other parameter.
+            val dispatchReceiver = expression.arguments.first()?.unwrapAdditionalImplicitCastsIfNeeded() as IrGetValue
             val functionArgument = substituteMap[dispatchReceiver.symbol.owner] ?: return super.visitCall(expression)
             if ((dispatchReceiver.symbol.owner as? IrValueParameter)?.isNoinline == true) return super.visitCall(expression)
 
@@ -295,11 +297,8 @@ private class CallInlining(
                 functionArgument is IrFunctionExpression ->
                     inlineFunctionExpression(asCallOf(functionArgument.function, emptyList()), functionArgument.function, functionArgument)
 
-                functionArgument is IrRichFunctionReference ->
+                functionArgument is IrRichCallableReference<*> ->
                     inlineFunctionExpression(asCallOf(functionArgument.invokeFunction, functionArgument.boundValues), functionArgument.invokeFunction, functionArgument.attributeOwnerId)
-
-                functionArgument is IrRichPropertyReference ->
-                    inlineFunctionExpression(asCallOf(functionArgument.getterFunction, functionArgument.boundValues), functionArgument.getterFunction, functionArgument.attributeOwnerId)
 
                 else ->
                     super.visitCall(expression)
@@ -471,13 +470,9 @@ private class CallInlining(
         }
 
         fun hasDispatchGetValueReceiver(): Boolean {
-            for (argument in irCall.arguments) {
-                val unwrapped = argument?.unwrapAdditionalImplicitCastsIfNeeded() as? IrGetValue ?: continue
-                val valueParameter = unwrapped.symbol.owner as? IrValueParameter ?: continue
-                if (valueParameter.kind == IrParameterKind.DispatchReceiver) return true
-            }
-
-            return false
+            val firstArgument = irCall.arguments.first()
+            val unwrapped = firstArgument?.unwrapAdditionalImplicitCastsIfNeeded() as? IrGetValue ?: return false
+            return unwrapped.symbol.owner is IrValueParameter
         }
 
         fun IdSignature.isFunctionOrKFunction(): Boolean {
@@ -698,15 +693,9 @@ private class CallInlining(
                 substituteMap[parameter] = variableInitializer
                 when (variableInitializer) {
                     is IrCallableReference<*> -> error("Can't inline given reference, it should've been lowered\n${variableInitializer.render()}")
-                    is IrRichFunctionReference -> {
+                    is IrRichCallableReference<*> -> {
                         evaluationBuilder.evaluateCapturedValues(
                             variableInitializer.invokeFunction.parameters,
-                            variableInitializer.boundValues
-                        )
-                    }
-                    is IrRichPropertyReference -> {
-                        evaluationBuilder.evaluateCapturedValues(
-                            variableInitializer.getterFunction.parameters,
                             variableInitializer.boundValues
                         )
                     }

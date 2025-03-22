@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -64,9 +64,17 @@ class LightTreeRawFirExpressionBuilder(
 ) : AbstractLightTreeRawFirBuilder(session, tree, context) {
 
     internal inline fun <reified R : FirExpression> getAsFirExpression(
+        expression: LighterASTNode,
+        errorReason: String = "",
+        isValidExpression: (R) -> Boolean = { !it.isStatementLikeExpression },
+    ): R {
+        return getAsFirExpression(expression, errorReason, expression, isValidExpression)
+    }
+
+    internal inline fun <reified R : FirExpression> getAsFirExpression(
         expression: LighterASTNode?,
         errorReason: String = "",
-        sourceWhenInvalidExpression: LighterASTNode? = expression,
+        sourceWhenInvalidExpression: LighterASTNode,
         isValidExpression: (R) -> Boolean = { !it.isStatementLikeExpression },
     ): R {
         val converted = expression?.let { convertExpression(it, errorReason) }
@@ -77,21 +85,21 @@ class LightTreeRawFirExpressionBuilder(
     private inline fun <reified R : FirExpression> wrapExpressionIfNeeded(
         expression: LighterASTNode?,
         converted: FirElement?,
-        isValidExpression: (R) -> Boolean = { !it.isStatementLikeExpression },
-        sourceWhenInvalidExpression: LighterASTNode? = expression,
-        errorReason: String = "",
+        isValidExpression: (R) -> Boolean,
+        sourceWhenInvalidExpression: LighterASTNode,
+        errorReason: String,
     ): R {
         return when {
             converted is R -> when {
                 isValidExpression(converted) -> converted
                 else -> buildErrorExpression(
-                    sourceWhenInvalidExpression?.toFirSourceElement(),
+                    converted.source?.realElement() ?: expression?.toFirSourceElement() ?: sourceWhenInvalidExpression.toFirSourceElement(),
                     ConeSimpleDiagnostic(errorReason, DiagnosticKind.ExpressionExpected),
                     converted,
                 )
             }
             else -> buildErrorExpression(
-                converted?.source?.realElement() ?: expression?.toFirSourceElement() ?: sourceWhenInvalidExpression?.toFirSourceElement(),
+                converted?.source?.realElement() ?: expression?.toFirSourceElement() ?: sourceWhenInvalidExpression.toFirSourceElement(),
                 if (expression == null) ConeSyntaxDiagnostic(errorReason)
                 else ConeSimpleDiagnostic(errorReason, DiagnosticKind.ExpressionExpected),
                 converted,
@@ -148,7 +156,7 @@ class LightTreeRawFirExpressionBuilder(
                 getAsFirExpression(content, "Empty parentheses", sourceWhenInvalidExpression = expression)
             }
             PROPERTY_DELEGATE, INDICES, CONDITION, LOOP_RANGE ->
-                getAsFirExpression(expression.getChildExpression(), errorReason)
+                getAsFirExpression(expression.getChildExpression(), errorReason, sourceWhenInvalidExpression = expression)
             THIS_EXPRESSION -> convertThisExpression(expression)
             SUPER_EXPRESSION -> convertSuperExpression(expression)
 
@@ -241,7 +249,7 @@ class LightTreeRawFirExpressionBuilder(
                     val kind = runIf(destructuringStatements.isNotEmpty()) {
                         KtFakeSourceElementKind.LambdaDestructuringBlock
                     }
-                    val bodyBlock = declarationBuilder.convertBlockExpressionWithoutBuilding(block!!, kind).apply {
+                    val bodyBlock = declarationBuilder.convertBlockExpressionWithoutBuilding(block, kind).apply {
                         if (statements.isEmpty()) {
                             statements.add(
                                 buildReturnExpression {
@@ -266,7 +274,7 @@ class LightTreeRawFirExpressionBuilder(
                         bodyBlock
                     }
                 } else {
-                    buildSingleExpressionBlock(buildErrorExpression(null, ConeSyntaxDiagnostic("Lambda has no body")))
+                    buildSingleExpressionBlock(buildErrorExpression(expressionSource, ConeSyntaxDiagnostic("Lambda has no body")))
                 }
             }
             context.firFunctionTargets.removeLast()
@@ -323,7 +331,7 @@ class LightTreeRawFirExpressionBuilder(
         return buildStringConcatenationCall {
             val stringConcatenationSource = binaryExpression.toFirSourceElement()
             argumentList = buildArgumentList {
-                arguments += output.asReversed().map { getAsFirExpression<FirExpression>(it) }
+                arguments += output.asReversed().map { getAsFirExpression<FirExpression>(it, sourceWhenInvalidExpression = binaryExpression) }
                 source = stringConcatenationSource
             }
             source = stringConcatenationSource
@@ -376,9 +384,9 @@ class LightTreeRawFirExpressionBuilder(
         val rightArgAsFir = if (rightArgNode != null)
             getAsFirExpression<FirExpression>(rightArgNode, "No right operand")
         else
-            buildErrorExpression(null, ConeSyntaxDiagnostic("No right operand"))
+            buildErrorExpression(binaryExpression.toFirSourceElement(), ConeSyntaxDiagnostic("No right operand"))
 
-        val leftArgAsFir = getAsFirExpression<FirExpression>(leftArgNode, "No left operand")
+        val leftArgAsFir = getAsFirExpression<FirExpression>(leftArgNode, "No left operand", sourceWhenInvalidExpression = binaryExpression)
 
         // No need for the callee name since arguments are already generated
         context.calleeNamesForLambda.removeLast()
@@ -419,7 +427,7 @@ class LightTreeRawFirExpressionBuilder(
                 ) {
                     getAsFirExpression<FirExpression>(
                         this,
-                        "Incorrect expression in assignment: ${binaryExpression.asText}",
+                        "Incorrect expression in assignment",
                         sourceWhenInvalidExpression = binaryExpression,
                         isValidExpression = { !it.isStatementLikeExpression || it.isArraySet },
                     )
@@ -459,7 +467,7 @@ class LightTreeRawFirExpressionBuilder(
             operation = operationTokenName.toFirOperation()
             conversionTypeRef = firType
             argumentList = buildUnaryArgumentList(
-                leftArgAsFir ?: buildErrorExpression(null, ConeSyntaxDiagnostic("No left operand"))
+                leftArgAsFir ?: buildErrorExpression(binaryExpression.toFirSourceElement(), ConeSyntaxDiagnostic("No left operand"))
             )
         }
     }
@@ -520,7 +528,13 @@ class LightTreeRawFirExpressionBuilder(
             operationToken == EXCLEXCL -> {
                 buildCheckNotNullCall {
                     source = unaryExpression.toFirSourceElement()
-                    argumentList = buildUnaryArgumentList(getAsFirExpression<FirExpression>(argument, "No operand"))
+                    argumentList = buildUnaryArgumentList(
+                        getAsFirExpression<FirExpression>(
+                            argument,
+                            "No operand",
+                            sourceWhenInvalidExpression = unaryExpression
+                        )
+                    )
                 }
 
             }
@@ -534,7 +548,7 @@ class LightTreeRawFirExpressionBuilder(
                         prefix = unaryExpression.tokenType == PREFIX_EXPRESSION
                     ) { getAsFirExpression(this) }
                 }
-                val receiver = getAsFirExpression<FirExpression>(argument, "No operand")
+                val receiver = getAsFirExpression<FirExpression>(argument, "No operand", sourceWhenInvalidExpression = unaryExpression)
                 convertUnaryPlusMinusCallOnIntegerLiteralIfNecessary(unaryExpression, receiver, operationToken)?.let { return it }
                 buildFunctionCall {
                     source = unaryExpression.toFirSourceElement()
@@ -671,38 +685,35 @@ class LightTreeRawFirExpressionBuilder(
             }
         }
 
-        var result = firSelector
-        (firSelector as? FirQualifiedAccessExpression)?.let {
-            if (isSafe) {
-                @OptIn(FirImplementationDetail::class)
-                it.replaceSource(dotQualifiedExpression.toFirSourceElement(KtFakeSourceElementKind.DesugaredSafeCallExpression))
-                return it.createSafeCall(
-                    firReceiver!!,
-                    dotQualifiedExpression.toFirSourceElement()
-                )
+        return when (firSelector) {
+            is FirQualifiedAccessExpression -> {
+                if (isSafe) {
+                    @OptIn(FirImplementationDetail::class)
+                    firSelector.replaceSource(dotQualifiedExpression.toFirSourceElement(KtFakeSourceElementKind.DesugaredSafeCallExpression))
+                    return firSelector.createSafeCall(
+                        firReceiver!!,
+                        dotQualifiedExpression.toFirSourceElement()
+                    )
+                }
+                convertFirSelector(firSelector, dotQualifiedExpression.toFirSourceElement(), firReceiver!!)
             }
-
-            result = convertFirSelector(it, dotQualifiedExpression.toFirSourceElement(), firReceiver!!)
-        }
-
-        val receiver = firReceiver
-        if (receiver != null) {
-            (firSelector as? FirErrorExpression)?.let { errorExpression ->
-                return buildQualifiedErrorAccessExpression {
-                    this.receiver = receiver
-                    this.selector = errorExpression
+            is FirErrorExpression if firReceiver != null -> {
+                buildQualifiedErrorAccessExpression {
+                    this.receiver = firReceiver
+                    this.selector = firSelector
                     source = dotQualifiedExpression.toFirSourceElement()
                     diagnostic = ConeSyntaxDiagnostic("Qualified expression with unexpected selector")
                 }
             }
-        }
+            else -> {
+                buildErrorExpression {
+                    source = dotQualifiedExpression.toFirSourceElement()
+                    diagnostic = ConeSyntaxDiagnostic("Qualified expression without selector")
 
-        return result ?: buildErrorExpression {
-            source = dotQualifiedExpression.toFirSourceElement()
-            diagnostic = ConeSyntaxDiagnostic("Qualified expression without selector")
-
-            // if there is no selector, we still want to resolve the receiver
-            expression = firReceiver
+                    // if there is no selector, we still want to resolve the receiver
+                    expression = firReceiver
+                }
+            }
         }
     }
 
@@ -726,7 +737,7 @@ class LightTreeRawFirExpressionBuilder(
                         superNode = node
                     }
                     PARENTHESIZED -> if (node.tokenType != TokenType.ERROR_ELEMENT) {
-                        additionalArgument = getAsFirExpression(node.getExpressionInParentheses(), "Incorrect invoke receiver")
+                        additionalArgument = getAsFirExpression(node.getExpressionInParentheses(), "Incorrect invoke receiver", sourceWhenInvalidExpression = node)
                     }
                     TYPE_ARGUMENT_LIST -> {
                         firTypeArguments += declarationBuilder.convertTypeArguments(node, allowedUnderscoredTypeArgument = true)
@@ -960,14 +971,14 @@ class LightTreeRawFirExpressionBuilder(
                     conditions += condition
                     shouldBindSubject = shouldBindSubject || shouldBind
                 }
-                WHEN_ENTRY_GUARD -> guard = getAsFirExpression(it.getFirstChildExpressionUnwrapped(), "No expression in guard")
+                WHEN_ENTRY_GUARD -> guard = getAsFirExpression(it.getFirstChildExpressionUnwrapped(), "No expression in guard", sourceWhenInvalidExpression = it)
                 ELSE_KEYWORD -> isElse = true
                 BLOCK -> firBlock = declarationBuilder.convertBlock(it)
                 else -> if (it.isExpression()) firBlock = declarationBuilder.convertBlock(it)
             }
         }
 
-        return WhenEntry(conditions, guard, firBlock, whenEntry, isElse, shouldBindSubject)
+        return WhenEntry(conditions, guard, firBlock, whenEntry, isElse, shouldBindSubject, tree)
     }
 
     private fun convertWhenConditionExpression(
@@ -982,7 +993,7 @@ class LightTreeRawFirExpressionBuilder(
         }
 
         val calculatedFirExpression = firExpression ?: buildErrorExpression(
-            source = null,
+            source = whenCondition.toFirSourceElement(),
             ConeSyntaxDiagnostic("No expression in condition with expression")
         )
 
@@ -1032,7 +1043,7 @@ class LightTreeRawFirExpressionBuilder(
         }
 
         val calculatedFirExpression = firExpression ?: buildErrorExpression(
-            null,
+            whenCondition.toFirSourceElement(),
             ConeSyntaxDiagnostic("No range in condition with range")
         )
 
@@ -1122,7 +1133,7 @@ class LightTreeRawFirExpressionBuilder(
                 name = if (isGet) OperatorNameConventions.GET else OperatorNameConventions.SET
             }
             explicitReceiver =
-                firExpression ?: buildErrorExpression(null, ConeSyntaxDiagnostic("No array expression"))
+                firExpression ?: buildErrorExpression(arrayAccess.toFirSourceElement(), ConeSyntaxDiagnostic("No array expression"))
             argumentList = buildArgumentList {
                 arguments += indices
                 getArgument?.let { arguments += it }
@@ -1171,11 +1182,8 @@ class LightTreeRawFirExpressionBuilder(
         } else {
             nameSource.fakeElement(KtFakeSourceElementKind.ReferenceInAtomicQualifiedAccess)
         }
+
         return buildPropertyAccessExpression {
-            val rawText = referenceExpression.asText
-            if (rawText.isUnderscore) {
-                nonFatalDiagnostics.add(ConeUnderscoreUsageWithoutBackticks(nameSource))
-            }
             source = nameSource
             calleeReference = createSimpleNamedReference(referenceSourceElement, referenceExpression)
         }
@@ -1211,7 +1219,7 @@ class LightTreeRawFirExpressionBuilder(
                 }
             }
             condition =
-                firCondition ?: buildErrorExpression(null, ConeSyntaxDiagnostic("No condition in do-while loop"))
+                firCondition ?: buildErrorExpression(doWhileLoop.toFirSourceElement(), ConeSyntaxDiagnostic("No condition in do-while loop"))
         }.configure(target) { convertLoopBody(block) }
     }
 
@@ -1233,7 +1241,7 @@ class LightTreeRawFirExpressionBuilder(
         return FirWhileLoopBuilder().apply {
             source = whileLoop.toFirSourceElement()
             condition =
-                firCondition ?: buildErrorExpression(null, ConeSyntaxDiagnostic("No condition in while loop"))
+                firCondition ?: buildErrorExpression(whileLoop.toFirSourceElement(), ConeSyntaxDiagnostic("No condition in while loop"))
             // break/continue in the while loop condition will refer to an outer loop if any.
             // So, prepare the loop target after building the condition.
             target = prepareTarget(whileLoop)
@@ -1257,7 +1265,7 @@ class LightTreeRawFirExpressionBuilder(
         }
 
         val calculatedRangeExpression =
-            rangeExpression ?: buildErrorExpression(null, ConeSyntaxDiagnostic("No range in for loop"))
+            rangeExpression ?: buildErrorExpression(forLoop.toFirSourceElement(), ConeSyntaxDiagnostic("No range in for loop"))
         val fakeSource = forLoop.toFirSourceElement(KtFakeSourceElementKind.DesugaredForLoop)
         val rangeSource = calculatedRangeExpression.source?.fakeElement(KtFakeSourceElementKind.DesugaredForLoop) ?: fakeSource
         val target: FirLoopTarget
@@ -1298,10 +1306,15 @@ class LightTreeRawFirExpressionBuilder(
                     source = blockNode?.toFirSourceElement()
                     val valueParameter = parameter ?: return@block
                     val multiDeclaration = valueParameter.destructuringDeclaration
+                    val quotedName = valueParameter.source.lighterASTNode.getChildNodeByType(IDENTIFIER)?.asText
                     val firLoopParameter = generateTemporaryVariable(
                         baseModuleData,
                         valueParameter.source,
-                        if (multiDeclaration != null) SpecialNames.DESTRUCT else valueParameter.name,
+                        name = when {
+                            multiDeclaration != null -> SpecialNames.DESTRUCT
+                            quotedName == "_" -> SpecialNames.UNDERSCORE_FOR_UNUSED_VAR
+                            else -> valueParameter.name
+                        },
                         buildFunctionCall {
                             source = rangeSource
                             calleeReference = buildSimpleNamedReference {
@@ -1451,7 +1464,7 @@ class LightTreeRawFirExpressionBuilder(
                 branches += buildRegularWhenBranch {
                     source = firCondition?.source
                     condition = firCondition ?: buildErrorExpression(
-                        null,
+                        ifExpression.toFirSourceElement(),
                         ConeSyntaxDiagnostic("If statement should have condition")
                     )
                     result = trueBranch
@@ -1569,7 +1582,7 @@ class LightTreeRawFirExpressionBuilder(
 
         return buildThrowExpression {
             source = throwExpression.toFirSourceElement()
-            exception = firExpression ?: buildErrorExpression(null, ConeSyntaxDiagnostic("Nothing to throw"))
+            exception = firExpression ?: buildErrorExpression(throwExpression.toFirSourceElement(), ConeSyntaxDiagnostic("Nothing to throw"))
         }
     }
 
@@ -1650,7 +1663,7 @@ class LightTreeRawFirExpressionBuilder(
             }
         }
         val calculatedFirExpression =
-            firExpression ?: buildErrorExpression(null, ConeSyntaxDiagnostic("Argument is absent"))
+            firExpression ?: buildErrorExpression(valueArgument.toFirSourceElement(), ConeSyntaxDiagnostic("Argument is absent"))
         return when {
             identifier != null -> buildNamedArgumentExpression {
                 source = valueArgument.toFirSourceElement()

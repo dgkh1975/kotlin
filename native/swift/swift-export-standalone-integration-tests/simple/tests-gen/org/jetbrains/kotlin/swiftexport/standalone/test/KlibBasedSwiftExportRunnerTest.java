@@ -50,6 +50,12 @@ public class KlibBasedSwiftExportRunnerTest extends AbstractKlibBasedSwiftRunner
   }
 
   @Test
+  @TestMetadata("containing_not_exported_classifiers")
+  public void testContaining_not_exported_classifiers() {
+    runTest("native/swift/swift-export-standalone-integration-tests/simple/testData/generation/containing_not_exported_classifiers/");
+  }
+
+  @Test
   @TestMetadata("contextParameters")
   public void testContextParameters() {
     runTest("native/swift/swift-export-standalone-integration-tests/simple/testData/generation/contextParameters/");
@@ -65,6 +71,12 @@ public class KlibBasedSwiftExportRunnerTest extends AbstractKlibBasedSwiftRunner
   @TestMetadata("exceptions")
   public void testExceptions() {
     runTest("native/swift/swift-export-standalone-integration-tests/simple/testData/generation/exceptions/");
+  }
+
+  @Test
+  @TestMetadata("extension_package_keyword")
+  public void testExtension_package_keyword() {
+    runTest("native/swift/swift-export-standalone-integration-tests/simple/testData/generation/extension_package_keyword/");
   }
 
   @Test
@@ -89,6 +101,12 @@ public class KlibBasedSwiftExportRunnerTest extends AbstractKlibBasedSwiftRunner
   @TestMetadata("functions")
   public void testFunctions() {
     runTest("native/swift/swift-export-standalone-integration-tests/simple/testData/generation/functions/");
+  }
+
+  @Test
+  @TestMetadata("hiddenFromObjectiveC")
+  public void testHiddenFromObjectiveC() {
+    runTest("native/swift/swift-export-standalone-integration-tests/simple/testData/generation/hiddenFromObjectiveC/");
   }
 
   @Test
@@ -173,6 +191,12 @@ public class KlibBasedSwiftExportRunnerTest extends AbstractKlibBasedSwiftRunner
   @TestMetadata("set")
   public void testSet() {
     runTest("native/swift/swift-export-standalone-integration-tests/simple/testData/generation/set/");
+  }
+
+  @Test
+  @TestMetadata("stdlibTypes")
+  public void testStdlibTypes() {
+    runTest("native/swift/swift-export-standalone-integration-tests/simple/testData/generation/stdlibTypes/");
   }
 
   @Test

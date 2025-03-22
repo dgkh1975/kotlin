@@ -1237,13 +1237,16 @@ internal object KotlinToolingDiagnostics {
     }
 
     object ExperimentalFeatureWarning : ToolingDiagnosticFactory(WARNING, DiagnosticGroup.Kgp.Experimental) {
-        operator fun invoke(featureName: String, youtrackUrl: String) = build {
+        operator fun invoke(featureName: String, youtrackUrl: String, extraSolution: String? = null) = build {
             title("Experimental Feature Notice")
                 .description {
                     "$featureName is an experimental feature and subject to change in any future releases."
                 }
-                .solution {
-                    "It may not function as you expect and you may encounter bugs. Use it at your own risk."
+                .solutions {
+                    listOfNotNull(
+                        "It may not function as you expect and you may encounter bugs. Use it at your own risk.",
+                        extraSolution
+                    )
                 }
                 .documentationLink(URI(youtrackUrl)) { url ->
                     "Thank you for your understanding. We would appreciate your feedback on this feature in YouTrack $url."
@@ -1599,6 +1602,14 @@ internal object KotlinToolingDiagnostics {
                 .solution {
                     "Build project on suitable machine"
                 }
+        }
+    }
+
+    object PublishAllAndroidLibraryVariantsDeprecated : ToolingDiagnosticFactory(WARNING, DiagnosticGroup.Kgp.Deprecation) {
+        operator fun invoke() = build {
+            title("publishAllLibraryVariants() is deprecated")
+                .description("Publishing all Android Variants implicitly is not recommended.")
+                .solution("Please specify variants you want to publish explicitly with publishLibraryVariants()")
         }
     }
 }

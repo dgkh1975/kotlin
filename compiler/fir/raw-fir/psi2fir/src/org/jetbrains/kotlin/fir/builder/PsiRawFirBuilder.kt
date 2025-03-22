@@ -41,6 +41,7 @@ import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
 import org.jetbrains.kotlin.fir.types.impl.FirImplicitTypeRefImplWithoutSource
 import org.jetbrains.kotlin.fir.types.impl.FirQualifierPartImpl
 import org.jetbrains.kotlin.fir.types.impl.FirTypeArgumentListImpl
+import org.jetbrains.kotlin.fir.visitors.FirVisitorVoid
 import org.jetbrains.kotlin.lexer.KtTokens.*
 import org.jetbrains.kotlin.name.*
 import org.jetbrains.kotlin.psi.*
@@ -292,25 +293,41 @@ open class PsiRawFirBuilder(
             }
 
         // Here we accept lambda as receiver to prevent expression calculation in stub mode
-        private fun (() -> KtExpression?).toFirExpression(errorReason: String): FirExpression =
-            this().toFirExpression(errorReason)
+        private fun (() -> KtExpression?).toFirExpression(errorReason: String, sourceWhenInvalidExpression: KtElement): FirExpression =
+            this().toFirExpression(errorReason, sourceWhenInvalidExpression = sourceWhenInvalidExpression)
 
         private fun KtElement?.toFirExpression(
             errorReason: String,
-            kind: DiagnosticKind = DiagnosticKind.ExpressionExpected,
-            sourceWhenThisIsNull: KtElement? = this,
+            sourceWhenInvalidExpression: KtElement,
         ): FirExpression {
-            return toFirExpression(sourceWhenThisIsNull = sourceWhenThisIsNull) { ConeSimpleDiagnostic(errorReason, kind) }
+            return toFirExpression(sourceWhenInvalidExpression = sourceWhenInvalidExpression) { missing ->
+                if (missing) {
+                    ConeSyntaxDiagnostic(errorReason)
+                } else {
+                    ConeSimpleDiagnostic(errorReason, DiagnosticKind.ExpressionExpected)
+                }
+            }
+        }
+
+        private fun KtElement.toFirExpression(
+            errorReason: String,
+        ): FirExpression {
+            return toFirExpression(sourceWhenInvalidExpression = this) { missing ->
+                if (missing) {
+                    ConeSyntaxDiagnostic(errorReason)
+                } else {
+                    ConeSimpleDiagnostic(errorReason, DiagnosticKind.ExpressionExpected)
+                }
+            }
         }
 
         private inline fun KtElement?.toFirExpression(
-            sourceWhenThisIsNull: KtElement? = null,
-            sourceWhenInvalidExpression: KtElement? = this,
+            sourceWhenInvalidExpression: KtElement,
             isValidExpression: (FirExpression) -> Boolean = { !it.isStatementLikeExpression },
-            diagnosticFn: () -> ConeDiagnostic,
+            diagnosticFn: (missing: Boolean) -> ConeDiagnostic,
         ): FirExpression {
             if (this == null) {
-                return buildErrorExpression(source = sourceWhenThisIsNull?.toFirSourceElement(), diagnosticFn())
+                return buildErrorExpression(source = sourceWhenInvalidExpression.toFirSourceElement(), diagnosticFn(true))
             }
 
             return when (val fir = convertElement(this, null)) {
@@ -318,13 +335,13 @@ open class PsiRawFirBuilder(
                     isValidExpression(fir) -> checkSelectorInvariant(fir)
                     else -> buildErrorExpression {
                         nonExpressionElement = fir
-                        diagnostic = diagnosticFn()
-                        source = sourceWhenInvalidExpression?.toFirSourceElement()
+                        diagnostic = diagnosticFn(false)
+                        source = fir.source?.realElement() ?: sourceWhenInvalidExpression.toFirSourceElement()
                     }
                 }
                 else -> buildErrorExpression {
                     nonExpressionElement = fir
-                    diagnostic = diagnosticFn()
+                    diagnostic = diagnosticFn(fir == null)
                     source = fir?.source?.realElement() ?: toFirSourceElement()
                 }
             }
@@ -444,7 +461,7 @@ open class PsiRawFirBuilder(
                         }
                         return@buildFirBody block to contractDescription
                     } else {
-                        val result = { bodyExpression }.toFirExpression("Function has no body (but should)")
+                        val result = { bodyExpression }.toFirExpression("Function has no body (but should)", this)
                         FirSingleExpressionBlock(result.toReturn(baseSource = result.source))
                     }
                 } to null
@@ -458,13 +475,7 @@ open class PsiRawFirBuilder(
         private fun functionCallHasLabel(psi: PsiElement): Boolean =
             firstFunctionCallInBlockHasLambdaArgumentWithLabel(psi, { it.elementType }, { it.allChildren.toList() })
 
-        private fun ValueArgument?.toFirExpression(): FirExpression {
-            if (this == null) {
-                return buildErrorExpression(
-                    source = null,
-                    ConeSyntaxDiagnostic("No argument given"),
-                )
-            }
+        private fun ValueArgument.toFirExpression(): FirExpression {
             val name = this.getArgumentName()?.asName
             val firExpression = when (val expression = this.getArgumentExpression()) {
                 is KtConstantExpression, is KtStringTemplateExpression -> {
@@ -472,10 +483,11 @@ open class PsiRawFirBuilder(
                 }
 
                 else -> {
-                    { expression }.toFirExpression("Argument is absent")
+                    { expression }.toFirExpression("Argument is absent", sourceWhenInvalidExpression = this.asElement())
                 }
             }
-            val isSpread = getSpreadElement() != null
+
+            val isSpread = isSpread
             return when {
                 name != null -> buildNamedArgumentExpression {
                     source = (this@toFirExpression as? PsiElement)?.toFirSourceElement()
@@ -703,7 +715,12 @@ open class PsiRawFirBuilder(
                             diagnostic = ConeContextParameterWithDefaultValue
                         }
                     } else {
-                        buildOrLazyExpression(null) { { this@toFirValueParameter.defaultValue }.toFirExpression("Should have default value") }
+                        buildOrLazyExpression(null) {
+                            { this@toFirValueParameter.defaultValue }.toFirExpression(
+                                "Should have default value",
+                                sourceWhenInvalidExpression = this@toFirValueParameter
+                            )
+                        }
                     }
                 } else null
                 isCrossinline = hasModifier(CROSSINLINE_KEYWORD)
@@ -988,7 +1005,7 @@ open class PsiRawFirBuilder(
                 withContainerSymbol(symbol) {
                     initializer = buildOrLazyExpression(delegateSource) {
                         { entry.delegateExpression }
-                            .toFirExpression("Should have delegate")
+                            .toFirExpression("Should have delegate", sourceWhenInvalidExpression = entry)
                     }
                 }
 
@@ -1338,7 +1355,7 @@ open class PsiRawFirBuilder(
         protected fun buildScriptDestructuringDeclaration(destructuringDeclaration: KtDestructuringDeclaration): FirVariable {
             val initializer = destructuringDeclaration.initializer
             val firInitializer = buildOrLazyExpression(initializer?.toFirSourceElement()) {
-                initializer.toFirExpression { ConeSyntaxDiagnostic("Initializer required for destructuring declaration") }
+                initializer.toFirExpression("Initializer required for destructuring declaration", sourceWhenInvalidExpression = destructuringDeclaration)
             }
 
             val destructuringContainerVar = generateTemporaryVariable(
@@ -1444,44 +1461,48 @@ open class PsiRawFirBuilder(
                         // see KT-75301 for discussion about `isLocal` here
                         withContainerSymbol(snippetSymbol, isLocal = true) {
                             buildBlock {
-                                script.declarations.forEach { declaration ->
-                                    when (declaration) {
-                                        is KtScriptInitializer -> {
-                                            val initializer = buildAnonymousInitializer(
-                                                initializer = declaration,
-                                                containingDeclarationSymbol = snippetSymbol,
-                                                allowLazyBody = true,
-                                                isLocal = true,
-                                            )
+                                withForcedLocalContext {
+                                    script.declarations.forEach { declaration ->
+                                        when (declaration) {
+                                            is KtScriptInitializer -> {
+                                                val initializer = buildAnonymousInitializer(
+                                                    initializer = declaration,
+                                                    containingDeclarationSymbol = snippetSymbol,
+                                                    allowLazyBody = true,
+                                                    isLocal = true,
+                                                )
 
-                                            statements.addAll(initializer.body!!.statements)
-                                        }
-                                        is KtDestructuringDeclaration -> {
-                                            val destructuringContainerVar = buildScriptDestructuringDeclaration(declaration)
-                                            statements.add(destructuringContainerVar)
-
-                                            addDestructuringVariables(
-                                                statements,
-                                                this@Visitor,
-                                                baseModuleData,
-                                                declaration,
-                                                destructuringContainerVar,
-                                                tmpVariable = false,
-                                                forceLocal = false,
-                                            ) {
-                                                configureScriptDestructuringDeclarationEntry(it, destructuringContainerVar)
+                                                statements.addAll(initializer.body!!.statements)
                                             }
-                                        }
-                                        is KtProperty -> {
-                                            val firProperty = convertProperty(declaration, null, forceLocal = true)
-                                            statements.add(firProperty)
-                                        }
-                                        else -> {
-                                            val firStatement = declaration.toFirStatement()
-                                            if (firStatement is FirDeclaration) {
-                                                statements.add(firStatement)
-                                            } else {
-                                                error("unexpected declaration type in script")
+                                            is KtDestructuringDeclaration -> {
+                                                val destructuringContainerVar = buildScriptDestructuringDeclaration(declaration)
+                                                statements.add(destructuringContainerVar)
+
+                                                addDestructuringVariables(
+                                                    statements,
+                                                    this@Visitor,
+                                                    baseModuleData,
+                                                    declaration,
+                                                    destructuringContainerVar,
+                                                    tmpVariable = false,
+                                                    forceLocal = false,
+                                                ) {
+                                                    configureScriptDestructuringDeclarationEntry(it, destructuringContainerVar)
+                                                }
+                                            }
+                                            is KtProperty -> {
+                                                val firProperty = convertProperty(declaration, null, forceLocal = true)
+                                                firProperty.accept(snippetDeclarationVisitor)
+                                                statements.add(firProperty)
+                                            }
+                                            else -> {
+                                                val firStatement = declaration.toFirStatement()
+                                                if (firStatement is FirDeclaration) {
+                                                    firStatement.accept(snippetDeclarationVisitor)
+                                                    statements.add(firStatement)
+                                                } else {
+                                                    error("unexpected declaration type in script")
+                                                }
                                             }
                                         }
                                     }
@@ -2155,7 +2176,7 @@ open class PsiRawFirBuilder(
                 val ktBody = literal.bodyExpression
                 body = withForcedLocalContext {
                     if (ktBody == null) {
-                        val errorExpression = buildErrorExpression(source, ConeSyntaxDiagnostic("Lambda has no body"))
+                        val errorExpression = buildErrorExpression(literalSource, ConeSyntaxDiagnostic("Lambda has no body"))
                         FirSingleExpressionBlock(errorExpression.toReturn())
                     } else {
                         val kind = runIf(destructuringVariables.isNotEmpty()) {
@@ -2285,7 +2306,7 @@ open class PsiRawFirBuilder(
 
                 val expression = buildOrLazyExpression(null) {
                     withForcedLocalContext {
-                        initializer.toFirExpression("Should have initializer")
+                        initializer.toFirExpression("Should have initializer", sourceWhenInvalidExpression = this)
                     }
                 }
 
@@ -2298,7 +2319,10 @@ open class PsiRawFirBuilder(
             context: Context<T>,
             forceLocal: Boolean = false,
         ): FirProperty {
-            val propertyName = nameAsSafeName
+            val propertyName = when {
+                isLocal && nameIdentifier?.text == "_" -> SpecialNames.UNDERSCORE_FOR_UNUSED_VAR
+                else -> nameAsSafeName
+            }
             val propertySymbol = if (isLocal) {
                 FirPropertySymbol(propertyName)
             } else {
@@ -2348,7 +2372,10 @@ open class PsiRawFirBuilder(
 
                         if (hasDelegate()) {
                             fun extractDelegateExpression() =
-                                this@toFirProperty.delegate?.expression.toFirExpression("Incorrect delegate expression")
+                                this@toFirProperty.delegate?.expression.toFirExpression(
+                                    "Incorrect delegate expression",
+                                    sourceWhenInvalidExpression = this@toFirProperty
+                                )
 
                             val delegateBuilder = FirWrappedDelegateExpressionBuilder().apply {
                                 val delegateFirExpression = extractDelegateExpression()
@@ -2409,11 +2436,10 @@ open class PsiRawFirBuilder(
                             if (hasDelegate()) {
                                 val fakeDelegateSource = this@toFirProperty.toFirSourceElement(KtFakeSourceElementKind.WrappedDelegate)
                                 fun extractDelegateExpression(): FirExpression = buildOrLazyExpression(fakeDelegateSource) {
-                                    this@toFirProperty.delegate
-                                        ?.expression?.toFirExpression("Should have delegate")
-                                        ?: buildErrorExpression {
-                                            diagnostic = ConeSimpleDiagnostic("Should have delegate", DiagnosticKind.ExpressionExpected)
-                                        }
+                                    this@toFirProperty.delegate?.expression.toFirExpression(
+                                        "Should have delegate",
+                                        sourceWhenInvalidExpression = this@toFirProperty
+                                    )
                                 }
 
                                 val delegateBuilder = FirWrappedDelegateExpressionBuilder().apply {
@@ -2744,18 +2770,10 @@ open class PsiRawFirBuilder(
                 else -> expression
             }.toFirSourceElement()
 
-            val expressionSource = expression.toFirSourceElement()
-            var diagnostic: ConeDiagnostic? = null
-            val rawText = expression.getReferencedNameElement().node.text
-            if (rawText.isUnderscore) {
-                diagnostic = ConeUnderscoreUsageWithoutBackticks(expressionSource)
-            }
-
             return generateAccessExpression(
                 qualifiedSource,
-                expressionSource,
+                expression.toFirSourceElement(),
                 expression.getReferencedNameAsName(),
-                diagnostic
             )
         }
 
@@ -2839,7 +2857,7 @@ open class PsiRawFirBuilder(
                 val ktCondition = expression.condition
                 branches += buildRegularWhenBranch {
                     source = ktCondition?.toFirSourceElement(KtFakeSourceElementKind.WhenCondition)
-                    condition = ktCondition.toFirExpression("If statement should have condition")
+                    condition = ktCondition.toFirExpression("If statement should have condition", sourceWhenInvalidExpression = expression)
                     result = expression.then.toFirBlock()
                 }
 
@@ -2863,7 +2881,10 @@ open class PsiRawFirBuilder(
             }?.toFirExpression("Incorrect when subject expression: ${ktSubjectExpression?.text}")
             var subjectVariable = when (ktSubjectExpression) {
                 is KtVariableDeclaration -> {
-                    val name = ktSubjectExpression.nameAsSafeName
+                    val name = when {
+                        ktSubjectExpression.nameIdentifier?.text == "_" -> SpecialNames.UNDERSCORE_FOR_UNUSED_VAR
+                        else -> ktSubjectExpression.nameAsSafeName
+                    }
                     buildProperty {
                         source = ktSubjectExpression.toFirSourceElement()
                         moduleData = baseModuleData
@@ -2913,7 +2934,7 @@ open class PsiRawFirBuilder(
 
                 for (entry in expression.entries) {
                     val entrySource = entry.toFirSourceElement()
-                    val entryGuard = entry.guard?.let { it.getExpression().toFirExpression("No expression in guard") }
+                    val entryGuard = entry.guard?.let { it.getExpression().toFirExpression("No expression in guard", sourceWhenInvalidExpression = it) }
                     val branchBody = entry.expression.toFirBlock()
                     branches += if (entry.elseKeyword == null) {
                         if (hasSubject) {
@@ -2921,7 +2942,9 @@ open class PsiRawFirBuilder(
                                 source = entrySource
                                 condition = entry.conditions.toFirWhenCondition(
                                     ref,
-                                    { toFirExpression(it) },
+                                    { errorReason, fallbackSource ->
+                                        toFirExpression(errorReason, sourceWhenInvalidExpression = fallbackSource)
+                                    },
                                     { toFirOrErrorType() },
                                 ).guardedBy(entryGuard)
                                 result = branchBody
@@ -2932,16 +2955,13 @@ open class PsiRawFirBuilder(
                                 source = entrySource
                                 condition =
                                     if (entry.conditions.size == 1 && ktCondition is KtWhenConditionWithExpression) {
-                                        (ktCondition.expression ?: ktCondition).toFirExpression(
-                                            "No expression in condition with expression",
-                                            DiagnosticKind.ExpressionExpected,
-                                        )
+                                        (ktCondition.expression ?: ktCondition).toFirExpression("No expression in condition with expression")
                                     } else {
                                         buildBalancedOrExpressionTree(entry.conditions.map { condition ->
                                             if (condition is KtWhenConditionWithExpression) {
                                                 condition.expression.toFirExpression(
                                                     "No expression in condition with expression",
-                                                    DiagnosticKind.ExpressionExpected
+                                                    sourceWhenInvalidExpression = condition
                                                 )
                                             } else {
                                                 shouldBind = true
@@ -2949,7 +2969,9 @@ open class PsiRawFirBuilder(
                                                     source = condition.toFirSourceElement()
                                                     nonExpressionElement = condition.toFirWhenCondition(
                                                         ref,
-                                                        { toFirExpression(it) },
+                                                        { errorReason, fallbackSource ->
+                                                            toFirExpression(errorReason, sourceWhenInvalidExpression = fallbackSource)
+                                                        },
                                                         { toFirOrErrorType() },
                                                     )
                                                     diagnostic = ConeSimpleDiagnostic(
@@ -3015,7 +3037,10 @@ open class PsiRawFirBuilder(
                 source = expression.toFirSourceElement()
                 // For break/continue in the do-while loop condition, prepare the loop target first so that it can refer to the same loop.
                 target = prepareTarget(expression)
-                condition = expression.condition.toFirExpression("No condition in do-while loop")
+                condition = expression.condition.toFirExpression(
+                    "No condition in do-while loop",
+                    sourceWhenInvalidExpression = expression.getChildNodeByType(KtNodeTypes.CONDITION) as? KtElement ?: expression
+                )
             }.configure(target) { expression.body.toFirBlock() }
         }
 
@@ -3023,7 +3048,10 @@ open class PsiRawFirBuilder(
             val target: FirLoopTarget
             return FirWhileLoopBuilder().apply {
                 source = expression.toFirSourceElement()
-                condition = expression.condition.toFirExpression("No condition in while loop")
+                condition = expression.condition.toFirExpression(
+                    "No condition in while loop",
+                    sourceWhenInvalidExpression = expression.getChildNodeByType(KtNodeTypes.CONDITION) as? KtElement ?: expression
+                )
                 // break/continue in the while loop condition will refer to an outer loop if any.
                 // So, prepare the loop target after building the condition.
                 target = prepareTarget(expression)
@@ -3031,7 +3059,10 @@ open class PsiRawFirBuilder(
         }
 
         override fun visitForExpression(expression: KtForExpression, data: FirElement?): FirElement {
-            val rangeExpression = expression.loopRange.toFirExpression("No range in for loop")
+            val rangeExpression = expression.loopRange.toFirExpression(
+                "No range in for loop",
+                sourceWhenInvalidExpression = expression.getChildNodeByType(KtNodeTypes.LOOP_RANGE) as? KtElement ?: expression
+            )
             val ktParameter = expression.loopParameter
             val fakeSource = expression.toKtPsiSourceElement(KtFakeSourceElementKind.DesugaredForLoop)
             val rangeSource = expression.loopRange?.toFirSourceElement(KtFakeSourceElementKind.DesugaredForLoop) ?: fakeSource
@@ -3076,7 +3107,11 @@ open class PsiRawFirBuilder(
                         val firLoopParameter = generateTemporaryVariable(
                             moduleData = baseModuleData,
                             source = ktParameter.toFirSourceElement(),
-                            name = if (multiDeclaration != null) SpecialNames.DESTRUCT else ktParameter.nameAsSafeName,
+                            name = when {
+                                multiDeclaration != null -> SpecialNames.DESTRUCT
+                                ktParameter.nameIdentifier?.asText == "_" -> SpecialNames.UNDERSCORE_FOR_UNUSED_VAR
+                                else -> ktParameter.nameAsSafeName
+                            },
                             initializer = buildFunctionCall {
                                 source = rangeSource
                                 calleeReference = buildSimpleNamedReference {
@@ -3149,8 +3184,8 @@ open class PsiRawFirBuilder(
                 context.calleeNamesForLambda += null
             }
 
-            val leftArgument = expression.left.toFirExpression("No left operand")
-            val rightArgument = expression.right.toFirExpression("No right operand")
+            val leftArgument = expression.left.toFirExpression("No left operand", sourceWhenInvalidExpression = expression)
+            val rightArgument = expression.right.toFirExpression("No right operand", sourceWhenInvalidExpression = expression)
 
             // No need for the callee name since arguments are already generated
             context.calleeNamesForLambda.removeLast()
@@ -3200,11 +3235,13 @@ open class PsiRawFirBuilder(
                         (this as KtExpression).toFirExpression(
                             sourceWhenInvalidExpression = expression,
                             isValidExpression = { !it.isStatementLikeExpression || it.isArraySet },
-                        ) {
-                            ConeSimpleDiagnostic(
-                                "Incorrect expression in assignment: ${expression.text}",
-                                DiagnosticKind.ExpressionExpected
-                            )
+                        ) { missing ->
+                            val message = "Incorrect expression in assignment"
+                            if (missing) {
+                                ConeSyntaxDiagnostic(message)
+                            } else {
+                                ConeSimpleDiagnostic(message, DiagnosticKind.ExpressionExpected)
+                            }
                         }
                     }
                 } else {
@@ -3243,7 +3280,7 @@ open class PsiRawFirBuilder(
                 operationToken == EXCLEXCL -> {
                     buildCheckNotNullCall {
                         source = expression.toFirSourceElement()
-                        argumentList = buildUnaryArgumentList(argument.toFirExpression("No operand"))
+                        argumentList = buildUnaryArgumentList(argument.toFirExpression("No operand", sourceWhenInvalidExpression = expression))
                     }
                 }
                 conventionCallName != null -> {
@@ -3255,7 +3292,7 @@ open class PsiRawFirBuilder(
                         ) { (this as KtExpression).toFirExpression("Incorrect expression inside inc/dec") }
                     }
 
-                    val receiver = argument.toFirExpression("No operand")
+                    val receiver = argument.toFirExpression("No operand", sourceWhenInvalidExpression = expression)
 
                     convertUnaryPlusMinusCallOnIntegerLiteralIfNecessary(expression, receiver, operationToken)?.let { return it }
 
@@ -3368,7 +3405,7 @@ open class PsiRawFirBuilder(
                     source = expression.toFirSourceElement().fakeElement(KtFakeSourceElementKind.ArrayAccessNameReference)
                     name = if (isGet) OperatorNameConventions.GET else OperatorNameConventions.SET
                 }
-                explicitReceiver = arrayExpression.toFirExpression("No array expression")
+                explicitReceiver = arrayExpression.toFirExpression("No array expression", sourceWhenInvalidExpression = expression)
                 argumentList = buildArgumentList {
                     for (indexExpression in expression.indexExpressions) {
                         arguments += indexExpression.toFirExpression("Incorrect index expression")
@@ -3394,27 +3431,31 @@ open class PsiRawFirBuilder(
                 }
 
             val firSelector = selector.toFirExpression("Incorrect selector expression")
-            if (firSelector is FirQualifiedAccessExpression) {
-                if (expression is KtSafeQualifiedExpression) {
-                    @OptIn(FirImplementationDetail::class)
-                    firSelector.replaceSource(expression.toFirSourceElement(KtFakeSourceElementKind.DesugaredSafeCallExpression))
-                    return firSelector.createSafeCall(
-                        receiver,
-                        expression.toFirSourceElement()
-                    )
-                }
+            return when (firSelector) {
+                is FirQualifiedAccessExpression -> {
+                    if (expression is KtSafeQualifiedExpression) {
+                        @OptIn(FirImplementationDetail::class)
+                        firSelector.replaceSource(expression.toFirSourceElement(KtFakeSourceElementKind.DesugaredSafeCallExpression))
+                        return firSelector.createSafeCall(
+                            receiver,
+                            expression.toFirSourceElement()
+                        )
+                    }
 
-                return convertFirSelector(firSelector, expression.toFirSourceElement(), receiver)
-            }
-            if (firSelector is FirErrorExpression) {
-                return buildQualifiedErrorAccessExpression {
-                    this.receiver = receiver
-                    this.selector = firSelector
-                    source = expression.toFirSourceElement()
-                    diagnostic = ConeSyntaxDiagnostic("Qualified expression with unexpected selector")
+                    convertFirSelector(firSelector, expression.toFirSourceElement(), receiver)
+                }
+                is FirErrorExpression -> {
+                    buildQualifiedErrorAccessExpression {
+                        this.receiver = receiver
+                        this.selector = firSelector
+                        source = expression.toFirSourceElement()
+                        diagnostic = ConeSyntaxDiagnostic("Qualified expression with unexpected selector")
+                    }
+                }
+                else -> {
+                    firSelector
                 }
             }
-            return firSelector
         }
 
         override fun visitThisExpression(expression: KtThisExpression, data: FirElement?): FirElement {
@@ -3443,7 +3484,7 @@ open class PsiRawFirBuilder(
 
         override fun visitParenthesizedExpression(expression: KtParenthesizedExpression, data: FirElement?): FirElement {
             context.forwardLabelUsagePermission(expression, expression.expression)
-            return expression.expression.toFirExpression("Empty parentheses", sourceWhenThisIsNull = expression)
+            return expression.expression.toFirExpression("Empty parentheses", sourceWhenInvalidExpression = expression)
         }
 
         override fun visitLabeledExpression(expression: KtLabeledExpression, data: FirElement?): FirElement {
@@ -3484,7 +3525,7 @@ open class PsiRawFirBuilder(
         override fun visitThrowExpression(expression: KtThrowExpression, data: FirElement?): FirElement {
             return buildThrowExpression {
                 source = expression.toFirSourceElement()
-                exception = expression.thrownExpression.toFirExpression("Nothing to throw")
+                exception = expression.thrownExpression.toFirExpression("Nothing to throw", sourceWhenInvalidExpression = expression)
             }
         }
 
@@ -3493,7 +3534,7 @@ open class PsiRawFirBuilder(
                 baseModuleData,
                 multiDeclaration.toFirSourceElement(),
                 "destruct",
-                multiDeclaration.initializer.toFirExpression { ConeSyntaxDiagnostic("Initializer required for destructuring declaration") },
+                multiDeclaration.initializer.toFirExpression("Initializer required for destructuring declaration", sourceWhenInvalidExpression = multiDeclaration),
                 extractAnnotationsTo = { extractAnnotationsTo(it) }
             )
             return generateDestructuringBlock(
@@ -3509,7 +3550,7 @@ open class PsiRawFirBuilder(
             return buildGetClassCall {
                 source = expression.toFirSourceElement()
                 argumentList = buildUnaryArgumentList(
-                    expression.receiverExpression.toFirExpression(sourceWhenThisIsNull = expression) {
+                    expression.receiverExpression.toFirExpression(sourceWhenInvalidExpression = expression) {
                         ConeUnsupportedClassLiteralsWithEmptyLhs
                     }
                 )
@@ -3580,5 +3621,34 @@ enum class BodyBuildingMode {
 
     companion object {
         fun lazyBodies(lazyBodies: Boolean): BodyBuildingMode = if (lazyBodies) LAZY_BODIES else NORMAL
+    }
+}
+
+private val snippetDeclarationVisitor: FirVisitorVoid = object : FirVisitorVoid() {
+    override fun visitElement(element: FirElement) {}
+
+    override fun visitProperty(property: FirProperty) {
+        property.isReplSnippetDeclaration = true
+        property.getter?.accept(this)
+        property.setter?.accept(this)
+    }
+
+    override fun visitRegularClass(regularClass: FirRegularClass) {
+        regularClass.isReplSnippetDeclaration = true
+        regularClass.declarations.forEach {
+            if (it is FirClass) it.accept(this)
+        }
+    }
+
+    override fun visitSimpleFunction(simpleFunction: FirSimpleFunction) {
+        simpleFunction.isReplSnippetDeclaration = true
+    }
+
+    override fun visitPropertyAccessor(propertyAccessor: FirPropertyAccessor) {
+        propertyAccessor.isReplSnippetDeclaration = true
+    }
+
+    override fun visitTypeAlias(typeAlias: FirTypeAlias) {
+        typeAlias.isReplSnippetDeclaration = true
     }
 }

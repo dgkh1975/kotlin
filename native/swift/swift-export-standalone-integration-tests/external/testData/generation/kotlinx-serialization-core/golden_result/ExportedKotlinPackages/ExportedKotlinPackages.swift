@@ -1,6 +1,4 @@
 public enum kotlin {
-    public enum reflect {
-    }
 }
 public enum kotlinx {
     public enum serialization {

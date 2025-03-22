@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.backend.common.linkage.partial
 
+import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageCase.*
 import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageUtils.DeclarationId
 import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageUtils.DeclarationId.Companion.declarationId
 import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageUtils.isEffectivelyMissingLazyIrDeclaration
@@ -21,11 +22,10 @@ import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin.Companion.PARTIAL_L
 import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrCompositeImpl
 import org.jetbrains.kotlin.ir.expressions.impl.fromSymbolOwner
-import org.jetbrains.kotlin.ir.linkage.partial.*
-import org.jetbrains.kotlin.ir.linkage.partial.PartialLinkageCase.*
 import org.jetbrains.kotlin.ir.overrides.isEffectivelyPrivate
 import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.symbols.impl.IrAnonymousInitializerSymbolImpl
+import org.jetbrains.kotlin.ir.symbols.impl.IrSimpleFunctionSymbolImpl
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrNull
@@ -41,8 +41,8 @@ import org.jetbrains.kotlin.utils.compact
 import org.jetbrains.kotlin.utils.newHashSetWithExpectedSize
 import java.util.*
 import kotlin.properties.Delegates
-import org.jetbrains.kotlin.ir.linkage.partial.PartialLinkageUtils.File as PLFile
-import org.jetbrains.kotlin.ir.linkage.partial.PartialLinkageUtils.Module as PLModule
+import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageSources.File as PLFile
+import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageSources.Module as PLModule
 
 internal class PartiallyLinkedIrTreePatcher(
     private val builtIns: IrBuiltIns,
@@ -610,6 +610,36 @@ internal class PartiallyLinkedIrTreePatcher(
                 ?: checkReferencedDeclaration(setter)
                 ?: checkReferencedDeclaration(field)
                 ?: checkExpressionTypeArguments()
+        }
+
+        override fun visitRichFunctionReference(expression: IrRichFunctionReference) = expression.maybeThrowLinkageError {
+            // A type of function reference is usually FunctionN or KFunctionN, and its overriddenFunctionSymbol is FunctionN.invoke.
+            // But the type can also be a user defined fun interface, and either that interface or its SAM could have gone missing.
+            checkReferencedDeclaration(overriddenFunctionSymbol)
+                ?: checkExpressionType(type)
+                ?: run {
+                    // Don't completely fail when reflectionTargetSymbol is unlinked, see reflectionTargetLinkageError for details.
+                    reflectionTargetLinkageError = checkReferencedDeclaration(reflectionTargetSymbol)
+                    null
+                }
+        }
+
+        override fun visitRichPropertyReference(expression: IrRichPropertyReference): IrRichPropertyReference {
+            expression.transformChildrenVoid(this)
+
+            // Don't completely fail when reflectionTargetSymbol is unlinked, see reflectionTargetLinkageError for details.
+            expression.reflectionTargetLinkageError = expression.checkReferencedDeclaration(expression.reflectionTargetSymbol)
+            if (expression.reflectionTargetLinkageError != null) {
+                (expression.reflectionTargetSymbol?.owner as? IrProperty)?.let { property ->
+                    // checkReferencedDeclaration() above generates a stub for reflectionTargetSymbol itself, but
+                    // we also to need create stubs for the property's getter and setter to not leave unbound IR.
+                    property.getter = stubGenerator.getDeclaration(IrSimpleFunctionSymbolImpl()) as IrSimpleFunction
+                    if (expression.setterFunction != null) {
+                        property.setter = stubGenerator.getDeclaration(IrSimpleFunctionSymbolImpl()) as IrSimpleFunction
+                    }
+                }
+            }
+            return expression
         }
 
         // Never patch instance initializers. Otherwise, this will break a lot of lowerings.

@@ -110,14 +110,14 @@ public class SirTypeProviderImpl(
 
                         else -> {
                             val classSymbol = kaType.symbol
-                            if (classSymbol.sirVisibility(ctx.ktAnalysisSession) == SirVisibility.PUBLIC) {
-                                if (classSymbol is KaClassSymbol && classSymbol.classKind == KaClassKind.INTERFACE) {
-                                    SirExistentialType(classSymbol.toSir().allDeclarations.firstIsInstance<SirProtocol>())
-                                } else {
-                                    ctx.nominalTypeFromClassSymbol(classSymbol)
-                                }
-                            } else {
-                                null
+                            when (classSymbol.sirAvailability(ctx.ktAnalysisSession)) {
+                                is SirAvailability.Available, is SirAvailability.Hidden ->
+                                    if (classSymbol is KaClassSymbol && classSymbol.classKind == KaClassKind.INTERFACE) {
+                                        SirExistentialType(classSymbol.toSir().allDeclarations.firstIsInstance<SirProtocol>())
+                                    } else {
+                                        ctx.nominalTypeFromClassSymbol(classSymbol)
+                                    }
+                                is SirAvailability.Unavailable -> null
                             }
                         }
                     }
@@ -165,8 +165,8 @@ public class SirTypeProviderImpl(
         ktAnalysisSession: KaSession,
         processTypeImports: (List<SirImport>) -> Unit,
     ): SirType {
-        if (this is SirNominalType) {
-            when (val origin = typeDeclaration.origin) {
+        fun SirDeclaration.extractImport() {
+            when (val origin = this.origin) {
                 is KotlinSource -> {
                     val ktModule = with(ktAnalysisSession) {
                         origin.symbol.containingModule
@@ -181,9 +181,19 @@ public class SirTypeProviderImpl(
                 }
                 else -> {}
             }
-            for (typeArg in typeArguments) {
-                typeArg.handleImports(ktAnalysisSession, processTypeImports)
+        }
+
+        when (this) {
+            is SirNominalType -> {
+                generateSequence(this) { this.parent }.forEach {
+                    typeArguments.forEach { it.handleImports(ktAnalysisSession, processTypeImports) }
+                    typeDeclaration.extractImport()
+                }
             }
+            is SirExistentialType -> this.protocols.forEach { it.extractImport() }
+            is SirFunctionalType -> this.parameterTypes.forEach { it.handleImports(ktAnalysisSession, processTypeImports) }
+            is SirErrorType -> {}
+            SirUnsupportedType -> {}
         }
         return this
     }

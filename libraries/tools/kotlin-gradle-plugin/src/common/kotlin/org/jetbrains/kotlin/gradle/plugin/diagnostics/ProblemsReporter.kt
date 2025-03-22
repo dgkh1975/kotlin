@@ -9,6 +9,7 @@ import org.gradle.api.logging.Logger
 import org.gradle.api.logging.Logging
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.problems.*
+import org.gradle.internal.cc.base.logger
 import org.jetbrains.kotlin.gradle.plugin.VariantImplementationFactories
 import org.jetbrains.kotlin.gradle.utils.newInstance
 import javax.inject.Inject
@@ -41,9 +42,13 @@ internal fun ProblemReporter.report(
     renderedDiagnostic: ReportedDiagnostic,
     fillSpec: (ProblemSpec, KotlinDiagnosticsException?) -> Unit
 ) {
-    when (renderedDiagnostic) {
-        is ReportedDiagnostic.Message -> reporting { fillSpec(it, null) }
-        is ReportedDiagnostic.Throwable -> throwing { fillSpec(it, renderedDiagnostic.throwable) }
+    try {
+        when (renderedDiagnostic) {
+            is ReportedDiagnostic.Message -> reporting { fillSpec(it, null) }
+            is ReportedDiagnostic.Throwable -> throwing { fillSpec(it, renderedDiagnostic.throwable) }
+        }
+    } catch (e: NoSuchMethodError) {
+        logger.error("Can't invoke reporter method:", e)
     }
 }
 

@@ -9,7 +9,6 @@ import org.jetbrains.kotlin.sir.SirModule
 import org.jetbrains.kotlin.sir.builder.buildModule
 import org.jetbrains.kotlin.sir.providers.SirTypeProvider
 import org.jetbrains.kotlin.sir.providers.impl.SirEnumGeneratorImpl
-import org.jetbrains.kotlin.sir.providers.utils.KotlinRuntimeModule
 import org.jetbrains.kotlin.sir.providers.utils.SilentUnsupportedDeclarationReporter
 import org.jetbrains.kotlin.sir.providers.utils.SimpleUnsupportedDeclarationReporter
 import org.jetbrains.kotlin.sir.providers.utils.UnsupportedDeclarationReporter
@@ -18,9 +17,11 @@ import org.jetbrains.kotlin.swiftexport.standalone.config.SwiftExportConfig
 import org.jetbrains.kotlin.swiftexport.standalone.config.SwiftModuleConfig
 import org.jetbrains.kotlin.swiftexport.standalone.translation.TranslationResult
 import org.jetbrains.kotlin.swiftexport.standalone.translation.translateModulePublicApi
+import org.jetbrains.kotlin.swiftexport.standalone.translation.translateModuleTransitiveClosure
 import org.jetbrains.kotlin.swiftexport.standalone.utils.logConfigIssues
 import org.jetbrains.kotlin.swiftexport.standalone.writer.dumpTextAtFile
 import org.jetbrains.kotlin.swiftexport.standalone.writer.dumpTextAtPath
+import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import org.jetbrains.sir.printer.SirAsSwiftSourcesPrinter
 import java.io.Serializable
 import java.nio.file.Path
@@ -118,23 +119,31 @@ public fun createDummyLogger(): SwiftExportLogger = object : SwiftExportLogger {
 }
 
 /**
- * A root function for running Swift Export from build tool
+ * Translates a collection of fully exported Kotlin modules to their Swift equivalent,
+ * handles dependencies among modules, writes Swift output files, and generates additional
+ * runtime support modules for Swift integration.
+ *
+ * @param fullyExportedModules The set of modules that are fully defined for export to Swift.
+ * @param transitivelyExportedModules The set of modules that are indirectly required for the translation process.
+ * @param config The configuration object specifying the behavior, paths, and options for Swift export.
+ * @return A [Result] containing a set of translated Swift export modules upon success, or an exception in case of a failure.
  */
 public fun runSwiftExport(
-    input: Set<InputModule>,
+    fullyExportedModules: Set<InputModule>,
+    transitivelyExportedModules: Set<InputModule>,
     config: SwiftExportConfig,
 ): Result<Set<SwiftExportModule>> = runCatching {
-    logConfigIssues(input, config.logger)
+    logConfigIssues(fullyExportedModules, config.logger)
     val stdlibInputModule = config.stdlibInputModule
     val platformLibsInputModule = config.platformLibsInputModule
-    val translatedModules = input.map { rootModule ->
+    val translationResults = fullyExportedModules.map { rootModule ->
         /**
          * This value represents dependencies of current module.
          * The actual dependency graph is unknown at this point - there is only an array of modules to translate. This particular value
          * will be used to initialize Analysis API session. It is an error to pass module as a dependency to itself - therefor there is
          * a need to remove the current translation module from the list of dependencies.
          */
-        val dependencies = input - rootModule
+        val dependencies = fullyExportedModules - rootModule
         translateModulePublicApi(
             rootModule,
             SwiftExportDependencies(
@@ -145,16 +154,19 @@ public fun runSwiftExport(
             config
         )
     }
-
+    val stdlibTranslationResult = translationResults.flatMap { it.referencedStdlibTypes }.ifNotEmpty {
+        translateModuleTransitiveClosure(stdlibInputModule, config, toSet())
+    }
+    val allModules = translationResults + listOfNotNull(stdlibTranslationResult)
     val packagesModule = writeKotlinPackagesModule(
-        sirModule = translatedModules.createModuleForPackages(config),
+        sirModule = allModules.createModuleForPackages(config),
         outputPath = config.outputPath.parent / config.moduleForPackagesName / "${config.moduleForPackagesName}.swift"
     )
     val runtimeSupportModule = writeRuntimeSupportModule(
         config = config,
         outputPath = config.outputPath.parent / config.runtimeSupportModuleName / "${config.runtimeSupportModuleName}.swift",
     )
-    return@runCatching setOf(packagesModule, runtimeSupportModule) + translatedModules.map { it.writeModule(config) }
+    return@runCatching setOf(packagesModule, runtimeSupportModule) + allModules.map { it.writeModule(config) }
 }
 
 private fun Collection<TranslationResult>.createModuleForPackages(config: SwiftExportConfig): SirModule = buildModule {
@@ -203,31 +215,18 @@ private fun writeRuntimeSupportModule(
 }
 
 private fun TranslationResult.writeModule(config: SwiftExportConfig): SwiftExportModule {
-    val swiftSources = sequenceOf(
-        SirAsSwiftSourcesPrinter.print(
-            sirModule,
-            config.stableDeclarationsOrder,
-            config.renderDocComments,
-        )
-    ) + moduleConfig.unsupportedDeclarationReporter.messages.map { "// $it" }
-
+    val swiftSources = sequenceOf(swiftModuleSources) + moduleConfig.unsupportedDeclarationReporter.messages.map { "// $it" }
+    val modulePath = config.outputPath / swiftModuleName
     val outputFiles = SwiftExportFiles(
-        swiftApi = (config.outputPath / sirModule.name / "${sirModule.name}.swift"),
-        kotlinBridges = (config.outputPath / sirModule.name / "${sirModule.name}.kt"),
-        cHeaderBridges = (config.outputPath / sirModule.name / "${sirModule.name}.h")
+        swiftApi = (modulePath / "$swiftModuleName.swift"),
+        kotlinBridges = (modulePath / "$swiftModuleName.kt"),
+        cHeaderBridges = (modulePath / "$swiftModuleName.h")
     )
-
-    dumpTextAtPath(
-        swiftSources,
-        bridgeSources,
-        outputFiles
-    )
+    dumpTextAtPath(swiftSources, bridgeSources, outputFiles)
 
     return SwiftExportModule.BridgesToKotlin(
-        name = sirModule.name,
-        dependencies = sirModule.imports
-            .filter { it.moduleName !in setOf(KotlinRuntimeModule.name, bridgesModuleName) + config.platformLibsInputModule.map { it.name } }
-            .map { SwiftExportModule.Reference(it.moduleName) },
+        name = swiftModuleName,
+        dependencies = referencedSwiftModules,
         bridgeName = bridgesModuleName,
         files = outputFiles
     )

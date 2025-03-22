@@ -26,13 +26,18 @@ import org.jetbrains.sir.lightclasses.SirDeclarationFromKtSymbolProvider
 
 class TestSirSession(
     kaModule: KaModule,
+    referencedTypeHandler: SirKaClassReferenceHandler? = null,
 ) : SirSession {
+    override val useSiteModule: KaModule = kaModule
     override val declarationNamer: SirDeclarationNamer = SirDeclarationNamerImpl()
     override val moduleProvider: SirModuleProvider = SirOneToOneModuleProvider(emptyList())
     override val declarationProvider: SirDeclarationProvider = CachingSirDeclarationProvider(
-        declarationsProvider = SirDeclarationFromKtSymbolProvider(
-            ktModule = kaModule,
-            sirSession = sirSession,
+        declarationsProvider = ObservingSirDeclarationProvider(
+            declarationsProvider = SirDeclarationFromKtSymbolProvider(
+                ktModule = kaModule,
+                sirSession = sirSession,
+            ),
+            kaClassReferenceHandler = referencedTypeHandler
         )
     )
     override val enumGenerator: SirEnumGenerator = SirEnumGeneratorImpl(buildModule { name = "Packages" })
@@ -57,9 +62,13 @@ class TestSirSession(
         SirTrampolineDeclarationsProviderImpl(sirSession, null)
 }
 
-inline fun <R> translate(file: KtFile, action: (List<SirDeclaration>) -> R) {
+inline fun <R> translate(
+    file: KtFile,
+    sirSessionBuilder: (KaModule) -> SirSession = { TestSirSession(it) },
+    action: (List<SirDeclaration>) -> R
+) {
     analyze(file) {
-        with(TestSirSession(useSiteModule)) {
+        with(sirSessionBuilder(useSiteModule)) {
             action(file.symbol.fileScope.extractDeclarations(useSiteSession).toList())
         }
     }

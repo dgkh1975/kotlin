@@ -126,7 +126,7 @@ if (!project.hasProperty("versions.kotlin-native")) {
     extra["versions.kotlin-native"] = if (kotlinBuildProperties.isKotlinNativeEnabled) {
         kotlinBuildProperties.defaultSnapshotVersion
     } else {
-        "2.2.0-dev-8022"
+        "2.2.0-dev-10310"
     }
 }
 
@@ -365,6 +365,7 @@ val projectsUsedInIntelliJKotlinPlugin =
                 ":kotlin-sam-with-receiver-compiler-plugin.k1",
                 ":kotlin-sam-with-receiver-compiler-plugin.k2",
 
+                ":kotlin-dataframe-compiler-plugin",
 
                 ":kotlin-compiler-runner-unshaded",
                 ":kotlin-preloader",
@@ -466,6 +467,7 @@ extra["compilerArtifactsForIde"] = listOfNotNull(
     ":prepare:ide-plugin-dependencies:assignment-compiler-plugin-for-ide",
     ":prepare:ide-plugin-dependencies:parcelize-compiler-plugin-for-ide",
     ":prepare:ide-plugin-dependencies:lombok-compiler-plugin-for-ide",
+    ":prepare:ide-plugin-dependencies:kotlin-dataframe-compiler-plugin-for-ide",
     ":prepare:ide-plugin-dependencies:kotlin-objcexport-header-generator-for-ide",
     ":prepare:ide-plugin-dependencies:kotlin-swift-export-for-ide",
     ":prepare:ide-plugin-dependencies:kotlin-compiler-tests-for-ide",
@@ -557,7 +559,8 @@ val gradlePluginProjects = listOf(
     ":kotlin-sam-with-receiver",
     ":kotlin-parcelize-compiler",
     ":kotlin-lombok",
-    ":kotlin-assignment"
+    ":kotlin-assignment",
+    ":kotlin-dataframe"
 )
 
 val ignoreTestFailures by extra(project.kotlinBuildProperties.ignoreTestFailures)
@@ -852,6 +855,7 @@ tasks {
         dependsOn(":native:native.tests:klib-compatibility:check")
         dependsOn(":tools:binary-compatibility-validator:check")
         dependsOn(":native:objcexport-header-generator:check")
+        dependsOn(":native:swift:swift-export-standalone:check")
         dependsOn(":native:swift:swift-export-embeddable:testExternalITWithEmbeddable")
         dependsOn(":native:swift:swift-export-embeddable:testSimpleITWithEmbeddable")
         dependsOn(":native:swift:swift-export-ide:test")
@@ -969,6 +973,7 @@ tasks {
         dependsOn(":kotlin-sam-with-receiver-compiler-plugin:test")
         dependsOn(":kotlin-power-assert-compiler-plugin:test")
         dependsOn(":plugins:plugins-interactions-testing:test")
+        dependsOn(":kotlin-dataframe-compiler-plugin:test")
     }
 
     register("toolsTest") {

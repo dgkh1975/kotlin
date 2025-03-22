@@ -939,7 +939,11 @@ class LightTreeRawFirDeclarationBuilder(
 
     private fun buildFirDestructuringDeclarationInitializer(destructuringDeclaration: LighterASTNode): FirExpression {
         val initializer = destructuringDeclaration.getChildExpression().takeUnless { it?.tokenType == PROPERTY_DELEGATE }
-        return expressionConverter.getAsFirExpression(initializer, "Initializer required for destructuring declaration")
+        return expressionConverter.getAsFirExpression(
+            initializer,
+            "Initializer required for destructuring declaration",
+            sourceWhenInvalidExpression = destructuringDeclaration
+        )
     }
 
     private fun buildErrorTopLevelDeclarationForDanglingModifierList(node: LighterASTNode) = buildDanglingModifierList {
@@ -1329,9 +1333,12 @@ class LightTreeRawFirDeclarationBuilder(
             identifier = it.asText
         }
 
-        val propertyName = identifier.nameAsSafeName()
         val parentNode = property.getParent()
         val isLocal = !(parentNode?.tokenType == KT_FILE || parentNode?.tokenType == CLASS_BODY)
+        val propertyName = when {
+            isLocal && identifier == "_" -> SpecialNames.UNDERSCORE_FOR_UNUSED_VAR
+            else -> identifier.nameAsSafeName()
+        }
         val propertySymbol = if (isLocal) {
             FirPropertySymbol(propertyName)
         } else {
@@ -1536,7 +1543,7 @@ class LightTreeRawFirDeclarationBuilder(
             isVar,
             entries,
             firExpression ?: buildErrorExpression(
-                null,
+                destructingDeclaration.toFirSourceElement(),
                 ConeSyntaxDiagnostic("Initializer required for destructuring declaration")
             ),
             source,
@@ -1782,7 +1789,7 @@ class LightTreeRawFirDeclarationBuilder(
                     val effect = it.getFirstChild()
                     if (effect == null) {
                         val errorExpression =
-                            buildErrorExpression(null, ConeSimpleDiagnostic(errorReason, DiagnosticKind.ExpressionExpected))
+                            buildErrorExpression(rawContractDescription.toFirSourceElement(), ConeSimpleDiagnostic(errorReason, DiagnosticKind.ExpressionExpected))
                         destination.add(errorExpression)
                     } else {
                         val expression = expressionConverter.convertExpression(effect, errorReason)
@@ -2490,6 +2497,13 @@ class LightTreeRawFirDeclarationBuilder(
             }
         }
     }
+
+    val FirUserTypeRef.isUnderscored: Boolean
+        get() {
+            val qualifierSource = qualifier.lastOrNull()?.source ?: return false
+            val text = qualifierSource.lighterASTNode.getChildNodeByType(IDENTIFIER)?.asText
+            return text == "_"
+        }
 
     /**
      * @see org.jetbrains.kotlin.parsing.KotlinParsing.parseFunctionType
