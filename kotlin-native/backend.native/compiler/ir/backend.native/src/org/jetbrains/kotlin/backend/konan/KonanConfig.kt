@@ -17,7 +17,6 @@ import org.jetbrains.kotlin.backend.konan.serialization.PartialCacheInfo
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
-import org.jetbrains.kotlin.config.KlibConfigurationKeys.CUSTOM_KLIB_ABI_VERSION
 import org.jetbrains.kotlin.config.KotlinCompilerVersion
 import org.jetbrains.kotlin.config.phaseConfig
 import org.jetbrains.kotlin.konan.file.File
@@ -326,8 +325,6 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
 
     internal val headerKlibPath get() = configuration.get(KonanConfigKeys.HEADER_KLIB)?.removeSuffixIfPresent(".klib")
 
-    internal val customAbiVersion get() = configuration.get(CUSTOM_KLIB_ABI_VERSION)
-
     internal val produceStaticFramework get() = configuration.getBoolean(KonanConfigKeys.STATIC_FRAMEWORK)
 
     internal val purgeUserLibs: Boolean
@@ -522,6 +519,13 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
 
     internal val threadsCount = configuration.get(CommonConfigurationKeys.PARALLEL_BACKEND_THREADS) ?: 1
 
+    val stackProtectorMode = configuration.get(BinaryOptions.stackProtector)?.let {
+        if (it != StackProtectorMode.NO && target.family == Family.MINGW) {
+            configuration.reportCompilationError("Stack protector is not supported on MinGW targets")
+            null
+        } else it
+    } ?: StackProtectorMode.NO
+
     private fun StringBuilder.appendCommonCacheFlavor() {
         append(target.toString())
         if (debug) append("-g")
@@ -531,9 +535,10 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
             append("-lazy_init${if (propertyLazyInitialization) "ENABLE" else "DISABLE"}")
         if (sanitizer != null)
             append("-sanitizer${sanitizer.name}")
-        if (checkStateAtExternalCalls) {
+        if (checkStateAtExternalCalls)
             append("-check_state_at_external_calls")
-        }
+        if (stackProtectorMode != StackProtectorMode.NO)
+            append("-stack_protector${stackProtectorMode.name}")
     }
 
     private val systemCacheFlavorString = buildString {

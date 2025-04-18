@@ -73,13 +73,11 @@ private abstract class DeclarationContext {
     }
 
     abstract val composable: Boolean
-    abstract val symbol: IrSymbol
     abstract val declaration: IrSymbolOwner
     abstract val captures: Set<IrValueDeclaration>
-    abstract val functionContext: FunctionContext?
-    abstract fun declareLocal(local: IrValueDeclaration?)
-    abstract fun recordCapture(local: IrValueDeclaration?): Boolean
-    abstract fun recordCapture(local: IrSymbolOwner?)
+    abstract fun declareLocal(local: IrValueDeclaration)
+    abstract fun recordCapture(local: IrValueDeclaration): Boolean
+    abstract fun recordCapture(local: IrSymbolOwner)
     abstract fun pushCollector(collector: CaptureCollector)
     abstract fun popCollector(collector: CaptureCollector)
 }
@@ -117,83 +115,102 @@ private fun List<DeclarationContext>.recordLocalCapture(
 
 private class SymbolOwnerContext(override val declaration: IrSymbolOwner) : DeclarationContext() {
     override val composable get() = false
-    override val functionContext: FunctionContext? get() = null
-    override val symbol get() = declaration.symbol
     override val captures: Set<IrValueDeclaration> get() = emptySet()
-    override fun declareLocal(local: IrValueDeclaration?) {}
-    override fun recordCapture(local: IrValueDeclaration?): Boolean {
+    override fun declareLocal(local: IrValueDeclaration) {}
+    override fun recordCapture(local: IrValueDeclaration): Boolean {
         return false
     }
 
-    override fun recordCapture(local: IrSymbolOwner?) {}
+    override fun recordCapture(local: IrSymbolOwner) {}
     override fun pushCollector(collector: CaptureCollector) {}
     override fun popCollector(collector: CaptureCollector) {}
-}
-
-private class FunctionLocalSymbol(
-    override val declaration: IrSymbolOwner,
-    override val functionContext: FunctionContext,
-) : DeclarationContext() {
-    override val composable: Boolean get() = functionContext.composable
-    override val symbol: IrSymbol get() = declaration.symbol
-    override val captures: Set<IrValueDeclaration> get() = functionContext.captures
-    override fun declareLocal(local: IrValueDeclaration?) = functionContext.declareLocal(local)
-    override fun recordCapture(local: IrValueDeclaration?) = functionContext.recordCapture(local)
-    override fun recordCapture(local: IrSymbolOwner?) = functionContext.recordCapture(local)
-    override fun pushCollector(collector: CaptureCollector) =
-        functionContext.pushCollector(collector)
-
-    override fun popCollector(collector: CaptureCollector) =
-        functionContext.popCollector(collector)
 }
 
 private class FunctionContext(
     override val declaration: IrFunction,
     override val composable: Boolean,
 ) : DeclarationContext() {
-    override val symbol get() = declaration.symbol
-    override val functionContext: FunctionContext get() = this
     val locals = mutableSetOf<IrValueDeclaration>()
     override val captures: MutableSet<IrValueDeclaration> = mutableSetOf()
     var collectors = mutableListOf<CaptureCollector>()
     val canRemember: Boolean get() = composable
 
     init {
-        declaration.valueParameters.forEach {
+        declaration.parameters.forEach {
             declareLocal(it)
         }
-        declaration.dispatchReceiverParameter?.let { declareLocal(it) }
-        declaration.extensionReceiverParameter?.let { declareLocal(it) }
     }
 
-    override fun declareLocal(local: IrValueDeclaration?) {
-        if (local != null) {
-            locals.add(local)
-        }
+    override fun declareLocal(local: IrValueDeclaration) {
+        locals.add(local)
     }
 
-    override fun recordCapture(local: IrValueDeclaration?): Boolean {
+    override fun recordCapture(local: IrValueDeclaration): Boolean {
         val containsLocal = locals.contains(local)
-        if (local != null && collectors.isNotEmpty() && containsLocal) {
+        if (collectors.isNotEmpty() && containsLocal) {
             for (collector in collectors) {
                 collector.recordCapture(local)
             }
         }
-        if (local != null && declaration.isLocal && !containsLocal) {
+        if (declaration.isLocal && !containsLocal) {
             captures.add(local)
         }
         return containsLocal
     }
 
-    override fun recordCapture(local: IrSymbolOwner?) {
-        if (local != null) {
-            val captures = localDeclarationCaptures[local]
+    override fun recordCapture(local: IrSymbolOwner) {
+        val captures = localDeclarationCaptures[local]
+        for (collector in collectors) {
+            collector.recordCapture(local)
+            if (captures != null) {
+                for (capture in captures) {
+                    collector.recordCapture(capture)
+                }
+            }
+        }
+    }
+
+    override fun pushCollector(collector: CaptureCollector) {
+        collectors.add(collector)
+    }
+
+    override fun popCollector(collector: CaptureCollector) {
+        require(collectors.lastOrNull() == collector)
+        collectors.removeAt(collectors.size - 1)
+    }
+}
+
+private class AnonymousInitializerContext(override val declaration: IrAnonymousInitializer) : DeclarationContext() {
+    override val composable: Boolean = false
+    override val captures: MutableSet<IrValueDeclaration> = mutableSetOf()
+
+    val locals = mutableSetOf<IrValueDeclaration>()
+    var collectors = mutableListOf<CaptureCollector>()
+
+    override fun declareLocal(local: IrValueDeclaration) {
+        locals.add(local)
+    }
+
+    override fun recordCapture(local: IrValueDeclaration): Boolean {
+        val containsLocal = locals.contains(local)
+        if (collectors.isNotEmpty() && containsLocal) {
             for (collector in collectors) {
                 collector.recordCapture(local)
-                if (captures != null) {
-                    for (capture in captures) {
-                        collector.recordCapture(capture)
-                    }
+            }
+        }
+        if (!containsLocal) {
+            captures.add(local)
+        }
+        return containsLocal
+    }
+
+    override fun recordCapture(local: IrSymbolOwner) {
+        val captures = localDeclarationCaptures[local]
+        for (collector in collectors) {
+            collector.recordCapture(local)
+            if (captures != null) {
+                for (capture in captures) {
+                    collector.recordCapture(capture)
                 }
             }
         }
@@ -211,28 +228,26 @@ private class FunctionContext(
 
 private class ClassContext(override val declaration: IrClass) : DeclarationContext() {
     override val composable: Boolean = false
-    override val symbol get() = declaration.symbol
-    override val functionContext: FunctionContext? = null
     override val captures: MutableSet<IrValueDeclaration> = mutableSetOf()
     val thisParam: IrValueDeclaration? = declaration.thisReceiver!!
     var collectors = mutableListOf<CaptureCollector>()
-    override fun declareLocal(local: IrValueDeclaration?) {}
-    override fun recordCapture(local: IrValueDeclaration?): Boolean {
+    override fun declareLocal(local: IrValueDeclaration) {}
+    override fun recordCapture(local: IrValueDeclaration): Boolean {
         val isThis = local == thisParam
         val isConstructorParam = (local?.parent as? IrConstructor)?.parent === declaration
         val isClassParam = isThis || isConstructorParam
-        if (local != null && collectors.isNotEmpty() && isClassParam) {
+        if (collectors.isNotEmpty() && isClassParam) {
             for (collector in collectors) {
                 collector.recordCapture(local)
             }
         }
-        if (local != null && declaration.isLocal && !isClassParam) {
+        if (declaration.isLocal && !isClassParam) {
             captures.add(local)
         }
         return isClassParam
     }
 
-    override fun recordCapture(local: IrSymbolOwner?) {}
+    override fun recordCapture(local: IrSymbolOwner) {}
     override fun pushCollector(collector: CaptureCollector) {
         collectors.add(collector)
     }
@@ -254,9 +269,7 @@ class ComposerLambdaMemoization(
 
     private val declarationContextStack = mutableListOf<DeclarationContext>()
 
-    private val currentFunctionContext: FunctionContext?
-        get() =
-            declarationContextStack.peek()?.functionContext
+    private var currentFunctionContext: FunctionContext? = null
 
     private var composableSingletonsClass: IrClass? = null
     private var currentFile: IrFile? = null
@@ -372,15 +385,12 @@ class ComposerLambdaMemoization(
     }
 
     override fun visitDeclaration(declaration: IrDeclarationBase): IrStatement {
-        if (declaration is IrFunction)
+        // contexts for those declarations are already created
+        if (declaration is IrClass || declaration is IrFunction || declaration is IrAnonymousInitializer) {
             return super.visitDeclaration(declaration)
-
-        val functionContext = currentFunctionContext
-        if (functionContext != null) {
-            declarationContextStack.push(FunctionLocalSymbol(declaration, functionContext))
-        } else {
-            declarationContextStack.push(SymbolOwnerContext(declaration))
         }
+
+        declarationContextStack.push(SymbolOwnerContext(declaration))
         val result = super.visitDeclaration(declaration)
         declarationContextStack.pop()
         return result
@@ -411,7 +421,10 @@ class ComposerLambdaMemoization(
             declarationContextStack.recordLocalDeclaration(context)
         }
         declarationContextStack.push(context)
+        val oldFunctionContext = currentFunctionContext
+        currentFunctionContext = context
         val result = super.visitFunction(declaration)
+        currentFunctionContext = oldFunctionContext
         declarationContextStack.pop()
         return result
     }
@@ -423,6 +436,15 @@ class ComposerLambdaMemoization(
         }
         declarationContextStack.push(context)
         val result = super.visitClass(declaration)
+        declarationContextStack.pop()
+        return result
+    }
+
+    override fun visitAnonymousInitializer(declaration: IrAnonymousInitializer): IrStatement {
+        val context = AnonymousInitializerContext(declaration)
+        declarationContextStack.recordLocalDeclaration(context)
+        declarationContextStack.push(context)
+        val result = super.visitAnonymousInitializer(declaration)
         declarationContextStack.pop()
         return result
     }
@@ -498,63 +520,37 @@ class ComposerLambdaMemoization(
 
         // The syntax <expr>::<method>(<params>) and ::<function>(<params>) is reserved for
         // future use. Revisit implementation if this syntax is as a curry syntax in the future.
-        // The most likely correct implementation is to treat the parameters exactly as the
-        // receivers are treated below.
-
-        // Do not attempt memoization if the referenced function has context receivers.
-        if (reference.symbol.owner.contextReceiverParametersCount > 0) {
-            return expression
-        }
-
-        // Do not attempt memoization if value parameters are not null. This is to guard against
-        // unexpected IR shapes.
-        for (i in 0 until reference.valueArgumentsCount) {
-            if (reference.getValueArgument(i) != null) {
-                return expression
-            }
-        }
 
         if (functionContext.canRemember) {
             // Memoize the reference for <expr>::<method>
-            val dispatchReceiver = reference.dispatchReceiver
-            val extensionReceiver = reference.extensionReceiver
-
-            val hasReceiver = dispatchReceiver != null || extensionReceiver != null
-            val receiverIsStable =
-                dispatchReceiver.isNullOrStable() &&
-                        extensionReceiver.isNullOrStable()
+            val argumentsAreNull = reference.arguments.all { it == null }
+            val argumentsAreNullOrStable = reference.arguments.all { it.isNullOrStable() }
 
             val captures = mutableListOf<IrValueDeclaration>()
             if (localCaptures != null) {
                 captures.addAll(localCaptures)
             }
 
-            if (hasReceiver && (FeatureFlag.StrongSkipping.enabled || receiverIsStable)) {
+            if (!argumentsAreNull && (FeatureFlag.StrongSkipping.enabled || argumentsAreNullOrStable)) {
                 // Save the receivers into a temporaries and memoize the function reference using
                 // the resulting temporaries
                 val builder = DeclarationIrBuilder(
                     generatorContext = context,
-                    symbol = functionContext.symbol,
+                    symbol = functionContext.declaration.symbol,
                     startOffset = expression.startOffset,
                     endOffset = expression.endOffset
                 )
                 return builder.irBlock(
                     resultType = expression.type
                 ) {
-                    val tempDispatchReceiver = dispatchReceiver?.let {
-                        val tmp = irTemporary(it)
-                        captures.add(tmp)
-                        tmp
-                    }
-                    val tempExtensionReceiver = extensionReceiver?.let {
-                        val tmp = irTemporary(it)
-                        captures.add(tmp)
-                        tmp
-                    }
+                    // Patch reference arguments in place
+                    for (i in reference.arguments.indices) {
+                        if (reference.arguments[i] == null) continue
 
-                    // Patch reference receiver in place
-                    reference.dispatchReceiver = tempDispatchReceiver?.let { irGet(it) }
-                    reference.extensionReceiver = tempExtensionReceiver?.let { irGet(it) }
+                        val tmp = irTemporary(reference.arguments[i])
+                        captures.add(tmp)
+                        reference.arguments[i] = irGet(tmp)
+                    }
 
                     +rememberExpression(
                         functionContext,
@@ -562,7 +558,7 @@ class ComposerLambdaMemoization(
                         captures
                     )
                 }
-            } else if (dispatchReceiver == null && extensionReceiver == null) {
+            } else if (argumentsAreNull) {
                 return rememberExpression(functionContext, expression, captures)
             }
         }
@@ -715,8 +711,9 @@ class ComposerLambdaMemoization(
             singleton = !collector.hasCaptures
         )
 
+        val isComposableContext = currentFunctionContext?.composable == true
         if (!collector.hasCaptures) {
-            val enclosingFunction = declarationContext.functionContext?.declaration
+            val enclosingFunction = currentFunctionContext?.declaration
             val inPublicInlineScope = enclosingFunction?.isInPublicInlineScope == true
             if (!context.platform.isJvm() && hasTypeParameter(expression.type)) {
                 // This is a workaround
@@ -725,7 +722,7 @@ class ComposerLambdaMemoization(
                 // Ideally we will find a solution to remap symbols of TypeParameters in
                 // ComposableSingletons properties after ComposerParamTransformer
                 // (deepCopy in ComposerParamTransformer didn't help).
-                return wrapFunctionExpression(declarationContext, functionExpression, collector, declarationContext.composable)
+                return wrapFunctionExpression(declarationContext, functionExpression, collector, isComposableContext)
             }
             val singleton = irGetComposableSingleton(
                 lambdaExpression = wrapFunctionExpression(
@@ -745,7 +742,7 @@ class ComposerLambdaMemoization(
                     declarationContext,
                     functionExpression.deepCopyWithSymbols(functionExpression.function.parent),
                     collector,
-                    declarationContext.composable
+                    isComposableContext
                 )
                     .also {
                         it.associatedComposableSingletonStub = singleton
@@ -754,7 +751,7 @@ class ComposerLambdaMemoization(
                 singleton
             }
         } else {
-            return wrapFunctionExpression(declarationContext, functionExpression, collector, declarationContext.composable)
+            return wrapFunctionExpression(declarationContext, functionExpression, collector, isComposableContext)
         }
     }
 
@@ -808,7 +805,7 @@ class ComposerLambdaMemoization(
             }.also { fn ->
                 val thisParam = clazz.thisReceiver!!.copyTo(fn)
                 fn.parent = clazz
-                fn.dispatchReceiverParameter = thisParam
+                fn.parameters += thisParam
                 fn.body = DeclarationIrBuilder(context, fn.symbol).irBlockBody {
                     +irReturn(irGetField(irGet(thisParam), p.backingField!!))
                 }
@@ -830,7 +827,7 @@ class ComposerLambdaMemoization(
                     }.also { fn ->
                         val thisParam = clazz.thisReceiver!!.copyTo(fn)
                         fn.parent = clazz
-                        fn.dispatchReceiverParameter = thisParam
+                        fn.parameters += thisParam
                         fn.body = DeclarationIrBuilder(context, fn.symbol).irBlockBody {
                             +irReturn(irCall(getter))
                         }
@@ -879,7 +876,7 @@ class ComposerLambdaMemoization(
         useComposableFactory: Boolean
     ): IrCall {
         val function = expression.function
-        val argumentCount = function.valueParameters.size
+        val argumentCount = function.parameters.size
 
         if (argumentCount > MAX_RESTART_ARGUMENT_COUNT && !context.platform.isJvm()) {
             error(
@@ -903,7 +900,7 @@ class ComposerLambdaMemoization(
             else composableLambdaInstanceFunction
         val irBuilder = DeclarationIrBuilder(
             context,
-            symbol = declarationContext.symbol,
+            symbol = declarationContext.declaration.symbol,
             startOffset = expression.startOffset,
             endOffset = expression.endOffset
         )
@@ -913,39 +910,29 @@ class ComposerLambdaMemoization(
 
             // first parameter is the composer parameter if we are using the composable factory
             if (requiresExplicitComposerParameter) {
-                putValueArgument(
-                    index++,
-                    irCurrentComposer()
-                )
+                arguments[index++] = irCurrentComposer()
             }
 
             // key parameter
-            putValueArgument(
-                index++,
-                irBuilder.irInt(expression.function.sourceKey())
-            )
+            arguments[index++] = irBuilder.irInt(expression.function.sourceKey())
 
             // tracked parameter
             // If the lambda has no captures, then kotlin will turn it into a singleton instance,
             // which means that it will never change, thus does not need to be tracked.
             val shouldBeTracked = collector.captures.isNotEmpty()
-            putValueArgument(index++, irBuilder.irBoolean(shouldBeTracked))
+            arguments[index++] = irBuilder.irBoolean(shouldBeTracked)
 
             // ComposableLambdaN requires the arity
             if (useComposableLambdaN) {
                 // arity parameter
-                putValueArgument(index++, irBuilder.irInt(argumentCount))
+                arguments[index++] = irBuilder.irInt(argumentCount)
             }
-            if (index >= valueArgumentsCount) {
-                error(
-                    "function = ${
-                        function.name.asString()
-                    }, count = $valueArgumentsCount, index = $index"
-                )
+            if (index >= arguments.size) {
+                error("function = ${function.render()}, count = ${arguments.size}, index = $index")
             }
 
             // block parameter
-            putValueArgument(index, expression.markIsTransformedLambda())
+            arguments[index] = expression.markIsTransformedLambda()
         }
 
         return composableLambdaExpression.markHasTransformedLambda()
@@ -1071,20 +1058,20 @@ class ComposerLambdaMemoization(
         val directRememberFunction = // Exclude the varargs version
             rememberFunctions.singleOrNull {
                 // captures + calculation arg
-                it.valueParameters.size == captures.size + 1 &&
+                it.parameters.size == captures.size + 1 &&
                         // Exclude the varargs version
-                        it.valueParameters.firstOrNull()?.varargElementType == null
+                        it.parameters.firstOrNull()?.varargElementType == null
             }
         val rememberFunction = directRememberFunction
             ?: rememberFunctions.single {
                 // Use the varargs version
-                it.valueParameters.firstOrNull()?.varargElementType != null
+                it.parameters.firstOrNull()?.varargElementType != null
             }
 
         val rememberFunctionSymbol = rememberFunction.symbol
         val irBuilder = DeclarationIrBuilder(
             generatorContext = context,
-            symbol = currentFunctionContext!!.symbol,
+            symbol = currentFunctionContext!!.declaration.symbol,
             startOffset = expression.startOffset,
             endOffset = expression.endOffset
         )
@@ -1099,29 +1086,25 @@ class ComposerLambdaMemoization(
             val lambdaArgumentIndex = if (directRememberFunction != null) {
                 // condition arguments are the first `arg.size` arguments
                 for (i in captures.indices) {
-                    putValueArgument(i, captures[i])
+                    arguments[i] = captures[i]
                 }
                 // The lambda is the last parameter
                 captures.size
             } else {
-                val parameterType = rememberFunction.valueParameters[0].type
+                val parameterType = rememberFunction.parameters[0].type
                 // Call to the vararg version
-                putValueArgument(
-                    0,
-                    IrVarargImpl(
-                        startOffset = UNDEFINED_OFFSET,
-                        endOffset = UNDEFINED_OFFSET,
-                        type = parameterType,
-                        varargElementType = context.irBuiltIns.anyType,
-                        elements = captures
-                    )
+                arguments[0] = IrVarargImpl(
+                    startOffset = UNDEFINED_OFFSET,
+                    endOffset = UNDEFINED_OFFSET,
+                    type = parameterType,
+                    varargElementType = context.irBuiltIns.anyType,
+                    elements = captures
                 )
                 1
             }
 
-            putValueArgument(
-                index = lambdaArgumentIndex,
-                valueArgument = irLambdaExpression(
+            arguments[lambdaArgumentIndex] =
+                irLambdaExpression(
                     startOffset = expression.startOffset,
                     endOffset = expression.endOffset,
                     returnType = expression.type
@@ -1130,7 +1113,6 @@ class ComposerLambdaMemoization(
                         +irReturn(expression)
                     }
                 }
-            )
         }
     }
 

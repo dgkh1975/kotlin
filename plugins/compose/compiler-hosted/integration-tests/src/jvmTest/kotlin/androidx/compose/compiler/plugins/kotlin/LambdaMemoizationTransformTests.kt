@@ -35,7 +35,7 @@ class LambdaMemoizationTransformTests(useFir: Boolean) : AbstractIrTransformTest
             languageVersion = languageVersionSettings.languageVersion,
             apiVersion = languageVersionSettings.apiVersion,
             specificFeatures = mapOf(
-                LanguageFeature.ContextReceivers to LanguageFeature.State.ENABLED
+                LanguageFeature.ContextParameters to LanguageFeature.State.ENABLED
             )
         )
     }
@@ -557,29 +557,6 @@ class LambdaMemoizationTransformTests(useFir: Boolean) : AbstractIrTransformTest
                 fun Something() {
                     val x = remember { Stable() }
                     val shouldMemoize = x::qux
-                }
-            """
-        )
-    }
-
-    // Reference to function with context receivers does not currently support memoization.
-    @Test
-    fun testNonComposableFunctionReferenceWithStableContextReceiverNotMemoized() {
-        verifyGoldenComposeIrTransform(
-            source = """
-                import androidx.compose.runtime.Composable
-                import androidx.compose.runtime.remember
-
-                class StableReceiver
-                class Stable {
-                    context(StableReceiver)
-                    fun qux() {}
-                }
-
-                @Composable
-                fun Something() {
-                    val x = remember { Stable() }
-                    val shouldNotMemoize = x::qux
                 }
             """
         )
@@ -1129,6 +1106,29 @@ class LambdaMemoizationTransformTests(useFir: Boolean) : AbstractIrTransformTest
             public inline fun <reified T : Any> NavGraphBuilder.bottomSheet(
               noinline dragHandle: @Composable (() -> Unit)? = { BottomSheetDefaults.DragHandle() },
             ) {
+            }
+        """,
+    )
+
+    // Validate fix for CMP-7873
+    @Test
+    fun testComposableInInitBlock() = verifyGoldenComposeIrTransform(
+        """
+            import androidx.compose.runtime.*
+
+            fun setContent(content: @Composable () -> Unit) {}
+
+            class ComposeScreenSaverView {
+                init {
+                    val specsInit = 10
+                    val prefsInit by mutableStateOf(11)
+            
+                    setContent {
+                        val imgLoaderInit = remember(prefsInit, specsInit) {
+                            123
+                        }
+                    }
+                }
             }
         """,
     )

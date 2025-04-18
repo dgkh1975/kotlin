@@ -17,7 +17,6 @@ import org.jetbrains.kotlin.ir.backend.js.JsFactories
 import org.jetbrains.kotlin.ir.backend.js.serializeModuleIntoKlib
 import org.jetbrains.kotlin.js.test.utils.JsIrIncrementalDataProvider
 import org.jetbrains.kotlin.js.test.utils.jsIrIncrementalDataProvider
-import org.jetbrains.kotlin.library.KotlinAbiVersion
 import org.jetbrains.kotlin.storage.LockBasedStorageManager
 import org.jetbrains.kotlin.test.backend.ir.IrBackendFacade
 import org.jetbrains.kotlin.test.backend.ir.IrBackendInput
@@ -62,18 +61,17 @@ class FirJsKlibSerializerFacade(
 
         if (firstTimeCompilation) {
             serializeModuleIntoKlib(
-                configuration[CommonConfigurationKeys.MODULE_NAME]!!,
-                configuration,
-                diagnosticReporter,
-                inputArtifact.metadataSerializer,
+                moduleName = configuration[CommonConfigurationKeys.MODULE_NAME]!!,
+                configuration = configuration,
+                diagnosticReporter = diagnosticReporter,
+                metadataSerializer = inputArtifact.metadataSerializer,
                 klibPath = outputFile.path,
-                libraries.map { it.library },
-                inputArtifact.irModuleFragment,
-                inputArtifact.irPluginContext.irBuiltIns,
+                dependencies = libraries.map { it.library },
+                moduleFragment = inputArtifact.irModuleFragment,
+                irBuiltIns = inputArtifact.irPluginContext.irBuiltIns,
                 cleanFiles = inputArtifact.icData,
                 nopack = true,
                 containsErrorCode = inputArtifact.hasErrors,
-                abiVersion = KotlinAbiVersion.CURRENT, // TODO get from test file data
                 jsOutputName = null
             )
         }

@@ -31,6 +31,8 @@ object JvmEnvironmentConfigurationDirectives : SimpleDirectivesContainer() {
         """.trimIndent()
     )
 
+    val WITH_JAKARTA_ANNOTATIONS by directive("Add jakarta nullability annotations to the test classpath")
+
     val USE_PSI_CLASS_FILES_READING by directive("Use a slower (PSI-based) class files reading implementation")
 
     val USE_JAVAC by directive("Enable javac integration (has no effect on non-K1 tests)")
@@ -71,6 +73,8 @@ object JvmEnvironmentConfigurationDirectives : SimpleDirectivesContainer() {
     )
 
     val ENABLE_DEBUG_MODE by directive("Enable debug mode for compilation")
+
+    val ENHANCED_COROUTINES_DEBUGGING by directive("Mark compiler generated code in coroutines")
 
     val DISABLE_OPTIMIZATION by directive("Disable optimization")
 }

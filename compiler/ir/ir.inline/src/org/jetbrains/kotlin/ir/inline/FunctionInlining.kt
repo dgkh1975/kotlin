@@ -26,7 +26,7 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.*
-import org.jetbrains.kotlin.ir.originalBeforeInline
+import org.jetbrains.kotlin.backend.common.originalBeforeInline
 import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
@@ -35,13 +35,25 @@ import org.jetbrains.kotlin.name.Name.identifier
 import org.jetbrains.kotlin.util.OperatorNameConventions
 
 @PhaseDescription("FunctionInlining")
-open class FunctionInlining(
+class FunctionInlining @JvmIrInlineExperimental constructor(
     val context: LoweringContext,
     private val inlineFunctionResolver: InlineFunctionResolver,
-    private val insertAdditionalImplicitCasts: Boolean = true,
-    private val regenerateInlinedAnonymousObjects: Boolean = false,
-    private val produceOuterThisFields: Boolean = true,
+    private val insertAdditionalImplicitCasts: Boolean,
+    private val regenerateInlinedAnonymousObjects: Boolean,
+    private val produceOuterThisFields: Boolean,
 ) : IrTransformer<IrDeclaration>(), BodyLoweringPass {
+
+    constructor(
+        context: LoweringContext,
+        inlineFunctionResolver: InlineFunctionResolver,
+    ) : this(
+        context,
+        inlineFunctionResolver,
+        insertAdditionalImplicitCasts = true,
+        regenerateInlinedAnonymousObjects = false,
+        produceOuterThisFields = false
+    )
+
     init {
         require(!produceOuterThisFields || context is CommonBackendContext) {
             "The inliner can generate outer fields only with param `context` of type `CommonBackendContext`"
@@ -91,8 +103,9 @@ open class FunctionInlining(
 
         inlineFunctionResolver.callInlinerStrategy.at(data, expression)
         return CallInlining(
-            actualCallee,
             context,
+            actualCallee,
+            data.file,
             inlineFunctionResolver,
             insertAdditionalImplicitCasts,
             produceOuterThisFields
@@ -121,8 +134,9 @@ open class FunctionInlining(
 }
 
 private class CallInlining(
-    val callee: IrFunction,
-    val context: LoweringContext,
+    private val context: LoweringContext,
+    private val callee: IrFunction,
+    private val currentFile: IrFile,
     private val inlineFunctionResolver: InlineFunctionResolver,
     private val insertAdditionalImplicitCasts: Boolean,
     private val produceOuterThisFields: Boolean
@@ -211,6 +225,17 @@ private class CallInlining(
         val inlinedFunctionSymbol: IrFunctionSymbol,
         val returnableBlockSymbol: IrReturnableBlockSymbol,
     ) : IrElementTransformerVoid() {
+        override fun visitInlinedFunctionBlock(inlinedBlock: IrInlinedFunctionBlock): IrInlinedFunctionBlock {
+            inlinedBlock.transformChildrenVoid(this)
+            if (currentFile.fileEntry == inlinedBlock.inlinedFunctionFileEntry) return inlinedBlock
+
+            val symbol = inlinedBlock.inlinedFunctionSymbol
+            if (symbol != null && symbol.isConsideredAsPrivateAndNotLocalForInlining()) {
+                inlinedBlock.inlinedFunctionSymbol = null
+            }
+            return inlinedBlock
+        }
+
         override fun visitReturn(expression: IrReturn): IrExpression {
             expression.transformChildrenVoid(this)
             if (expression.returnTargetSymbol == inlinedFunctionSymbol) {

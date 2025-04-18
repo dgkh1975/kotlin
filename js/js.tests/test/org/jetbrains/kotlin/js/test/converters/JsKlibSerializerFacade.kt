@@ -16,7 +16,6 @@ import org.jetbrains.kotlin.ir.backend.js.JsFactories
 import org.jetbrains.kotlin.ir.backend.js.serializeModuleIntoKlib
 import org.jetbrains.kotlin.js.test.utils.JsIrIncrementalDataProvider
 import org.jetbrains.kotlin.js.test.utils.jsIrIncrementalDataProvider
-import org.jetbrains.kotlin.library.KotlinAbiVersion
 import org.jetbrains.kotlin.storage.LockBasedStorageManager
 import org.jetbrains.kotlin.test.backend.ir.IrBackendFacade
 import org.jetbrains.kotlin.test.backend.ir.IrBackendInput
@@ -53,23 +52,22 @@ class JsKlibSerializerFacade(
 
         if (firstTimeCompilation) {
             serializeModuleIntoKlib(
-                configuration[CommonConfigurationKeys.MODULE_NAME]!!,
-                configuration,
-                diagnosticReporter,
-                inputArtifact.metadataSerializer,
+                moduleName = configuration[CommonConfigurationKeys.MODULE_NAME]!!,
+                configuration = configuration,
+                diagnosticReporter = diagnosticReporter,
+                metadataSerializer = inputArtifact.metadataSerializer,
                 klibPath = outputFile.path,
-                JsEnvironmentConfigurator.getAllRecursiveLibrariesFor(module, testServices).keys.toList(),
-                inputArtifact.irModuleFragment,
-                inputArtifact.irPluginContext.irBuiltIns,
+                dependencies = JsEnvironmentConfigurator.getAllRecursiveLibrariesFor(module, testServices).keys.toList(),
+                moduleFragment = inputArtifact.irModuleFragment,
+                irBuiltIns = inputArtifact.irPluginContext.irBuiltIns,
                 cleanFiles = inputArtifact.icData,
                 nopack = true,
                 containsErrorCode = inputArtifact.hasErrors,
-                abiVersion = KotlinAbiVersion.CURRENT, // TODO get from test file data
                 jsOutputName = null
             )
         }
 
-        val dependencies = JsEnvironmentConfigurator.getAllRecursiveDependenciesFor(module, testServices).toList()
+        val dependencies = JsEnvironmentConfigurator.getDependencyModulesFor(module, testServices).toList()
         val lib = CommonKLibResolver.resolve(
             dependencies.map { testServices.libraryProvider.getPathByDescriptor(it) } + listOf(outputFile.path),
             configuration.getLogger(treatWarningsAsErrors = true)

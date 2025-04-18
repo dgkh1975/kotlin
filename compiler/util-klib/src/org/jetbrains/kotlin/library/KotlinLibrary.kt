@@ -122,14 +122,21 @@ interface IrLibrary {
     fun fileEntries(fileIndex: Int): ByteArray?
 }
 
+/** Whether [this] is a Kotlin/Native stdlib. */
 val BaseKotlinLibrary.isNativeStdlib: Boolean
     get() = uniqueName == KOTLIN_NATIVE_STDLIB_NAME && builtInsPlatform == BuiltInsPlatform.NATIVE
 
+/** Whether [this] is a Kotlin/JS stdlib. */
 val BaseKotlinLibrary.isJsStdlib: Boolean
     get() = uniqueName == KOTLIN_JS_STDLIB_NAME && builtInsPlatform == BuiltInsPlatform.JS
 
+/** Whether [this] is a Kotlin/Wasm stdlib. */
 val BaseKotlinLibrary.isWasmStdlib: Boolean
     get() = uniqueName == KOTLIN_WASM_STDLIB_NAME && builtInsPlatform == BuiltInsPlatform.WASM
+
+/** Whether [this] is either Kotlin/Native, Kotlin/JS or Kotlin/Wasm stdlib. */
+val BaseKotlinLibrary.isAnyPlatformStdlib: Boolean
+    get() = isNativeStdlib || isJsStdlib || isWasmStdlib
 
 val BaseKotlinLibrary.uniqueName: String
     get() = manifestProperties.getProperty(KLIB_PROPERTY_UNIQUE_NAME)!!
@@ -148,13 +155,6 @@ val BaseKotlinLibrary.hasDependencies: Boolean
     get() = !manifestProperties.getProperty(KLIB_PROPERTY_DEPENDS).isNullOrBlank()
 
 interface KotlinLibrary : BaseKotlinLibrary, MetadataLibrary, IrLibrary
-
-@Deprecated(
-    "Use BaseKotlinLibrary.isCInteropLibrary() for more precise check",
-    ReplaceWith("isCInteropLibrary()", "org.jetbrains.kotlin.library.metadata.isCInteropLibrary"),
-    DeprecationLevel.WARNING
-)
-val KotlinLibrary.isInterop: Boolean get() = interopFlag == "true"
 
 val BaseKotlinLibrary.interopFlag: String?
     get() = manifestProperties.getProperty(KLIB_PROPERTY_INTEROP)
@@ -183,16 +183,8 @@ val BaseKotlinLibrary.wasmTargets: List<String>
 val KotlinLibrary.containsErrorCode: Boolean
     get() = manifestProperties.getProperty(KLIB_PROPERTY_CONTAINS_ERROR_CODE) == "true"
 
-@Deprecated("Use BaseKotlinLibrary.commonizerTarget instead", level = DeprecationLevel.HIDDEN)
-val KotlinLibrary.commonizerTarget: String?
-    get() = commonizerTarget
-
 val BaseKotlinLibrary.commonizerTarget: String?
     get() = manifestProperties.getProperty(KLIB_PROPERTY_COMMONIZER_TARGET)
-
-@Deprecated("Use BaseKotlinLibrary.builtInsPlatform instead", level = DeprecationLevel.HIDDEN)
-val KotlinLibrary.builtInsPlatform: String?
-    get() = builtInsPlatform?.name
 
 val BaseKotlinLibrary.builtInsPlatform: BuiltInsPlatform?
     get() = manifestProperties.getProperty(KLIB_PROPERTY_BUILTINS_PLATFORM)?.let(BuiltInsPlatform::parseFromString)
@@ -210,3 +202,6 @@ val KotlinLibrary.metadataVersion: MetadataVersion?
         val versionIntArray = BinaryVersion.parseVersionArray(versionString) ?: return null
         return MetadataVersion(*versionIntArray)
     }
+
+val KotlinLibrary.hasAbi: Boolean
+    get() = hasIr || irProviderName != null
