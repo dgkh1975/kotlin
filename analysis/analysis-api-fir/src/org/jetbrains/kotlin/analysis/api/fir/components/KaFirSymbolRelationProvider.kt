@@ -320,7 +320,7 @@ internal class KaFirSymbolRelationProvider(
             // A property synthesized from a constructor parameter is still a class member, not a constructor member.
             KtFakeSourceElementKind.PropertyFromParameter -> source.psi?.parentOfType<KtClassOrObject>()!!
             KtFakeSourceElementKind.EnumInitializer -> source.psi as KtEnumEntry
-            KtFakeSourceElementKind.EnumGeneratedDeclaration -> source.psi as KtDeclaration
+            is KtFakeSourceElementKind.EnumGeneratedDeclaration -> source.psi as KtDeclaration
             KtFakeSourceElementKind.ScriptParameter -> source.psi as KtScript
             KtFakeSourceElementKind.DataClassGeneratedMembers -> when (val source = source.psi) {
                 is KtClassOrObject -> {

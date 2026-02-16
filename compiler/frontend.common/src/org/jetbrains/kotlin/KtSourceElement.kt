@@ -202,10 +202,69 @@ sealed class KtFakeSourceElementKind(final override val shouldSkipErrorTypeRepor
     object ReferenceInAtomicQualifiedAccess : KtFakeSourceElementKind()
 
     /**
-     * for enum classes we have valueOf & values functions generated
-     * with a fake sources which refers to this the enum class
+     * For enum classes, FIR generates the `valueOf()` and `values()` functions, which are covered by the various fake source element kinds
+     * defined in this class.
      */
-    object EnumGeneratedDeclaration : KtFakeSourceElementKind()
+    sealed class EnumGeneratedDeclaration : KtFakeSourceElementKind() {
+        /**
+         * The source kind of an enum class's `values()` function. Its real source is the corresponding enum class.
+         */
+        object ValuesFunction : EnumGeneratedDeclaration() {
+            /**
+             * The source kind of a return type reference of the generated [ValuesFunction]. Its real source is the corresponding enum
+             * class.
+             */
+            object ReturnType : EnumGeneratedDeclaration()
+        }
+
+        /**
+         * The source kind of an enum class's `valueOf()` function. Its real source is the corresponding enum class.
+         */
+        object ValueOfFunction : EnumGeneratedDeclaration() {
+            /**
+             * The source kind of the return type reference of the generated [ValueOfFunction]. Its real source is the corresponding
+             * enum class.
+             */
+            object ReturnType : EnumGeneratedDeclaration()
+
+            /**
+             * The source kind of the parameter of the generated [ValueOfFunction]. Its real source is the corresponding enum class.
+             */
+            object Parameter : EnumGeneratedDeclaration()
+
+            /**
+             * The source kind of the parameter type reference of the generated [ValueOfFunction]. Its real source is the corresponding enum
+             * class.
+             */
+            object ParameterType : EnumGeneratedDeclaration()
+        }
+
+        /**
+         * The source kind of an enum class's `entries` property. Its real source is the corresponding enum class.
+         */
+        object EntriesProperty : EnumGeneratedDeclaration() {
+            /**
+             * The source kind of the return type of the [EntriesProperty]. Its real source is the corresponding enum class.
+             */
+            object ReturnType : EnumGeneratedDeclaration()
+
+            /**
+             * The source kind of the getter of the [EntriesProperty]. Its real source is the corresponding enum class.
+             */
+            object Getter : EnumGeneratedDeclaration() {
+                /**
+                 * The source kind of the return type of the [Getter]. Its real source is the corresponding enum class.
+                 */
+                object ReturnType : EnumGeneratedDeclaration()
+            }
+        }
+
+        /**
+         * The source kind of the enum class's `clone()` function, which may be injected on non-JVM platforms. Its real source is the
+         * corresponding enum class.
+         */
+        object CloneFunction : EnumGeneratedDeclaration()
+    }
 
     /**
      * for enum classes we can have an implicit supertype ref to `Enum` with a fake source.
