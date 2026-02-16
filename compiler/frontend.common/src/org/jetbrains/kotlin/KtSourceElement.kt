@@ -128,10 +128,33 @@ sealed class KtFakeSourceElementKind(final override val shouldSkipErrorTypeRepor
     }
 
     /**
-     * for delegated properties, getter & setter calls to the delegate
-     * they have a fake source which refers to the call that creates the delegate
+     * For delegated properties, FIR generates getters and setters with calls to the delegate, which are covered by the various fake
+     * source element kinds defined in this class.
      */
-    object DelegatedPropertyAccessor : KtFakeSourceElementKind()
+    sealed class DelegatedPropertyAccessor : KtFakeSourceElementKind() {
+        /**
+         * The delegate expression of a delegated property. Its real source is the call that creates the delegate.
+         */
+        object DelegateExpression : DelegatedPropertyAccessor()
+
+        /**
+         * A delegated property getter. Its real source is the explicit getter declaration if present, or otherwise the call that creates
+         * the delegate.
+         */
+        object Getter : DelegatedPropertyAccessor()
+
+        /**
+         * A delegated property setter. Its real source is the explicit setter declaration if present, or otherwise the call that creates
+         * the delegate.
+         */
+        object Setter : DelegatedPropertyAccessor() {
+            /**
+             * The value parameter of a delegated property [Setter]. Its real source is the explicit setter declaration if present, or
+             * otherwise the call that creates the delegate.
+             */
+            object ValueParameter : DelegatedPropertyAccessor()
+        }
+    }
 
     /**
      * for kt classes without implicit primary constructor one is generated
