@@ -340,11 +340,46 @@ sealed class KtFakeSourceElementKind(final override val shouldSkipErrorTypeRepor
     object DesugaredInvertedContains : KtFakeSourceElementKind()
 
     /**
-     * For data classes, fir generates componentN() & copy() functions.
-     * For componentN() functions, the source will refer to the corresponding param and will be marked as a fake one.
-     * For copy() functions, the source will refer class to the param and will be marked as a fake one.
+     * For data classes, FIR generates `componentN()` and `copy()` functions, which are covered by the various fake source element kinds
+     * defined in this class.
      */
-    object DataClassGeneratedMembers : KtFakeSourceElementKind(shouldSkipErrorTypeReporting = true)
+    sealed class DataClassGeneratedMembers : KtFakeSourceElementKind(shouldSkipErrorTypeReporting = true) {
+        /**
+         * The source kind of a data class `componentN()` function. Its real source is the corresponding constructor parameter for which the
+         * component function has been generated.
+         */
+        object ComponentFunction : DataClassGeneratedMembers()
+
+        /**
+         * The source kind of a data class `copy()` function. Its real source is the corresponding data class.
+         */
+        object CopyFunction : DataClassGeneratedMembers() {
+            /**
+             * The source kind of a parameter of the [CopyFunction]. Its real source is the corresponding data class constructor parameter.
+             */
+            object Parameter : DataClassGeneratedMembers()
+        }
+
+        /**
+         * The source kind of a data class `equals(other: Any?)` function. Its real source is the corresponding data class.
+         */
+        object EqualsFunction : DataClassGeneratedMembers() {
+            /**
+             * The source kind of the parameter of the [EqualsFunction]. Its real source is the corresponding data class.
+             */
+            object Parameter : DataClassGeneratedMembers()
+        }
+
+        /**
+         * The source kind of a data class `hashCode()` function. Its real source is the corresponding data class.
+         */
+        object HashCodeFunction : DataClassGeneratedMembers()
+
+        /**
+         * The source kind of a data class `toString()` function. Its real source is the corresponding data class.
+         */
+        object ToStringFunction : DataClassGeneratedMembers()
+    }
 
     /**
      * For synthetic overrides implemented by delegation

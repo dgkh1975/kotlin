@@ -53,7 +53,6 @@ private val allowedFakeElementKinds: Set<KtFakeSourceElementKind> =
         KtFakeSourceElementKind.FromUseSiteTarget,
         KtFakeSourceElementKind.PropertyFromParameter,
         KtFakeSourceElementKind.ItLambdaParameter,
-        KtFakeSourceElementKind.DataClassGeneratedMembers,
         KtFakeSourceElementKind.ImplicitConstructor,
         KtFakeSourceElementKind.ImplicitJavaAnnotationConstructor,
         KtFakeSourceElementKind.SamConstructor,
@@ -70,6 +69,7 @@ internal fun FirElement.getAllowedPsi() = when (val source = source) {
 
 private fun isAllowedFakeElementKind(kind: KtFakeSourceElementKind): Boolean =
     kind is KtFakeSourceElementKind.EnumGeneratedDeclaration
+            || kind is KtFakeSourceElementKind.DataClassGeneratedMembers
             || kind in allowedFakeElementKinds
 
 internal fun FirElement.findPsi(): PsiElement? =
