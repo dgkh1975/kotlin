@@ -100,10 +100,32 @@ sealed class KtFakeSourceElementKind(final override val shouldSkipErrorTypeRepor
     object ErrorTypeRef : KtFakeSourceElementKind()
 
     /**
-     * for properties without accessors default getter & setter are generated
-     * they have a fake source which refers to property
+     * For properties without accessors, FIR generates default getters and setters, as well as default backing fields.
      */
-    object DefaultAccessor : KtFakeSourceElementKind(shouldSkipErrorTypeReporting = true)
+    sealed class DefaultAccessor : KtFakeSourceElementKind(shouldSkipErrorTypeReporting = true) {
+        /**
+         * A default backing field. Its real source is the property or return type reference (for the backing field's return type).
+         *
+         * The backing field is a default "accessor" for historical reasons: The same `DefaultAccessor` fake element kind was applied not
+         * only to default getters and setters, but also to default backing fields.
+         */
+        object BackingField : DefaultAccessor()
+
+        /**
+         * A default getter. Its real source is the property.
+         */
+        object Getter : DefaultAccessor()
+
+        /**
+         * A default setter. Its real source is the property.
+         */
+        object Setter : DefaultAccessor() {
+            /**
+             * The value parameter of a default [Setter]. Its real source is the property.
+             */
+            object ValueParameter : DefaultAccessor()
+        }
+    }
 
     /**
      * for delegated properties, getter & setter calls to the delegate
