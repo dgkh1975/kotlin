@@ -1097,6 +1097,17 @@ sealed class KtPsiSourceElement(val psi: PsiElement) : KtSourceElement() {
     override fun hashCode(): Int {
         return psi.hashCode()
     }
+
+    override fun toString(): String = buildString {
+        append(this@KtPsiSourceElement::class.simpleName)
+        append('(')
+        append(psi::class.simpleName)
+        if (kind is KtFakeSourceElementKind) {
+            append(", ").append(kind)
+        }
+        append(", ").append(startOffset).append("..").append(endOffset)
+        append(')')
+    }
 }
 
 class KtRealPsiSourceElement(psi: PsiElement) : KtPsiSourceElement(psi) {
@@ -1284,6 +1295,17 @@ class KtLightSourceElement(
         result = 31 * result + treeStructure.hashCode()
         result = 31 * result + kind.hashCode()
         return result
+    }
+
+    override fun toString(): String = buildString {
+        append(this@KtLightSourceElement::class.simpleName)
+        append("(")
+        append(elementType)
+        if (kind is KtFakeSourceElementKind) {
+            append(", ").append(kind)
+        }
+        append(", ").append(startOffset).append("..").append(endOffset)
+        append(')')
     }
 }
 
