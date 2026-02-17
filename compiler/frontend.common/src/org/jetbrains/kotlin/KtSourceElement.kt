@@ -366,19 +366,100 @@ sealed class KtFakeSourceElementKind(final override val shouldSkipErrorTypeRepor
     /**
      * `x++` -> `x = x.inc()`
      * `x = x++` -> `x = { val <unary> = x; x = <unary>.inc(); <unary> }`
+     *
+     * @param generatedElementKind This kind distinguishes the various FIR elements generated during the desugaring.
      */
-    sealed class DesugaredIncrementOrDecrement : KtFakeSourceElementKind()
-    object DesugaredPrefixInc : DesugaredIncrementOrDecrement()
-    object DesugaredPrefixDec : DesugaredIncrementOrDecrement()
-    object DesugaredPostfixInc : DesugaredIncrementOrDecrement()
-    object DesugaredPostfixDec : DesugaredIncrementOrDecrement()
+    sealed class DesugaredIncrementOrDecrement(val generatedElementKind: GeneratedElementKind) : KtFakeSourceElementKind() {
+        enum class GeneratedElementKind {
+            /**
+             * The desugared block, assignment, operator call, or other main expressions.
+             */
+            DesugaredExpression,
 
-    /**
-     * In `++a[1]`, `a.get(1)` will be called twice. This kind is used for the second call reference.
-     */
-    sealed class DesugaredPrefixSecondGetReference : KtFakeSourceElementKind()
-    object DesugaredPrefixIncSecondGetReference : DesugaredPrefixSecondGetReference()
-    object DesugaredPrefixDecSecondGetReference : DesugaredPrefixSecondGetReference()
+            /**
+             * The `<receiver>` temporary variable extracted for the explicit receiver.
+             */
+            ReceiverVariable,
+
+            /**
+             * The `<unary>` temporary variable holding the original value in postfix operations.
+             */
+            UnaryVariable,
+
+            /**
+             * In `++a[1]`, `a.get(1)` will be called twice. This kind is used for the second call reference.
+             */
+            SecondGetReference,
+        }
+
+        class PrefixInc private constructor(
+            generatedElementKind: GeneratedElementKind,
+        ) : DesugaredIncrementOrDecrement(generatedElementKind) {
+            constructor() : this(GeneratedElementKind.DesugaredExpression)
+
+            override fun withGeneratedElementKind(elementKind: GeneratedElementKind) = PrefixInc(elementKind)
+        }
+
+        class PrefixDec private constructor(
+            generatedElementKind: GeneratedElementKind,
+        ) : DesugaredIncrementOrDecrement(generatedElementKind) {
+            constructor() : this(GeneratedElementKind.DesugaredExpression)
+
+            override fun withGeneratedElementKind(elementKind: GeneratedElementKind) = PrefixDec(elementKind)
+        }
+
+        class PostfixInc private constructor(
+            generatedElementKind: GeneratedElementKind,
+        ) : DesugaredIncrementOrDecrement(generatedElementKind) {
+            constructor() : this(GeneratedElementKind.DesugaredExpression)
+
+            override fun withGeneratedElementKind(elementKind: GeneratedElementKind) = PostfixInc(elementKind)
+        }
+
+        class PostfixDec private constructor(
+            generatedElementKind: GeneratedElementKind,
+        ) : DesugaredIncrementOrDecrement(generatedElementKind) {
+            constructor() : this(GeneratedElementKind.DesugaredExpression)
+
+            override fun withGeneratedElementKind(elementKind: GeneratedElementKind) = PostfixDec(elementKind)
+        }
+
+        /**
+         * @see GeneratedElementKind.SecondGetReference
+         */
+        val isSecondGetReference: Boolean
+            get() = generatedElementKind == GeneratedElementKind.SecondGetReference
+
+        /**
+         * @see GeneratedElementKind.ReceiverVariable
+         */
+        val forReceiverVariable: DesugaredIncrementOrDecrement
+            get() = withGeneratedElementKind(GeneratedElementKind.ReceiverVariable)
+
+        /**
+         * @see GeneratedElementKind.UnaryVariable
+         */
+        val forUnaryVariable: DesugaredIncrementOrDecrement
+            get() = withGeneratedElementKind(GeneratedElementKind.UnaryVariable)
+
+        /**
+         * @see GeneratedElementKind.SecondGetReference
+         */
+        val forSecondGetReference: DesugaredIncrementOrDecrement
+            get() = withGeneratedElementKind(GeneratedElementKind.SecondGetReference)
+
+        protected abstract fun withGeneratedElementKind(elementKind: GeneratedElementKind): DesugaredIncrementOrDecrement
+
+        override fun equals(other: Any?): Boolean = this === other ||
+                other is DesugaredIncrementOrDecrement &&
+                this::class == other::class &&
+                generatedElementKind == other.generatedElementKind
+
+        override fun hashCode(): Int = Objects.hash(this::class, generatedElementKind)
+
+        override fun toString(): String =
+            "${DesugaredIncrementOrDecrement::class.simpleName}.${this::class.simpleName}($generatedElementKind)"
+    }
 
     /**
      * `x !in list` --> `!(x in list)` where `!` and `!(x in list)` will have a fake source
@@ -1178,14 +1259,14 @@ inline fun LighterASTNode.toKtLightSourceElement(
 
 fun sourceKindForIncOrDec(operation: Name, isPrefix: Boolean) = when (operation) {
     OperatorNameConventions.INC -> if (isPrefix) {
-        KtFakeSourceElementKind.DesugaredPrefixInc
+        KtFakeSourceElementKind.DesugaredIncrementOrDecrement.PrefixInc()
     } else {
-        KtFakeSourceElementKind.DesugaredPostfixInc
+        KtFakeSourceElementKind.DesugaredIncrementOrDecrement.PostfixInc()
     }
     OperatorNameConventions.DEC -> if (isPrefix) {
-        KtFakeSourceElementKind.DesugaredPrefixDec
+        KtFakeSourceElementKind.DesugaredIncrementOrDecrement.PrefixDec()
     } else {
-        KtFakeSourceElementKind.DesugaredPostfixDec
+        KtFakeSourceElementKind.DesugaredIncrementOrDecrement.PostfixDec()
     }
     else -> error("Unexpected operator: ${operation.identifier}")
 }
