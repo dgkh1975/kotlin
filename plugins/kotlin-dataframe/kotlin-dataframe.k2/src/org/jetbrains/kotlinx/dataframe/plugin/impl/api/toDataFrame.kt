@@ -119,6 +119,41 @@ class ToDataFrameDslStringInvoke : AbstractInterpreter<Unit>() {
     }
 }
 
+class ToDataFrameDslIntoString : AbstractInterpreter<Unit>() {
+    val Arguments.dsl: CreateDataFrameDslImplApproximation by arg()
+    val Arguments.receiver: ColumnType by type()
+    val Arguments.name: String by arg()
+
+    override fun Arguments.interpret() {
+        val valuesType = extractBaseColumnValuesType(receiver.coneType) ?: session.builtinTypes.nullableAnyType.coneType
+        dsl.columns += simpleColumnOf(name, valuesType)
+    }
+}
+
+class ToDataFrameDslAdd : AbstractInterpreter<Unit>() {
+    val Arguments.dsl: CreateDataFrameDslImplApproximation by arg()
+    val Arguments.name: String by arg()
+    val Arguments.expression: ColumnType by type()
+
+    override fun Arguments.interpret() {
+        dsl.columns += simpleColumnOf(name, expression.coneType)
+    }
+}
+
+class ToDataFrameFrom : AbstractInterpreter<Unit>() {
+    val Arguments.dsl: CreateDataFrameDslImplApproximation by arg()
+    val Arguments.receiver: String by arg()
+    val Arguments.expression: ColumnType by type()
+    override fun Arguments.interpret() {
+        dsl.columns += simpleColumnOf(receiver, expression.coneType)
+    }
+}
+
+class CreateDataFrameDslImplApproximation {
+    val configuration: CreateDataFrameConfiguration = CreateDataFrameConfiguration()
+    val columns: MutableList<SimpleCol> = mutableListOf()
+}
+
 class CreateDataFrameConfiguration {
     var maxDepth = DEFAULT_MAX_DEPTH
     var traverseConfigurationBuilder: TraverseConfigurationBuilder = TraverseConfigurationBuilder()
@@ -434,18 +469,3 @@ private fun ConeKotlinType.getFieldKind(session: FirSession) = FieldKind.of(
 
 private fun ConeKotlinType?.hasAnnotation(id: ClassId, session: FirSession) =
     this?.toSymbol(session)?.hasAnnotation(id, session) == true
-
-
-class CreateDataFrameDslImplApproximation {
-    val configuration: CreateDataFrameConfiguration = CreateDataFrameConfiguration()
-    val columns: MutableList<SimpleCol> = mutableListOf()
-}
-
-class ToDataFrameFrom : AbstractInterpreter<Unit>() {
-    val Arguments.dsl: CreateDataFrameDslImplApproximation by arg()
-    val Arguments.receiver: String by arg()
-    val Arguments.expression: ColumnType by type()
-    override fun Arguments.interpret() {
-        dsl.columns += simpleColumnOf(receiver, expression.coneType)
-    }
-}
