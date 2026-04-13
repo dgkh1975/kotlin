@@ -130,7 +130,7 @@ public class GroupingMessageCollector implements MessageCollectorWithDiagnosticI
         private final CompilerMessageSeverity severity;
         private final String message;
         private final CompilerMessageSourceLocation location;
-        private final String diagnosticId;
+        @Nullable private final String diagnosticId;
 
         private Message(
                 @NotNull CompilerMessageSeverity severity,
@@ -151,12 +151,9 @@ public class GroupingMessageCollector implements MessageCollectorWithDiagnosticI
 
             Message other = (Message) o;
 
-            if (!Objects.equals(location, other.location)) return false;
-            if (!message.equals(other.message)) return false;
-            if (!Objects.equals(diagnosticId, other.diagnosticId)) return false;
             if (severity != other.severity) return false;
-
-            return true;
+            if (!message.equals(other.message)) return false;
+            return Objects.equals(location, other.location);
         }
 
         @Override
@@ -164,7 +161,6 @@ public class GroupingMessageCollector implements MessageCollectorWithDiagnosticI
             int result = severity.hashCode();
             result = 31 * result + message.hashCode();
             result = 31 * result + (location != null ? location.hashCode() : 0);
-            result = 31 * result + (diagnosticId != null ? diagnosticId.hashCode() : 0);
             return result;
         }
 
