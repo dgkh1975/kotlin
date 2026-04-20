@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.testFederation.isSmokeTest
 plugins {
     id("gradle-plugin-common-configuration")
     id("kotlin-git.gradle-build-conventions.binary-compatibility-extended")
+    id("kotlin-git.gradle-build-conventions.kgp-npm-tooling-helper")
     id("android-sdk-provisioner")
     id("asm-deprecating-transformer")
     id("project-tests-convention")
@@ -636,6 +637,7 @@ testFixturesCompilation.compileTaskProvider.configure {
         configureGradleCompatibility()
     }
 }
+testFixturesCompilation.enableKotlinSerializationPlugin()
 
 val functionalTestCompilation = kotlin.target.compilations.getByName("functionalTest")
 functionalTestCompilation.compileJavaTaskProvider.configure {
@@ -764,4 +766,24 @@ val generateKgpBuildConstants = registerGenerateKgpBuildConstantsTask {
 kotlin.sourceSets.common {
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
     generatedKotlin.srcDir(generateKgpBuildConstants)
+
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    generatedKotlin.srcDir(tasks.generateNpmVersionsKotlinClass)
+
+    resources.srcDir(tasks.prepareKgpNpmToolingLockFiles)
+}
+
+node {
+    version = nodejsVersion
+}
+
+tasks.test {
+    val kgpNpmToolingPackageJson = kgpNpmTooling.npmToolingProjectDir.file("package.json")
+    inputs.file(kgpNpmToolingPackageJson)
+        .withPropertyName("kgpNpmToolingPackageJson")
+        .withPathSensitivity(PathSensitivity.NAME_ONLY)
+        .normalizeLineEndings()
+    jvmArgumentProviders.add {
+        listOf("-DkgpNpmToolingPackageJson=${kgpNpmToolingPackageJson.orNull?.asFile?.invariantSeparatorsPath}")
+    }
 }
