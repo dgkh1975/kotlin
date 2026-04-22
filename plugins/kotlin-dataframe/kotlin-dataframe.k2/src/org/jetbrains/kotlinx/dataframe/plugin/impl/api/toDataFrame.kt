@@ -94,7 +94,7 @@ private const val DEFAULT_MAX_DEPTH = 0
 
 class Properties0 : AbstractInterpreter<Unit>() {
     val Arguments.dsl: CreateDataFrameDslImplApproximation by arg()
-    val Arguments.maxDepth: Int by arg()
+    val Arguments.maxDepth: Int by arg(defaultValue = Present(DEFAULT_MAX_DEPTH))
     val Arguments.body by dsl()
     val Arguments.typeArg0: ConeTypeProjection by arg(lens = Interpreter.Id)
 
