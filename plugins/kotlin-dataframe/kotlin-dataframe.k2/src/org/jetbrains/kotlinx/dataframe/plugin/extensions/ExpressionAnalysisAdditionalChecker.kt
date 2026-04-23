@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.diagnostics.*
 import org.jetbrains.kotlin.diagnostics.KtDiagnosticRenderers.TO_STRING
 import org.jetbrains.kotlin.diagnostics.rendering.BaseDiagnosticRendererFactory
 import org.jetbrains.kotlin.fir.FirSession
+import org.jetbrains.kotlin.fir.SessionHolder
 import org.jetbrains.kotlin.fir.analysis.checkers.MppCheckerKind
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.context.findClosest
@@ -165,43 +166,48 @@ private class Checker(
             val text = "Annotate ${targetType.renderReadable()} with @DataSchema to use generated properties"
             reporter.reportOn(expression.source, CAST_TARGET_WARNING, text, context)
         }
-        val coneType = expression.explicitReceiver?.resolvedType
-        if (coneType != null) {
-            val sourceType = coneType.fullyExpandedType().typeArguments.getOrNull(0)?.type as? ConeClassLikeType
-                ?: return
-            val source = pluginDataFrameSchema(sourceType)
-            if (source.columns().isEmpty()) return
-            val target = pluginDataFrameSchema(targetType)
-            val sourceColumns = source.flatten(includeFrames = true)
-            val targetColumns = target.flatten(includeFrames = true)
-            val sourceMap = sourceColumns.associate { it.path.path to it.column }
-            val missingColumns = mutableListOf<String>()
-            var valid = true
-            for (target in targetColumns) {
-                val source = sourceMap[target.path.path]
-                val present = if (source != null) {
-                    if (source !is SimpleDataColumn || target.column !is SimpleDataColumn) {
-                        continue
-                    }
-                    if (source.type.coneType.isSubtypeOf(target.column.type.coneType, session)) {
-                        true
-                    } else {
-                        missingColumns += "${target.path.path} ${target.column.name}: ${
-                            source.type.coneType.renderReadable()
-                        } is not subtype of ${target.column.type.coneType}"
-                        false
-                    }
+        val source = expression.dataFrameReceiverSchema() ?: return
+        if (source.columns().isEmpty()) return
+        val target = pluginDataFrameSchema(targetType)
+        val sourceColumns = source.flatten(includeFrames = true)
+        val targetColumns = target.flatten(includeFrames = true)
+        val sourceMap = sourceColumns.associate { it.path.path to it.column }
+        val missingColumns = mutableListOf<String>()
+        var valid = true
+        for (target in targetColumns) {
+            val source = sourceMap[target.path.path]
+            val present = if (source != null) {
+                if (source !is SimpleDataColumn || target.column !is SimpleDataColumn) {
+                    continue
+                }
+                if (source.type.coneType.isSubtypeOf(target.column.type.coneType, session)) {
+                    true
                 } else {
-                    missingColumns += "${target.path.path} ${target.column.name} is missing"
+                    missingColumns += "${target.path.path} ${target.column.name}: ${
+                        source.type.coneType.renderReadable()
+                    } is not subtype of ${target.column.type.coneType}"
                     false
                 }
+            } else {
+                missingColumns += "${target.path.path} ${target.column.name} is missing"
+                false
+            }
 
-                valid = valid && present
-            }
-            if (!valid) {
-                reporter.reportOn(expression.source, CAST_ERROR, "Cast cannot succeed \n ${missingColumns.joinToString("\n")}", context)
-            }
+            valid = valid && present
         }
+        if (!valid) {
+            reporter.reportOn(expression.source, CAST_ERROR, "Cast cannot succeed \n ${missingColumns.joinToString("\n")}", context)
+        }
+    }
+
+    context(sessionHolder: SessionHolder)
+    private fun FirFunctionCall.dataFrameReceiverSchema(): PluginDataFrameSchema? {
+        val resolvedMarker = explicitReceiver
+            ?.resolvedType
+            ?.fullyExpandedType()?.typeArguments?.getOrNull(0)?.type
+            ?: return null
+
+        return pluginDataFrameSchema(resolvedMarker)
     }
 }
 
