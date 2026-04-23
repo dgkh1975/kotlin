@@ -62,6 +62,7 @@ import org.jetbrains.kotlinx.dataframe.plugin.extensions.FirDataFrameErrors.DATA
 import org.jetbrains.kotlinx.dataframe.plugin.extensions.FirDataFrameErrors.DATA_SCHEMA_DECLARATION_VISIBILITY
 import org.jetbrains.kotlinx.dataframe.plugin.extensions.FirDataFrameErrors.ERROR
 import org.jetbrains.kotlinx.dataframe.plugin.extensions.FirDataFrameErrors.DATA_SCHEMA_LOCAL_DECLARATION
+import org.jetbrains.kotlinx.dataframe.plugin.impl.PluginDataFrameSchema
 import org.jetbrains.kotlinx.dataframe.plugin.impl.SimpleDataColumn
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.flatten
 import org.jetbrains.kotlinx.dataframe.plugin.pluginDataFrameSchema
@@ -159,16 +160,20 @@ private class Checker(
         ) {
             return
         }
-        val targetProjection = expression.typeArguments.getOrNull(0) as? FirTypeProjectionWithVariance ?: return
-        val targetType = targetProjection.typeRef.coneType as? ConeClassLikeType ?: return
-        val targetSymbol = targetType.toSymbol()
-        if (targetSymbol != null && !session.predicateBasedProvider.matches(VALID_CAST_TARGET_PREDICATE, targetSymbol)) {
-            val text = "Annotate ${targetType.renderReadable()} with @DataSchema to use generated properties"
-            reporter.reportOn(expression.source, CAST_TARGET_WARNING, text, context)
-        }
+        val targetType = expression.getCastTargetType(reporter, context) ?: return
         val source = expression.dataFrameReceiverSchema() ?: return
         if (source.columns().isEmpty()) return
         val target = pluginDataFrameSchema(targetType)
+        validateSchemaCompatibility(source, target, reporter, expression, context)
+    }
+
+    private fun KotlinTypeFacadeImpl.validateSchemaCompatibility(
+        source: PluginDataFrameSchema,
+        target: PluginDataFrameSchema,
+        reporter: DiagnosticReporter,
+        expression: FirFunctionCall,
+        context: CheckerContext,
+    ) {
         val sourceColumns = source.flatten(includeFrames = true)
         val targetColumns = target.flatten(includeFrames = true)
         val sourceMap = sourceColumns.associate { it.path.path to it.column }
@@ -198,6 +203,21 @@ private class Checker(
         if (!valid) {
             reporter.reportOn(expression.source, CAST_ERROR, "Cast cannot succeed \n ${missingColumns.joinToString("\n")}", context)
         }
+    }
+
+    context(sessionHolder: SessionHolder)
+    private fun FirFunctionCall.getCastTargetType(
+        reporter: DiagnosticReporter,
+        context: CheckerContext,
+    ): ConeClassLikeType? {
+        val targetProjection = typeArguments.getOrNull(0) as? FirTypeProjectionWithVariance ?: return null
+        val targetType = targetProjection.typeRef.coneType as? ConeClassLikeType ?: return null
+        val targetSymbol = targetType.toSymbol()
+        if (targetSymbol != null && !sessionHolder.session.predicateBasedProvider.matches(VALID_CAST_TARGET_PREDICATE, targetSymbol)) {
+            val text = "Annotate ${targetType.renderReadable()} with @DataSchema to use generated properties"
+            reporter.reportOn(source, CAST_TARGET_WARNING, text, context)
+        }
+        return targetType
     }
 
     context(sessionHolder: SessionHolder)
