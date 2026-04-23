@@ -118,6 +118,7 @@ import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnPathSelect
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnRange
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ConcatWithKeys
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ConvertAsColumn
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ConvertAsFrame
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ConvertNotNull
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameBuilderInvoke0
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameCumSum
@@ -441,6 +442,7 @@ private fun String.loadImpl(isTest: Boolean): Interpreter<*>? {
         "With0" -> With0()
         "ConvertAsColumn" -> ConvertAsColumn()
         "ConvertNotNull" -> ConvertNotNull()
+        "ConvertAsFrame" -> ConvertAsFrame()
         "PerRowCol" -> PerRowCol()
         "UpdatePerCol" -> UpdatePerColLambda()
         "UpdatePerColRow" -> UpdatePerColRow()
