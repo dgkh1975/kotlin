@@ -89,7 +89,7 @@ object FirDataFrameErrors : KtDiagnosticsContainer() {
     val CAST_ERROR by error1<KtElement, String>(SourceElementPositioningStrategies.REFERENCED_NAME_BY_QUALIFIED)
     val CAST_TARGET_WARNING by warning1<KtElement, String>(SourceElementPositioningStrategies.REFERENCED_NAME_BY_QUALIFIED)
     val DATAFRAME_PLUGIN_NOT_YET_SUPPORTED_IN_INLINE by warning1<KtElement, String>(SourceElementPositioningStrategies.REFERENCED_NAME_BY_QUALIFIED)
-    val DATAFRAME_PLUGIN_NOT_YET_SUPPORTED_IN_GENERIC by error1<KtElement, String>(SourceElementPositioningStrategies.REFERENCED_NAME_BY_QUALIFIED)
+    val DATAFRAME_PLUGIN_NOT_YET_SUPPORTED_IN_GENERIC by warning1<KtElement, String>(SourceElementPositioningStrategies.REFERENCED_NAME_BY_QUALIFIED)
     val DATA_SCHEMA_DECLARATION_VISIBILITY by error1<KtElement, String>(SourceElementPositioningStrategies.VISIBILITY_MODIFIER)
     val DATAFRAME_PLUGIN_NOT_YET_SUPPORTED_IN_PROPERTY_ACCESSOR by error1<KtElement, String>(SourceElementPositioningStrategies.REFERENCED_NAME_BY_QUALIFIED)
     val DATAFRAME_PLUGIN_NOT_YET_SUPPORTED_IN_PROPERTY_RETURN_TYPE by error1<KtElement, String>(SourceElementPositioningStrategies.DECLARATION_NAME)
@@ -244,7 +244,7 @@ private data object DataFrameFunctionCallTransformationContextChecker : FirFunct
                     reporter.reportOn(
                         expression.source,
                         DATAFRAME_PLUGIN_NOT_YET_SUPPORTED_IN_INLINE,
-                        "DataFrame compiler plugin is not yet supported in inline functions"
+                        "DataFrame compiler plugin is not yet supported in inline functions. Annotate containing declaration with @DisableInterpretation to suppress this warning"
                     )
                 }
             }
@@ -254,7 +254,7 @@ private data object DataFrameFunctionCallTransformationContextChecker : FirFunct
                     reporter.reportOn(
                         expression.source,
                         DATAFRAME_PLUGIN_NOT_YET_SUPPORTED_IN_GENERIC,
-                        "DataFrame compiler plugin is not yet supported in generic context. Annotate containing declaration with @DisableInterpretation"
+                        "DataFrame compiler plugin is not yet supported in generic context. Annotate containing declaration with @DisableInterpretation to suppress this warning"
                     )
                 }
             }
@@ -264,7 +264,7 @@ private data object DataFrameFunctionCallTransformationContextChecker : FirFunct
                     reporter.reportOn(
                         expression.source,
                         DATAFRAME_PLUGIN_NOT_YET_SUPPORTED_IN_PROPERTY_ACCESSOR,
-                        "DataFrame compiler plugin is not yet supported in property accessors bodies. Use property with initializer, a function, or annotate containing declaration with @DisableInterpretation"
+                        "DataFrame compiler plugin is not yet supported in property accessors bodies. Use property with initializer, a function, or annotate containing declaration with @DisableInterpretation to suppress this warning"
                     )
                 }
             }
