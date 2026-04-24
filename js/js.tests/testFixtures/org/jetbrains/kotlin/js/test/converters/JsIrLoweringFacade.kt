@@ -71,7 +71,7 @@ class JsIrLoweringFacade(
                 .finalizePath(JsEnvironmentConfigurator.getModuleKind(testServices, module)),
         )
 
-        return BinaryArtifacts.Js.JsIrArtifact(outputFile, compilerResult, icCache).dump(module, firstTimeCompilation)
+        return JsIrArtifact(outputFile, compilerResult, icCache).dump(module, firstTimeCompilation)
     }
 
     private fun compileIncrementally(
@@ -112,10 +112,10 @@ class JsIrLoweringFacade(
         files.forEach(jsIrPathReplacer::lower)
     }
 
-    private fun BinaryArtifacts.Js.JsIrArtifact.dump(
+    private fun JsIrArtifact.dump(
         module: TestModule,
         firstTimeCompilation: Boolean = true
-    ): BinaryArtifacts.Js.JsIrArtifact {
+    ): JsIrArtifact {
         val configuration = testServices.compilerConfigurationProvider.getCompilerConfiguration(module)
         val moduleId = configuration.getNotNull(CommonConfigurationKeys.MODULE_NAME)
         val moduleKind = configuration.get(JSConfigurationKeys.MODULE_KIND, ModuleKind.PLAIN)
