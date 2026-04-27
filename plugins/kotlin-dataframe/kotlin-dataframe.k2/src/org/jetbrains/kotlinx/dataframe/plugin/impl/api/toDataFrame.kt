@@ -22,6 +22,7 @@ import org.jetbrains.kotlin.fir.resolve.ScopeSession
 import org.jetbrains.kotlin.fir.resolve.scope
 import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
 import org.jetbrains.kotlin.fir.resolve.toSymbol
+import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.approximateDeclarationType
 import org.jetbrains.kotlin.fir.scopes.CallableCopyTypeCalculator
 import org.jetbrains.kotlin.fir.scopes.collectAllFunctions
 import org.jetbrains.kotlin.fir.scopes.collectAllProperties
@@ -212,6 +213,8 @@ internal fun KotlinTypeFacade.toDataFrame(
             .map { (callable, name) ->
                 var returnType = callable.fir.returnTypeRef.resolveIfJavaType(session, JavaTypeParameterStack.EMPTY, null)
                     .coneType.upperBoundIfFlexible()
+                    // result will be used to as a return type of property of a local dataframe type
+                    .approximateDeclarationType(Visibilities.Local, isLocal = true)
 
                 returnType = if (returnType is ConeTypeParameterType) {
                     if (returnType.canBeNull(session)) {
