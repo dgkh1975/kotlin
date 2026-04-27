@@ -47,8 +47,13 @@ class BuiltInsDeserializationForFirTestCase {
     // ------------------------ actual tests ------------------------
 
     @Test
-    fun testBuiltInPackagesContent() {
-        doTest("fallbackBuiltIns.txt", TestJdkKind.FULL_JDK)
+    fun testFallbackBuiltInsModifiedJdk() {
+        doTest("fallbackBuiltIns_modifiedMockJDK.txt", TestJdkKind.MODIFIED_MOCK_JDK)
+    }
+
+    @Test
+    fun testFallbackBuiltInsFullJdk21() {
+        doTest("fallbackBuiltIns_fullJDK21.txt", TestJdkKind.FULL_JDK_21)
     }
 
     // ------------------------ test utilities ------------------------
