@@ -1135,8 +1135,8 @@ abstract class AbstractRawFirBuilder<T : Any>(val baseSession: FirSession, val c
     /**
      * Generates the synthetic members of a data class.
      *
-     * The fake source elements of the generated members should be distinct per the contract of [KtFakeSourceElementKind]. Hence, the
-     * generator must ensure that each pair of `(realSource, fakeElementKind)` is distinct.
+     * The fake source elements of the generated members should be distinct per the contract of [KtSourceElement]. Hence, the generator must
+     * ensure that each pair of `(realSource, fakeElementKind)` is distinct.
      */
     inner class DataClassMembersGenerator(
         private val source: T,

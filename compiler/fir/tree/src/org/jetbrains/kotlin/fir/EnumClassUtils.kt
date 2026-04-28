@@ -37,7 +37,7 @@ import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.StandardClassIds
 
-// Note: The fake source elements of the generated enum members should be distinct per the contract of `KtFakeSourceElementKind`. Hence, the
+// Note: The fake source elements of the generated enum members should be distinct per the contract of `KtSourceElement`. Hence, the
 // generator functions must ensure that each pair of `(realSource, fakeElementKind)` is distinct.
 
 fun FirRegularClassBuilder.generateValuesFunction(

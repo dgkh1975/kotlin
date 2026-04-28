@@ -22,6 +22,11 @@ import org.jetbrains.kotlin.utils.getElementTextWithContext
 import java.util.Objects
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater
 
+/**
+ * The kind of a [KtSourceElement], used to distinguish different source elements backed by the same real source.
+ *
+ * Source elements must be distinct, and the kind contributes to this distinction. See [KtSourceElement] for more information.
+ */
 sealed class KtSourceElementKind {
     abstract val shouldSkipErrorTypeReporting: Boolean
 }
@@ -39,38 +44,7 @@ data object KtRealSourceElementKind : KtSourceElementKind() {
  *
  * And vice versa, [KtRealSourceElementKind] means that there's a single FIR node in the resulting tree that has the same source element.
  *
- * ### Distinct fake source elements
- *
- * **Constraint:** To support the unambiguous source-based equality of FIR symbols, each FIR declaration with a fake source should have a
- * distinct `(realSource, fakeElementKind)` pair as its source element. This includes local declarations.
- *
- * This constraint can be checked per file because fake source elements from different files can never be equal, as real source elements
- * are distinct between files.
- *
- * When the constraint is violated, we can have two different FIR declarations with the same source element. Source-based equality would
- * then break, because these FIR declarations would be unexpectedly equal.
- *
- * This constraint does not (yet) apply to non-declaration FIR elements, so, for example, it is currently legal for multiple FIR expressions
- * to share the same fake source element.
- *
- * #### Compiler plugin-generated declarations
- *
- * Compiler plugin-generated FIR declarations are exempt from the distinctness constraint. We cannot rely on third-party compiler plugins to
- * test for distinct source elements, nor for them to have exhaustive test data. Nor is it good to place such a burden on compiler plugin
- * developers, who may not have an intricate knowledge of FIR internals.
- *
- * Due to this exemption, FIR file/declaration caches which rely on source-based equality must not contain plugin-generated declarations.
- * This is currently satisfied as follows:
- *
- * - `FirExtensionDeclarationsSymbolProvider` stores plugin-generated FIR declarations uniquely and does not rely on source-based equality.
- * - Additionally, in compiler mode, plugin-generated FIR declarations are materialzied into new FIR files, but FIR declarations remain
- *   unique. Thus, we have no caches which rely on source-based equality.
- * - In Analysis API mode, plugin-generated FIR declarations are only materialized for FIR dump checking in tests. Hence, plugin-generated
- *   declarations are not cached outside `FirExtensionDeclarationsSymbolProvider`.
- *
- * Local declarations generated into *existing* FIR files with `FirFunctionCallRefinementExtension` are an exception to this rule. Compiler
- * plugins must provide distinct source elements in this case, as we generally need all declarations in a source FIR file to have distinct
- * source elements. See the KDoc of `FirFunctionCallRefinementExtension` for more information.
+ * Source elements must be distinct, and the kind contributes to this distinction. See [KtSourceElement] for more information.
  */
 sealed class KtFakeSourceElementKind(final override val shouldSkipErrorTypeReporting: Boolean = false) : KtSourceElementKind() {
     /**
@@ -893,7 +867,7 @@ sealed class KtFakeSourceElementKind(final override val shouldSkipErrorTypeRepor
          *
          * This allows compiler plugins to distinguish the source elements of generated declarations from one another. The kind is currently
          * necessary to achieve distinct source elements for local declarations injected into existing source files (see the compiler plugin
-         * section in the KDoc of [KtFakeSourceElementKind]).
+         * section in the KDoc of [KtSourceElement]).
          *
          * @property marker An object that distinguishes the plugin-generated declaration from the point of view of the compiler plugin. It
          *  must have stable [equals], [hashCode], and [toString] implementations.
@@ -986,12 +960,44 @@ class KtOffsetsOnlySourceElement(
  *
  * A source element can be either real or fake:
  *
- * - Real source elements are backed directly by a corresponding AST element. See [KtRealSourceElementKind].
- * - Fake source elements are a combination of a real AST element and a [fake source element kind][KtFakeSourceElementKind]. Fake source
- *   elements must adhere to distinctness constraints. See [KtFakeSourceElementKind].
+ * - Real source elements are backed directly by a corresponding AST element (see [KtRealSourceElementKind]).
+ * - Fake source elements are a combination of a real AST element and a [fake source element kind][KtFakeSourceElementKind].
  *
  * The two current implementations of [KtSourceElement] cover [light tree][KtLightSourceElement] and [PSI][KtPsiSourceElement] source
  * elements.
+ *
+ * ### Distinct source elements
+ *
+ * **Constraint:** To support the unambiguous source-based equality of FIR symbols, each FIR declaration should have a distinct
+ * `(realSource, sourceElementKind)` pair as its source element. This includes local declarations.
+ *
+ * This constraint can be checked per file because source elements from different files can never be equal, as real source nodes are
+ * distinct between files.
+ *
+ * When the constraint is violated, we can have two different FIR declarations with the same source element. Source-based equality would
+ * then break, because these FIR declarations would be unexpectedly equal.
+ *
+ * This constraint does not (yet) apply to non-declaration FIR elements, so, for example, it is currently legal for multiple FIR expressions
+ * to share the same source element.
+ *
+ * #### Compiler plugin-generated declarations
+ *
+ * Compiler plugin-generated FIR declarations are exempt from the distinctness constraint. We cannot rely on third-party compiler plugins to
+ * test for distinct source elements, nor for them to have exhaustive test data. Nor is it good to place such a burden on compiler plugin
+ * developers, who may not have an intricate knowledge of FIR internals.
+ *
+ * Due to this exemption, FIR file/declaration caches which rely on source-based equality must not contain plugin-generated declarations.
+ * This is currently satisfied as follows:
+ *
+ * - `FirExtensionDeclarationsSymbolProvider` stores plugin-generated FIR declarations uniquely and does not rely on source-based equality.
+ * - Additionally, in compiler mode, plugin-generated FIR declarations are materialzied into new FIR files, but FIR declarations remain
+ *   unique. Thus, we have no caches which rely on source-based equality.
+ * - In Analysis API mode, plugin-generated FIR declarations are only materialized for FIR dump checking in tests. Hence, plugin-generated
+ *   declarations are not cached outside `FirExtensionDeclarationsSymbolProvider`.
+ *
+ * Local declarations generated into *existing* FIR files with `FirFunctionCallRefinementExtension` are an exception to this rule. Compiler
+ * plugins must provide distinct source elements in this case, as we generally need all declarations in a source FIR file to have distinct
+ * source elements. See the KDoc of `FirFunctionCallRefinementExtension` for more information.
  */
 // TODO: consider renaming to something like AstBasedSourceElement
 sealed class KtSourceElement : AbstractKtSourceElement() {
