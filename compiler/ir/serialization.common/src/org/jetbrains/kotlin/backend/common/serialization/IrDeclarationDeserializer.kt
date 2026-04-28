@@ -27,6 +27,7 @@ import org.jetbrains.kotlin.ir.expressions.IrBody
 import org.jetbrains.kotlin.ir.expressions.IrExpressionBody
 import org.jetbrains.kotlin.ir.expressions.impl.IrCompositeImpl
 import org.jetbrains.kotlin.ir.symbols.*
+import org.jetbrains.kotlin.ir.symbols.IrClassifierSymbol
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.types.impl.*
 import org.jetbrains.kotlin.ir.util.*
@@ -621,6 +622,8 @@ class IrDeclarationDeserializer(
                         isInfix = flags.isInfix,
                         isExternal = flags.isExternal || isEffectivelyExternal,
                         isFakeOverride = flags.isFakeOverride,
+                        companionExtensionClass = proto.base.companionExtensionClass.takeIf { proto.base.hasCompanionExtensionClass() }
+                            ?.let { symbol -> deserializeIrSymbol(symbol).checkSymbolType(CLASS_SYMBOL) }
                     )
                 }
             }.apply {
