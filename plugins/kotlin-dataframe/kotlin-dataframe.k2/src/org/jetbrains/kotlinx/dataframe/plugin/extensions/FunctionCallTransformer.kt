@@ -308,7 +308,7 @@ class FunctionCallTransformer(
         val dataFrameTypeId = nextName(suggestedName)
         val dataFrameType = buildRegularClass {
             moduleData = session.moduleData
-            source = callSite.source?.fakeElement(KtFakeSourceElementKind.PluginGenerated)
+            source = callSite.source?.fakeElement(KtFakeSourceElementKind.PluginGenerated.Default)
             resolvePhase = FirResolvePhase.BODY_RESOLVE
             origin = FirDeclarationOrigin.Plugin(DataFramePlugin)
             status = FirResolvedDeclarationStatusImpl(Visibilities.Local, Modality.ABSTRACT, EffectiveVisibility.Local)
@@ -514,7 +514,7 @@ class FunctionCallTransformer(
             val scopeId = ClassId(CallableId.PACKAGE_FQ_NAME_FOR_LOCAL, FqName("DataFramePropertiesScope${i++}"), true)
             val scope = buildRegularClass {
                 moduleData = session.moduleData
-                source = call.source?.fakeElement(KtFakeSourceElementKind.PluginGenerated)
+                source = call.source?.fakeElement(KtFakeSourceElementKind.PluginGenerated.Default)
                 resolvePhase = FirResolvePhase.BODY_RESOLVE
                 origin = FirDeclarationOrigin.Plugin(DataFramePlugin)
                 status = FirResolvedDeclarationStatusImpl(Visibilities.Local, Modality.FINAL, EffectiveVisibility.Local)

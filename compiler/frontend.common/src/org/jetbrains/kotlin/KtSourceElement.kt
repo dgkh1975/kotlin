@@ -67,6 +67,10 @@ data object KtRealSourceElementKind : KtSourceElementKind() {
  *   unique. Thus, we have no caches which rely on source-based equality.
  * - In Analysis API mode, plugin-generated FIR declarations are only materialized for FIR dump checking in tests. Hence, plugin-generated
  *   declarations are not cached outside `FirExtensionDeclarationsSymbolProvider`.
+ *
+ * Local declarations generated into *existing* FIR files with `FirFunctionCallRefinementExtension` are an exception to this rule. Compiler
+ * plugins must provide distinct source elements in this case, as we generally need all declarations in a source FIR file to have distinct
+ * source elements. See the KDoc of `FirFunctionCallRefinementExtension` for more information.
  */
 sealed class KtFakeSourceElementKind(final override val shouldSkipErrorTypeReporting: Boolean = false) : KtSourceElementKind() {
     /**
@@ -871,9 +875,40 @@ sealed class KtFakeSourceElementKind(final override val shouldSkipErrorTypeRepor
     object ContextParameterDefaultValue : KtFakeSourceElementKind()
 
     /**
-     * For plugin-generated things
+     * For compiler plugin-generated declarations.
+     *
+     * In most cases, [PluginGenerated.Default][Default] should be chosen. For declarations that require distinct source elements,
+     * [PluginGenerated.Custom][Custom] should be chosen instead. See [Custom] for more information.
      */
-    object PluginGenerated : KtFakeSourceElementKind()
+    sealed class PluginGenerated : KtFakeSourceElementKind() {
+        /**
+         * The default source element kind for most plugin-generated declarations.
+         *
+         * @see PluginGenerated
+         */
+        object Default : PluginGenerated()
+
+        /**
+         * A custom source element kind for plugin-generated declarations that can be distinguished with a plugin-specific [marker].
+         *
+         * This allows compiler plugins to distinguish the source elements of generated declarations from one another. The kind is currently
+         * necessary to achieve distinct source elements for local declarations injected into existing source files (see the compiler plugin
+         * section in the KDoc of [KtFakeSourceElementKind]).
+         *
+         * @property marker An object that distinguishes the plugin-generated declaration from the point of view of the compiler plugin. It
+         *  must have stable [equals], [hashCode], and [toString] implementations.
+         *
+         * @see PluginGenerated
+         */
+        class Custom(val marker: Any) : PluginGenerated() {
+            override fun equals(other: Any?): Boolean =
+                this === other || other is Custom && marker == other.marker
+
+            override fun hashCode(): Int = Objects.hash(this::class, marker)
+
+            override fun toString(): String = "${super.toString()}($marker)"
+        }
+    }
 
     /**
      * To store diagnostic for erroneously resolved `arrayOf` which is being transformed to array literal.
