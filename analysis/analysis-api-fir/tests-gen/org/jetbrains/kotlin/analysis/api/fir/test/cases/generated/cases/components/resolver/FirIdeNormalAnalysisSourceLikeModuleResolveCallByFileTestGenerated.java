@@ -1166,6 +1166,12 @@ public class FirIdeNormalAnalysisSourceLikeModuleResolveCallByFileTestGenerated 
     public void testUnary() {
       run("unary.kt");
     }
+
+    @Test
+    @TestMetadata("unaryOnObject.kt")
+    public void testUnaryOnObject() {
+      run("unaryOnObject.kt");
+    }
   }
 
   @Nested
