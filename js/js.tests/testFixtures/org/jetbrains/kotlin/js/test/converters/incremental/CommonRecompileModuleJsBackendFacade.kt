@@ -65,6 +65,7 @@ abstract class CommonRecompileModuleJsBackendFacade(
             )
             useDirectives(*builder.directives.toTypedArray())
             useAdditionalServices(*builder.additionalServices.toTypedArray())
+            useCustomCompilerConfigurationProvider(::CompilerConfigurationProviderImpl)
             builder.globalDefaultsConfigurators.forEach { globalDefaults(it) }
             builder.defaultDirectiveConfigurators.forEach { defaultDirectives(it) }
 
