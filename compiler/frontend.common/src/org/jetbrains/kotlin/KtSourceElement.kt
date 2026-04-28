@@ -52,6 +52,21 @@ data object KtRealSourceElementKind : KtSourceElementKind() {
  *
  * This constraint does not (yet) apply to non-declaration FIR elements, so, for example, it is currently legal for multiple FIR expressions
  * to share the same fake source element.
+ *
+ * #### Compiler plugin-generated declarations
+ *
+ * Compiler plugin-generated FIR declarations are exempt from the distinctness constraint. We cannot rely on third-party compiler plugins to
+ * test for distinct source elements, nor for them to have exhaustive test data. Nor is it good to place such a burden on compiler plugin
+ * developers, who may not have an intricate knowledge of FIR internals.
+ *
+ * Due to this exemption, FIR file/declaration caches which rely on source-based equality must not contain plugin-generated declarations.
+ * This is currently satisfied as follows:
+ *
+ * - `FirExtensionDeclarationsSymbolProvider` stores plugin-generated FIR declarations uniquely and does not rely on source-based equality.
+ * - Additionally, in compiler mode, plugin-generated FIR declarations are materialzied into new FIR files, but FIR declarations remain
+ *   unique. Thus, we have no caches which rely on source-based equality.
+ * - In Analysis API mode, plugin-generated FIR declarations are only materialized for FIR dump checking in tests. Hence, plugin-generated
+ *   declarations are not cached outside `FirExtensionDeclarationsSymbolProvider`.
  */
 sealed class KtFakeSourceElementKind(final override val shouldSkipErrorTypeReporting: Boolean = false) : KtSourceElementKind() {
     /**
