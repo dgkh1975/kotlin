@@ -257,6 +257,7 @@ internal class KaFirResolver(
         is FirReturnExpression -> toKaSymbolResolutionAttempt(psi)
         is FirTypeParameter -> toKaSymbolResolutionAttempt()
         is FirResolvedReifiedParameterReference -> toKaSymbolResolutionAttempt()
+        is FirVariableAssignment -> lValue.unwrapExpression().toKaSymbolResolutionAttempt(psi)
         is FirResolvedQualifier if psi is KtSimpleNameExpression -> toKaSymbolResolutionAttempt(psi)
         is FirPackageDirective if psi is KtSimpleNameExpression -> toKaSymbolResolutionAttempt(psi)
         is FirResolvedImport if psi is KtSimpleNameExpression -> toKaSymbolResolutionAttempt(psi)
@@ -662,6 +663,17 @@ internal class KaFirResolver(
                         KaBaseCallResolutionError(
                             backedDiagnostic = kaDiagnostic,
                             backingCandidateCalls = emptyList(),
+                        )
+                    }
+
+                    // A workaround to support desugared assignment where the lhs is an object, so the result is the operation itself
+                    // E.g., `++MyObject`
+                    // `resolveFragmentOfCall` must be true to not resolve `MyObject` into the operator
+                    null if (!resolveFragmentOfCall && this is FirVariableAssignment && lValue is FirDesugaredAssignmentValueReferenceExpression) -> {
+                        rValue.toKaResolutionAttempt(
+                            psi = psi,
+                            resolveCalleeExpressionOfFunctionCall = resolveCalleeExpressionOfFunctionCall,
+                            resolveFragmentOfCall = false,
                         )
                     }
 

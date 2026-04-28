@@ -233,25 +233,46 @@ KtNameReferenceExpression(230,231): 'A'
     ]
 
 KtPrefixExpression(236,239): '++A'
-  null
+  KaSymbolResolutionSuccess:
+    symbols = [
+      /A.inc(<dispatch receiver>: A): A
+    ]
 
 KtOperationReferenceExpression(236,238): '++'
-  null
+  KaSymbolResolutionSuccess:
+    symbols = [
+      /A.inc(<dispatch receiver>: A): A
+    ]
 
 KtNameReferenceExpression(238,239): 'A'
-  null
+  KaSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtPrefixExpression(244,247): '--A'
-  null
+  KaSymbolResolutionSuccess:
+    symbols = [
+      /A.dec(<dispatch receiver>: A): A
+    ]
 
 KtOperationReferenceExpression(244,246): '--'
-  null
+  KaSymbolResolutionSuccess:
+    symbols = [
+      /A.dec(<dispatch receiver>: A): A
+    ]
 
 KtNameReferenceExpression(246,247): 'A'
-  null
+  KaSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtPostfixExpression(252,255): 'A++'
-  null
+  KaSymbolResolutionSuccess:
+    symbols = [
+      /A.inc(<dispatch receiver>: A): A
+    ]
 
 KtNameReferenceExpression(252,253): 'A'
   KaSymbolResolutionSuccess:
@@ -260,10 +281,16 @@ KtNameReferenceExpression(252,253): 'A'
     ]
 
 KtOperationReferenceExpression(253,255): '++'
-  null
+  KaSymbolResolutionSuccess:
+    symbols = [
+      /A.inc(<dispatch receiver>: A): A
+    ]
 
 KtPostfixExpression(260,263): 'A--'
-  null
+  KaSymbolResolutionSuccess:
+    symbols = [
+      /A.dec(<dispatch receiver>: A): A
+    ]
 
 KtNameReferenceExpression(260,261): 'A'
   KaSymbolResolutionSuccess:
@@ -272,4 +299,7 @@ KtNameReferenceExpression(260,261): 'A'
     ]
 
 KtOperationReferenceExpression(261,263): '--'
-  null
+  KaSymbolResolutionSuccess:
+    symbols = [
+      /A.dec(<dispatch receiver>: A): A
+    ]

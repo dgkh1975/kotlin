@@ -269,37 +269,173 @@ KtNameReferenceExpression(230,231): 'A'
   null
 
 KtPrefixExpression(236,239): '++A'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = KaExplicitReceiverValue:
+        expression = A
+        isSafeNavigation = false
+        type = A
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = A
+        symbol = /A.inc(<dispatch receiver>: A): A
+        valueParameters = []
+        contextParameters = []
+        callableId = /A.inc
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtOperationReferenceExpression(236,238): '++'
-  null
+  KaSuccessCallInfo:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = KaExplicitReceiverValue:
+        expression = A
+        isSafeNavigation = false
+        type = A
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = A
+        symbol = /A.inc(<dispatch receiver>: A): A
+        valueParameters = []
+        contextParameters = []
+        callableId = /A.inc
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtNameReferenceExpression(238,239): 'A'
   null
 
 KtPrefixExpression(244,247): '--A'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = KaExplicitReceiverValue:
+        expression = A
+        isSafeNavigation = false
+        type = A
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = A
+        symbol = /A.dec(<dispatch receiver>: A): A
+        valueParameters = []
+        contextParameters = []
+        callableId = /A.dec
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtOperationReferenceExpression(244,246): '--'
-  null
+  KaSuccessCallInfo:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = KaExplicitReceiverValue:
+        expression = A
+        isSafeNavigation = false
+        type = A
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = A
+        symbol = /A.dec(<dispatch receiver>: A): A
+        valueParameters = []
+        contextParameters = []
+        callableId = /A.dec
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtNameReferenceExpression(246,247): 'A'
   null
 
 KtPostfixExpression(252,255): 'A++'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = KaExplicitReceiverValue:
+        expression = A++
+        isSafeNavigation = false
+        type = A
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = A
+        symbol = /A.inc(<dispatch receiver>: A): A
+        valueParameters = []
+        contextParameters = []
+        callableId = /A.inc
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtNameReferenceExpression(252,253): 'A'
   null
 
 KtOperationReferenceExpression(253,255): '++'
-  null
+  KaSuccessCallInfo:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = KaExplicitReceiverValue:
+        expression = A++
+        isSafeNavigation = false
+        type = A
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = A
+        symbol = /A.inc(<dispatch receiver>: A): A
+        valueParameters = []
+        contextParameters = []
+        callableId = /A.inc
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtPostfixExpression(260,263): 'A--'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = KaExplicitReceiverValue:
+        expression = A--
+        isSafeNavigation = false
+        type = A
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = A
+        symbol = /A.dec(<dispatch receiver>: A): A
+        valueParameters = []
+        contextParameters = []
+        callableId = /A.dec
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtNameReferenceExpression(260,261): 'A'
   null
 
 KtOperationReferenceExpression(261,263): '--'
-  null
+  KaSuccessCallInfo:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = KaExplicitReceiverValue:
+        expression = A--
+        isSafeNavigation = false
+        type = A
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = A
+        symbol = /A.dec(<dispatch receiver>: A): A
+        valueParameters = []
+        contextParameters = []
+        callableId = /A.dec
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
