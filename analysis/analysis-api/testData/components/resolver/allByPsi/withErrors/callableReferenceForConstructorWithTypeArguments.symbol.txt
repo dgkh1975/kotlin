@@ -52,7 +52,7 @@ KtBlockExpression(121,271): '{'
 KtCallableReferenceExpression(127,177): 'ClassWithType<Boolean>::InnerClassWithType<String>'
   KaSymbolResolutionError:
     candidateSymbols = [
-      _synthetic/ACCEPT_SPECIFIC_TYPE_CALL(reference: kotlin.Any): kotlin.Unit
+      <constructor>(<dispatch receiver>: pack.ClassWithType<T>): pack.ClassWithType.InnerClassWithType<D, T>
     ]
     diagnostic = ERROR<OTHER_ERROR: CS errors: _synthetic/ACCEPT_SPECIFIC_TYPE_CALL>
 
@@ -86,7 +86,7 @@ KtNameReferenceExpression(141,148): 'Boolean'
 KtNameReferenceExpression(151,169): 'InnerClassWithType'
   KaSymbolResolutionError:
     candidateSymbols = [
-      _synthetic/ACCEPT_SPECIFIC_TYPE_CALL(reference: kotlin.Any): kotlin.Unit
+      <constructor>(<dispatch receiver>: pack.ClassWithType<T>): pack.ClassWithType.InnerClassWithType<D, T>
     ]
     diagnostic = ERROR<OTHER_ERROR: CS errors: _synthetic/ACCEPT_SPECIFIC_TYPE_CALL>
 

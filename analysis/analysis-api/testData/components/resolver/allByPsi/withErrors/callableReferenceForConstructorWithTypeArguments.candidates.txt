@@ -55,29 +55,13 @@ KtCallableReferenceExpression(127,177): 'ClassWithType<Boolean>::InnerClassWithT
       extensionReceiver = null
       signature = KaFunctionSignature:
         receiverType = null
-        returnType = kotlin.Unit
-        symbol = _synthetic/ACCEPT_SPECIFIC_TYPE_CALL(reference: kotlin.Any): kotlin.Unit
-        valueParameters = [
-          KaVariableSignature:
-            name = reference
-            receiverType = null
-            returnType = kotlin.Any
-            symbol = reference: kotlin.Any
-            contextParameters = []
-            callableId = null
-        ]
+        returnType = pack.ClassWithType.InnerClassWithType<D, T>
+        symbol = <constructor>(<dispatch receiver>: pack.ClassWithType<T>): pack.ClassWithType.InnerClassWithType<D, T>
+        valueParameters = []
         contextParameters = []
-        callableId = _synthetic/ACCEPT_SPECIFIC_TYPE_CALL
+        callableId = null
       typeArgumentsMapping = {}
-      valueArgumentMapping = {
-        ClassWithType<Boolean>::InnerClassWithType<String> -> (KaVariableSignature:
-          name = reference
-          receiverType = null
-          returnType = kotlin.Any
-          symbol = reference: kotlin.Any
-          contextParameters = []
-          callableId = null)
-      }
+      valueArgumentMapping = {}
     diagnostic = ERROR<OTHER_ERROR: CS errors: _synthetic/ACCEPT_SPECIFIC_TYPE_CALL>
     isInBestCandidates = true
 
@@ -147,29 +131,13 @@ KtNameReferenceExpression(151,169): 'InnerClassWithType'
       extensionReceiver = null
       signature = KaFunctionSignature:
         receiverType = null
-        returnType = kotlin.Unit
-        symbol = _synthetic/ACCEPT_SPECIFIC_TYPE_CALL(reference: kotlin.Any): kotlin.Unit
-        valueParameters = [
-          KaVariableSignature:
-            name = reference
-            receiverType = null
-            returnType = kotlin.Any
-            symbol = reference: kotlin.Any
-            contextParameters = []
-            callableId = null
-        ]
+        returnType = pack.ClassWithType.InnerClassWithType<D, T>
+        symbol = <constructor>(<dispatch receiver>: pack.ClassWithType<T>): pack.ClassWithType.InnerClassWithType<D, T>
+        valueParameters = []
         contextParameters = []
-        callableId = _synthetic/ACCEPT_SPECIFIC_TYPE_CALL
+        callableId = null
       typeArgumentsMapping = {}
-      valueArgumentMapping = {
-        ClassWithType<Boolean>::InnerClassWithType<String> -> (KaVariableSignature:
-          name = reference
-          receiverType = null
-          returnType = kotlin.Any
-          symbol = reference: kotlin.Any
-          contextParameters = []
-          callableId = null)
-      }
+      valueArgumentMapping = {}
     diagnostic = ERROR<OTHER_ERROR: CS errors: _synthetic/ACCEPT_SPECIFIC_TYPE_CALL>
     isInBestCandidates = true
 

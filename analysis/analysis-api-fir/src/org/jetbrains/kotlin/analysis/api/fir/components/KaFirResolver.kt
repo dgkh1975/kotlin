@@ -475,11 +475,18 @@ internal class KaFirResolver(
         return resolvedTypeSymbols.ifNotEmpty(::KaBaseSymbolResolutionSuccess) ?: resolutionError
     }
 
-    private fun FirDiagnosticHolder.toKaSymbolResolutionError(psi: KtElement): KaSymbolResolutionError =
-        KaBaseSymbolResolutionError(
+    private fun FirDiagnosticHolder.toKaSymbolResolutionError(psi: KtElement): KaSymbolResolutionError {
+        val candidates = if (this is FirNamedReference) {
+            getCandidateSymbols()
+        } else {
+            diagnostic.getCandidateSymbols()
+        }
+
+        return KaBaseSymbolResolutionError(
             backingDiagnostic = createKaDiagnostic(psi),
-            backingCandidateSymbols = diagnostic.getCandidateSymbols().map(firSymbolBuilder::buildSymbol),
+            backingCandidateSymbols = candidates.map(firSymbolBuilder::buildSymbol),
         )
+    }
 
     private fun FirReturnExpression.toKaSymbolResolutionAttempt(
         psi: KtElement,
@@ -882,8 +889,10 @@ internal class KaFirResolver(
         candidate: Candidate?,
     ): TypeArgumentsMappingResult? {
         val targetSymbol = candidate?.symbol
+            ?.takeUnless { it.origin is FirDeclarationOrigin.Synthetic.FakeFunction }
             ?: calleeReference?.toResolvedBaseSymbol()
             ?: return null
+
         if (targetSymbol !is FirCallableSymbol<*>) return null
         if (targetSymbol is FirErrorFunctionSymbol || targetSymbol is FirErrorPropertySymbol) return null
 

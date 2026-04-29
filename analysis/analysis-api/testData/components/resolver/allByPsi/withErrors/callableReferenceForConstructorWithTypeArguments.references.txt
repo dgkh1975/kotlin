@@ -37,8 +37,6 @@ KtNameReferenceExpression(151,169): 'InnerClassWithType'
     attempt: KaSymbolResolutionError
     diagnostic: ERROR<OTHER_ERROR: CS errors: _synthetic/ACCEPT_SPECIFIC_TYPE_CALL>
     symbols:
-      (in _synthetic) fun ACCEPT_SPECIFIC_TYPE_CALL(reference: kotlin.Any)
-    resolveToSymbols:
       (in pack.ClassWithType.InnerClassWithType) constructor <D>()
 
 KtNameReferenceExpression(170,176): 'String'
