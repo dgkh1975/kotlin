@@ -88,6 +88,7 @@ import org.jetbrains.kotlinx.dataframe.plugin.impl.api.AllFrom2
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.AllUpTo0
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.AllUpTo1
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.AllUpTo2
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.AnyColCast
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.AsGroupBy
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.AsGroupByDefault
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ByCharDelimiters
@@ -212,6 +213,8 @@ import org.jetbrains.kotlinx.dataframe.plugin.impl.api.InsertAt
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.IntoStringLambda
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.JoinWith
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.LeftJoinWith
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.MapColumn
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.MapColumnKType
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.MapToFrame
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.MatchRegex
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.MatchStringRegex
@@ -616,6 +619,11 @@ private fun String.loadImpl(isTest: Boolean): Interpreter<*>? {
         "AddDslAddGroup" -> AddDslAddGroup()
         "AddDslAddGroupInto" -> AddDslAddGroupInto()
         "MapToFrame" -> MapToFrame()
+        "DataColumnMap" -> MapColumn()
+        "DataColumnMapIndexed" -> MapColumn()
+        "DataColumnMapKType" -> MapColumnKType()
+        "DataColumnMapIndexedKType" -> MapColumnKType()
+        "AnyColCast" -> AnyColCast()
         "Move0" -> Move0()
         "ToTop" -> ToTop()
         "Update0" -> Update0()
