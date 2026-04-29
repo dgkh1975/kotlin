@@ -258,6 +258,7 @@ internal class KaFirResolver(
         is FirTypeParameter -> toKaSymbolResolutionAttempt()
         is FirResolvedReifiedParameterReference -> toKaSymbolResolutionAttempt()
         is FirVariableAssignment -> lValue.unwrapExpression().toKaSymbolResolutionAttempt(psi)
+        is FirSmartCastExpression -> originalExpression.toKaSymbolResolutionAttempt(psi)
         is FirResolvedQualifier if psi is KtSimpleNameExpression -> toKaSymbolResolutionAttempt(psi)
         is FirPackageDirective if psi is KtSimpleNameExpression -> toKaSymbolResolutionAttempt(psi)
         is FirResolvedImport if psi is KtSimpleNameExpression -> toKaSymbolResolutionAttempt(psi)
