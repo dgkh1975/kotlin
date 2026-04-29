@@ -1639,48 +1639,10 @@ KtCallableReferenceExpression(1343,1382): 'ClassWithType<String>::functionWithTy
       valueArgumentMapping = {}
 
 KtCallExpression(1343,1364): 'ClassWithType<String>'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = pack.ClassWithType<T>
-          symbol = <constructor>(): pack.ClassWithType<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.String)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(1343,1356): 'ClassWithType'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = pack.ClassWithType<T>
-          symbol = <constructor>(): pack.ClassWithType<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.String)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtTypeArgumentList(1356,1364): '<String>'
   null
@@ -1873,73 +1835,16 @@ KtCallableReferenceExpression(1410,1451): 'pack.ClassWithType<Int>::propertyWith
       typeArgumentsMapping = {}
 
 KtDotQualifiedExpression(1410,1433): 'pack.ClassWithType<Int>'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = pack.ClassWithType<T>
-          symbol = <constructor>(): pack.ClassWithType<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.Int)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(1410,1414): 'pack'
   null
 
 KtCallExpression(1415,1433): 'ClassWithType<Int>'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = pack.ClassWithType<T>
-          symbol = <constructor>(): pack.ClassWithType<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.Int)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(1415,1428): 'ClassWithType'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = pack.ClassWithType<T>
-          symbol = <constructor>(): pack.ClassWithType<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.Int)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtTypeArgumentList(1428,1433): '<Int>'
   null
@@ -2132,73 +2037,16 @@ KtCallableReferenceExpression(1479,1514): 'pack.ClassWithType<Int>::InnerClass'
       valueArgumentMapping = {}
 
 KtDotQualifiedExpression(1479,1502): 'pack.ClassWithType<Int>'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = pack.ClassWithType<T>
-          symbol = <constructor>(): pack.ClassWithType<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.Int)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(1479,1483): 'pack'
   null
 
 KtCallExpression(1484,1502): 'ClassWithType<Int>'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = pack.ClassWithType<T>
-          symbol = <constructor>(): pack.ClassWithType<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.Int)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(1484,1497): 'ClassWithType'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = pack.ClassWithType<T>
-          symbol = <constructor>(): pack.ClassWithType<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.Int)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtTypeArgumentList(1497,1502): '<Int>'
   null
@@ -2355,73 +2203,16 @@ KtCallableReferenceExpression(1543,1585): 'pack.ClassWithType<Long>::functionWit
       valueArgumentMapping = {}
 
 KtDotQualifiedExpression(1543,1567): 'pack.ClassWithType<Long>'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = pack.ClassWithType<T>
-          symbol = <constructor>(): pack.ClassWithType<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.Long)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(1543,1547): 'pack'
   null
 
 KtCallExpression(1548,1567): 'ClassWithType<Long>'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = pack.ClassWithType<T>
-          symbol = <constructor>(): pack.ClassWithType<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.Long)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(1548,1561): 'ClassWithType'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = pack.ClassWithType<T>
-          symbol = <constructor>(): pack.ClassWithType<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.Long)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtTypeArgumentList(1561,1567): '<Long>'
   null
@@ -2459,48 +2250,10 @@ KtCallableReferenceExpression(1589,1629): 'ClassWithType<Boolean>::propertyWithT
       typeArgumentsMapping = {}
 
 KtCallExpression(1589,1611): 'ClassWithType<Boolean>'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = pack.ClassWithType<T>
-          symbol = <constructor>(): pack.ClassWithType<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.Boolean)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(1589,1602): 'ClassWithType'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = pack.ClassWithType<T>
-          symbol = <constructor>(): pack.ClassWithType<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.Boolean)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtTypeArgumentList(1602,1611): '<Boolean>'
   null
@@ -2538,48 +2291,10 @@ KtCallableReferenceExpression(1633,1667): 'ClassWithType<Boolean>::InnerClass'
       valueArgumentMapping = {}
 
 KtCallExpression(1633,1655): 'ClassWithType<Boolean>'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = pack.ClassWithType<T>
-          symbol = <constructor>(): pack.ClassWithType<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.Boolean)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(1633,1646): 'ClassWithType'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = pack.ClassWithType<T>
-          symbol = <constructor>(): pack.ClassWithType<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.Boolean)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtTypeArgumentList(1646,1655): '<Boolean>'
   null
@@ -2709,48 +2424,10 @@ KtCallableReferenceExpression(1770,1812): 'ClassWithType<Boolean>::InnerClassWit
       valueArgumentMapping = {}
 
 KtCallExpression(1770,1792): 'ClassWithType<Boolean>'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = pack.ClassWithType<T>
-          symbol = <constructor>(): pack.ClassWithType<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.Boolean)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(1770,1783): 'ClassWithType'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = pack.ClassWithType<T>
-          symbol = <constructor>(): pack.ClassWithType<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.Boolean)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtTypeArgumentList(1783,1792): '<Boolean>'
   null

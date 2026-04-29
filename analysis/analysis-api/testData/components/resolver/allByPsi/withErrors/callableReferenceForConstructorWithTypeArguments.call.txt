@@ -83,48 +83,10 @@ KtCallableReferenceExpression(127,177): 'ClassWithType<Boolean>::InnerClassWithT
     diagnostic = ERROR<OTHER_ERROR: CS errors: _synthetic/ACCEPT_SPECIFIC_TYPE_CALL>
 
 KtCallExpression(127,149): 'ClassWithType<Boolean>'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = pack.ClassWithType<T>
-          symbol = <constructor>(): pack.ClassWithType<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.Boolean)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(127,140): 'ClassWithType'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = pack.ClassWithType<T>
-          symbol = <constructor>(): pack.ClassWithType<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.Boolean)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtTypeArgumentList(140,149): '<Boolean>'
   null

@@ -83,6 +83,7 @@ import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.KtPsiUtil.deparenthesize
 import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
 import org.jetbrains.kotlin.psi.psiUtil.getPossiblyQualifiedCallExpression
+import org.jetbrains.kotlin.psi.psiUtil.getQualifiedExpressionForSelectorOrThis
 import org.jetbrains.kotlin.psi.psiUtil.topParenthesizedParentOrMe
 import org.jetbrains.kotlin.resolve.ArrayFqNames
 import org.jetbrains.kotlin.resolve.calls.inference.buildCurrentSubstitutor
@@ -583,8 +584,9 @@ internal class KaFirResolver(
         }
 
         if (this is FirResolvedQualifier) {
-            val callExpression = (psi as? KtExpression)?.getPossiblyQualifiedCallExpression()
-            if (callExpression != null) {
+            val callExpression = (psi as? KtExpression)?.getPossiblyQualifiedCallExpression()?.getQualifiedExpressionForSelectorOrThis()
+            val parent = callExpression?.parent
+            if (callExpression != null && parent !is KtCallableReferenceExpression) {
                 val constructors = findQualifierConstructors()
                 val calls = toKaCalls(constructors)
                 return KaBaseCallResolutionError(
@@ -636,7 +638,7 @@ internal class KaFirResolver(
         return when (this) {
             // FIR does not resolve to a symbol for equality calls.
             is FirEqualityOperatorCall -> toKaResolutionAttempt(psi)
-            is FirResolvable, is FirVariableAssignment -> {
+            is FirResolvable, is FirVariableAssignment, is FirResolvedCallableReference -> {
                 when (val calleeReference = toReference(analysisSession.firSession)) {
                     is FirResolvedErrorReference -> transformErrorReference(this, calleeReference)
                     is FirResolvedNamedReference -> when (calleeReference.resolvedSymbol) {

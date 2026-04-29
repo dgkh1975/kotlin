@@ -996,11 +996,7 @@ KtCallableReferenceExpression(1343,1382): 'ClassWithType<String>::functionWithTy
     ]
 
 KtCallExpression(1343,1364): 'ClassWithType<String>'
-  KaSymbolResolutionError:
-    candidateSymbols = [
-      <constructor>(): pack.ClassWithType<T>
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(1343,1356): 'ClassWithType'
   KaSymbolResolutionSuccess:
@@ -1078,11 +1074,7 @@ KtCallableReferenceExpression(1410,1451): 'pack.ClassWithType<Int>::propertyWith
     ]
 
 KtDotQualifiedExpression(1410,1433): 'pack.ClassWithType<Int>'
-  KaSymbolResolutionError:
-    candidateSymbols = [
-      <constructor>(): pack.ClassWithType<T>
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(1410,1414): 'pack'
   KaSymbolResolutionSuccess:
@@ -1091,11 +1083,7 @@ KtNameReferenceExpression(1410,1414): 'pack'
     ]
 
 KtCallExpression(1415,1433): 'ClassWithType<Int>'
-  KaSymbolResolutionError:
-    candidateSymbols = [
-      <constructor>(): pack.ClassWithType<T>
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(1415,1428): 'ClassWithType'
   KaSymbolResolutionSuccess:
@@ -1173,11 +1161,7 @@ KtCallableReferenceExpression(1479,1514): 'pack.ClassWithType<Int>::InnerClass'
     ]
 
 KtDotQualifiedExpression(1479,1502): 'pack.ClassWithType<Int>'
-  KaSymbolResolutionError:
-    candidateSymbols = [
-      <constructor>(): pack.ClassWithType<T>
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(1479,1483): 'pack'
   KaSymbolResolutionSuccess:
@@ -1186,11 +1170,7 @@ KtNameReferenceExpression(1479,1483): 'pack'
     ]
 
 KtCallExpression(1484,1502): 'ClassWithType<Int>'
-  KaSymbolResolutionError:
-    candidateSymbols = [
-      <constructor>(): pack.ClassWithType<T>
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(1484,1497): 'ClassWithType'
   KaSymbolResolutionSuccess:
@@ -1262,11 +1242,7 @@ KtCallableReferenceExpression(1543,1585): 'pack.ClassWithType<Long>::functionWit
     ]
 
 KtDotQualifiedExpression(1543,1567): 'pack.ClassWithType<Long>'
-  KaSymbolResolutionError:
-    candidateSymbols = [
-      <constructor>(): pack.ClassWithType<T>
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(1543,1547): 'pack'
   KaSymbolResolutionSuccess:
@@ -1275,11 +1251,7 @@ KtNameReferenceExpression(1543,1547): 'pack'
     ]
 
 KtCallExpression(1548,1567): 'ClassWithType<Long>'
-  KaSymbolResolutionError:
-    candidateSymbols = [
-      <constructor>(): pack.ClassWithType<T>
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(1548,1561): 'ClassWithType'
   KaSymbolResolutionSuccess:
@@ -1318,11 +1290,7 @@ KtCallableReferenceExpression(1589,1629): 'ClassWithType<Boolean>::propertyWithT
     ]
 
 KtCallExpression(1589,1611): 'ClassWithType<Boolean>'
-  KaSymbolResolutionError:
-    candidateSymbols = [
-      <constructor>(): pack.ClassWithType<T>
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(1589,1602): 'ClassWithType'
   KaSymbolResolutionSuccess:
@@ -1361,11 +1329,7 @@ KtCallableReferenceExpression(1633,1667): 'ClassWithType<Boolean>::InnerClass'
     ]
 
 KtCallExpression(1633,1655): 'ClassWithType<Boolean>'
-  KaSymbolResolutionError:
-    candidateSymbols = [
-      <constructor>(): pack.ClassWithType<T>
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(1633,1646): 'ClassWithType'
   KaSymbolResolutionSuccess:
@@ -1515,11 +1479,7 @@ KtCallableReferenceExpression(1770,1812): 'ClassWithType<Boolean>::InnerClassWit
     ]
 
 KtCallExpression(1770,1792): 'ClassWithType<Boolean>'
-  KaSymbolResolutionError:
-    candidateSymbols = [
-      <constructor>(): pack.ClassWithType<T>
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(1770,1783): 'ClassWithType'
   KaSymbolResolutionSuccess:
