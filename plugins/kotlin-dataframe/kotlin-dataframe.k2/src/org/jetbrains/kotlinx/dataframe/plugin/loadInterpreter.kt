@@ -141,6 +141,7 @@ import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DropNa1
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DropNulls1
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ExcludeJoin
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ExcludeJoinWith
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ExplodeColumns
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.FillNaNs0
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.FillNulls0
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.FilterJoin
@@ -455,6 +456,7 @@ private fun String.loadImpl(isTest: Boolean): Interpreter<*>? {
         "UpdatePerColMap" -> UpdatePerColMap()
         "UpdatePerRowCol" -> UpdatePerRowCol()
         "Explode0" -> Explode0()
+        "ExplodeColumns" -> ExplodeColumns()
         "Implode" -> Implode()
         "ImplodeDefault" -> ImplodeDefault()
         "Insert1" -> Insert1()
