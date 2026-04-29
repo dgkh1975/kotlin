@@ -472,7 +472,21 @@ KtNameReferenceExpression(590,597): 'MyClass'
   null
 
 KtNameReferenceExpression(599,613): 'memberFunction'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = kotlin.Int
+        symbol = pack/MyClass.memberFunction(<dispatch receiver>: pack.MyClass): kotlin.Int
+        valueParameters = []
+        contextParameters = []
+        callableId = pack/MyClass.memberFunction
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtCallExpression(614,631): 'invoke(MyClass())'
   KaCallResolutionSuccess:
@@ -630,7 +644,21 @@ KtNameReferenceExpression(635,642): 'MyClass'
   null
 
 KtNameReferenceExpression(644,658): 'memberProperty'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleVariableAccessCall:
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      isContextSensitive = false
+      kind = Read
+      signature = KaVariableSignature:
+        name = memberProperty
+        receiverType = null
+        returnType = kotlin.Int
+        symbol = val memberProperty: kotlin.Int
+        contextParameters = []
+        callableId = pack/MyClass.memberProperty
+      typeArgumentsMapping = {}
 
 KtNameReferenceExpression(659,663): 'name'
   KaCallResolutionSuccess:
@@ -709,7 +737,21 @@ KtNameReferenceExpression(668,673): 'Child'
   null
 
 KtNameReferenceExpression(675,689): 'memberFunction'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = kotlin.Int
+        symbol = pack/MyClass.memberFunction(<dispatch receiver>: pack.MyClass): kotlin.Int
+        valueParameters = []
+        contextParameters = []
+        callableId = pack/MyClass.memberFunction
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtCallExpression(690,705): 'invoke(Child())'
   KaCallResolutionSuccess:
@@ -867,7 +909,21 @@ KtNameReferenceExpression(709,714): 'Child'
   null
 
 KtNameReferenceExpression(716,730): 'memberProperty'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleVariableAccessCall:
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      isContextSensitive = false
+      kind = Read
+      signature = KaVariableSignature:
+        name = memberProperty
+        receiverType = null
+        returnType = kotlin.Int
+        symbol = val memberProperty: kotlin.Int
+        contextParameters = []
+        callableId = pack/MyClass.memberProperty
+      typeArgumentsMapping = {}
 
 KtNameReferenceExpression(731,735): 'name'
   KaCallResolutionSuccess:
@@ -919,7 +975,21 @@ KtNameReferenceExpression(753,760): 'MyClass'
   null
 
 KtNameReferenceExpression(762,779): 'extensionFunction'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = pack.MyClass
+        returnType = kotlin.String
+        symbol = pack/extensionFunction(<extension receiver>: pack.MyClass): kotlin.String
+        valueParameters = []
+        contextParameters = []
+        callableId = pack/extensionFunction
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtProperty(783,817): 'val p = MyClass::extensionProperty'
   null
@@ -945,7 +1015,21 @@ KtNameReferenceExpression(791,798): 'MyClass'
   null
 
 KtNameReferenceExpression(800,817): 'extensionProperty'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleVariableAccessCall:
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      isContextSensitive = false
+      kind = Read
+      signature = KaVariableSignature:
+        name = extensionProperty
+        receiverType = pack.MyClass
+        returnType = kotlin.String
+        symbol = val extensionProperty: kotlin.String
+        contextParameters = []
+        callableId = pack/extensionProperty
+      typeArgumentsMapping = {}
 
 KtProperty(822,855): 'val cF = Child::extensionFunction'
   null
@@ -971,7 +1055,21 @@ KtNameReferenceExpression(831,836): 'Child'
   null
 
 KtNameReferenceExpression(838,855): 'extensionFunction'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = pack.MyClass
+        returnType = kotlin.String
+        symbol = pack/extensionFunction(<extension receiver>: pack.MyClass): kotlin.String
+        valueParameters = []
+        contextParameters = []
+        callableId = pack/extensionFunction
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtProperty(859,897): 'val cP = pack.Child::extensionProperty'
   null
@@ -1003,7 +1101,21 @@ KtNameReferenceExpression(873,878): 'Child'
   null
 
 KtNameReferenceExpression(880,897): 'extensionProperty'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleVariableAccessCall:
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      isContextSensitive = false
+      kind = Read
+      signature = KaVariableSignature:
+        name = extensionProperty
+        receiverType = pack.MyClass
+        returnType = kotlin.String
+        symbol = val extensionProperty: kotlin.String
+        contextParameters = []
+        callableId = pack/extensionProperty
+      typeArgumentsMapping = {}
 
 KtDotQualifiedExpression(902,938): 'ChildWithType::functionWithType.name'
   KaCallResolutionSuccess:
@@ -1046,7 +1158,21 @@ KtNameReferenceExpression(902,915): 'ChildWithType'
   null
 
 KtNameReferenceExpression(917,933): 'functionWithType'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = pack.MyClass?
+        symbol = pack/ChildWithType.functionWithType(<dispatch receiver>: pack.ChildWithType): pack.MyClass?
+        valueParameters = []
+        contextParameters = []
+        callableId = pack/ChildWithType.functionWithType
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtNameReferenceExpression(934,938): 'name'
   KaCallResolutionSuccess:
@@ -1125,7 +1251,21 @@ KtNameReferenceExpression(942,955): 'ChildWithType'
   null
 
 KtNameReferenceExpression(957,973): 'propertyWithType'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleVariableAccessCall:
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      isContextSensitive = false
+      kind = Read
+      signature = KaVariableSignature:
+        name = propertyWithType
+        receiverType = null
+        returnType = pack.MyClass?
+        symbol = var propertyWithType: pack.MyClass?
+        contextParameters = []
+        callableId = pack/ChildWithType.propertyWithType
+      typeArgumentsMapping = {}
 
 KtCallExpression(974,997): 'invoke(ChildWithType())'
   KaCallResolutionSuccess:
@@ -1268,7 +1408,29 @@ KtCallableReferenceExpression(1002,1020): '::topLevelFunction'
       valueArgumentMapping = {}
 
 KtNameReferenceExpression(1004,1020): 'topLevelFunction'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = kotlin.Unit
+        symbol = pack/topLevelFunction(i: kotlin.Int): kotlin.Unit
+        valueParameters = [
+          KaVariableSignature:
+            name = i
+            receiverType = null
+            returnType = kotlin.Int
+            symbol = i: kotlin.Int
+            contextParameters = []
+            callableId = null
+        ]
+        contextParameters = []
+        callableId = pack/topLevelFunction
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtCallableReferenceExpression(1024,1042): '::topLevelVariable'
   KaCallResolutionSuccess:
@@ -1288,7 +1450,21 @@ KtCallableReferenceExpression(1024,1042): '::topLevelVariable'
       typeArgumentsMapping = {}
 
 KtNameReferenceExpression(1026,1042): 'topLevelVariable'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleVariableAccessCall:
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      isContextSensitive = false
+      kind = Read
+      signature = KaVariableSignature:
+        name = topLevelVariable
+        receiverType = null
+        returnType = kotlin.Int
+        symbol = var topLevelVariable: kotlin.Int
+        contextParameters = []
+        callableId = pack/topLevelVariable
+      typeArgumentsMapping = {}
 
 KtDotQualifiedExpression(1047,1074): '::lateinitVar.isInitialized'
   KaCallResolutionError:
@@ -1313,7 +1489,21 @@ KtCallableReferenceExpression(1047,1060): '::lateinitVar'
       typeArgumentsMapping = {}
 
 KtNameReferenceExpression(1049,1060): 'lateinitVar'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleVariableAccessCall:
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      isContextSensitive = false
+      kind = Read
+      signature = KaVariableSignature:
+        name = lateinitVar
+        receiverType = null
+        returnType = pack.MyClass
+        symbol = var lateinitVar: pack.MyClass
+        contextParameters = []
+        callableId = pack/lateinitVar
+      typeArgumentsMapping = {}
 
 KtNameReferenceExpression(1061,1074): 'isInitialized'
   KaCallResolutionError:
@@ -1409,7 +1599,24 @@ KtNameReferenceExpression(1143,1156): 'classWithType'
       typeArgumentsMapping = {}
 
 KtNameReferenceExpression(1158,1174): 'functionWithType'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = KaExplicitReceiverValue:
+        expression = classWithType
+        isSafeNavigation = false
+        type = pack.ClassWithType<T>
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = T?
+        symbol = pack/ClassWithType.functionWithType(<dispatch receiver>: pack.ClassWithType<T>): T?
+        valueParameters = []
+        contextParameters = []
+        callableId = pack/ClassWithType.functionWithType
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtCallableReferenceExpression(1178,1209): 'classWithType::propertyWithType'
   KaCallResolutionSuccess:
@@ -1449,7 +1656,24 @@ KtNameReferenceExpression(1178,1191): 'classWithType'
       typeArgumentsMapping = {}
 
 KtNameReferenceExpression(1193,1209): 'propertyWithType'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleVariableAccessCall:
+      contextArguments = []
+      dispatchReceiver = KaExplicitReceiverValue:
+        expression = classWithType
+        isSafeNavigation = false
+        type = pack.ClassWithType<T>
+      extensionReceiver = null
+      isContextSensitive = false
+      kind = Read
+      signature = KaVariableSignature:
+        name = propertyWithType
+        receiverType = null
+        returnType = T?
+        symbol = var propertyWithType: T?
+        contextParameters = []
+        callableId = pack/ClassWithType.propertyWithType
+      typeArgumentsMapping = {}
 
 KtProperty(1214,1247): 'val t: ClassWithType<Int>? = null'
   null
@@ -1528,7 +1752,24 @@ KtOperationReferenceExpression(1252,1254): '!!'
   null
 
 KtNameReferenceExpression(1256,1272): 'functionWithType'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = KaExplicitReceiverValue:
+        expression = t!!
+        isSafeNavigation = false
+        type = pack.ClassWithType<kotlin.Int>
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = kotlin.Int?
+        symbol = pack/ClassWithType.functionWithType(<dispatch receiver>: pack.ClassWithType<T>): T?
+        valueParameters = []
+        contextParameters = []
+        callableId = pack/ClassWithType.functionWithType
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtCallableReferenceExpression(1276,1297): 't!!::propertyWithType'
   KaCallResolutionSuccess:
@@ -1574,7 +1815,24 @@ KtOperationReferenceExpression(1277,1279): '!!'
   null
 
 KtNameReferenceExpression(1281,1297): 'propertyWithType'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleVariableAccessCall:
+      contextArguments = []
+      dispatchReceiver = KaExplicitReceiverValue:
+        expression = t!!
+        isSafeNavigation = false
+        type = pack.ClassWithType<kotlin.Int>
+      extensionReceiver = null
+      isContextSensitive = false
+      kind = Read
+      signature = KaVariableSignature:
+        name = propertyWithType
+        receiverType = null
+        returnType = kotlin.Int?
+        symbol = var propertyWithType: T?
+        contextParameters = []
+        callableId = pack/ClassWithType.propertyWithType
+      typeArgumentsMapping = {}
 
 KtNamedFunction(1301,1814): 'fun classReferenceWithTypeArgument() {'
   null
@@ -1660,7 +1918,21 @@ KtNameReferenceExpression(1357,1363): 'String'
   null
 
 KtNameReferenceExpression(1366,1382): 'functionWithType'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = kotlin.String?
+        symbol = pack/ClassWithType.functionWithType(<dispatch receiver>: pack.ClassWithType<T>): T?
+        valueParameters = []
+        contextParameters = []
+        callableId = pack/ClassWithType.functionWithType
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtCallExpression(1383,1406): 'invoke(ClassWithType())'
   KaCallResolutionSuccess:
@@ -1862,7 +2134,21 @@ KtNameReferenceExpression(1429,1432): 'Int'
   null
 
 KtNameReferenceExpression(1435,1451): 'propertyWithType'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleVariableAccessCall:
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      isContextSensitive = false
+      kind = Read
+      signature = KaVariableSignature:
+        name = propertyWithType
+        receiverType = null
+        returnType = kotlin.Int?
+        symbol = var propertyWithType: T?
+        contextParameters = []
+        callableId = pack/ClassWithType.propertyWithType
+      typeArgumentsMapping = {}
 
 KtCallExpression(1452,1475): 'invoke(ClassWithType())'
   KaCallResolutionSuccess:
@@ -2064,7 +2350,21 @@ KtNameReferenceExpression(1498,1501): 'Int'
   null
 
 KtNameReferenceExpression(1504,1514): 'InnerClass'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = pack.ClassWithType.InnerClass<T>
+        symbol = <constructor>(<dispatch receiver>: pack.ClassWithType<T>): pack.ClassWithType.InnerClass<T>
+        valueParameters = []
+        contextParameters = []
+        callableId = null
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtCallExpression(1515,1538): 'invoke(ClassWithType())'
   KaCallResolutionSuccess:
@@ -2230,7 +2530,21 @@ KtNameReferenceExpression(1562,1566): 'Long'
   null
 
 KtNameReferenceExpression(1569,1585): 'functionWithType'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = kotlin.Long?
+        symbol = pack/ClassWithType.functionWithType(<dispatch receiver>: pack.ClassWithType<T>): T?
+        valueParameters = []
+        contextParameters = []
+        callableId = pack/ClassWithType.functionWithType
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtCallableReferenceExpression(1589,1629): 'ClassWithType<Boolean>::propertyWithType'
   KaCallResolutionSuccess:
@@ -2271,7 +2585,21 @@ KtNameReferenceExpression(1603,1610): 'Boolean'
   null
 
 KtNameReferenceExpression(1613,1629): 'propertyWithType'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleVariableAccessCall:
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      isContextSensitive = false
+      kind = Read
+      signature = KaVariableSignature:
+        name = propertyWithType
+        receiverType = null
+        returnType = kotlin.Boolean?
+        symbol = var propertyWithType: T?
+        contextParameters = []
+        callableId = pack/ClassWithType.propertyWithType
+      typeArgumentsMapping = {}
 
 KtCallableReferenceExpression(1633,1667): 'ClassWithType<Boolean>::InnerClass'
   KaCallResolutionSuccess:
@@ -2312,7 +2640,21 @@ KtNameReferenceExpression(1647,1654): 'Boolean'
   null
 
 KtNameReferenceExpression(1657,1667): 'InnerClass'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = pack.ClassWithType.InnerClass<T>
+        symbol = <constructor>(<dispatch receiver>: pack.ClassWithType<T>): pack.ClassWithType.InnerClass<T>
+        valueParameters = []
+        contextParameters = []
+        callableId = null
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtProperty(1672,1812): 'val e: KFunction1<ClassWithType<Boolean>, ClassWithType<Boolean>.InnerClassWithType<Int>> ='
   null
@@ -2445,4 +2787,20 @@ KtNameReferenceExpression(1784,1791): 'Boolean'
   null
 
 KtNameReferenceExpression(1794,1812): 'InnerClassWithType'
-  null
+  KaCallResolutionSuccess:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = pack.ClassWithType.InnerClassWithType<kotlin.Int, T>
+        symbol = <constructor>(<dispatch receiver>: pack.ClassWithType<T>): pack.ClassWithType.InnerClassWithType<D, T>
+        valueParameters = []
+        contextParameters = []
+        callableId = null
+      typeArgumentsMapping = {
+        D -> (kotlin.Int)
+      }
+      valueArgumentMapping = {}

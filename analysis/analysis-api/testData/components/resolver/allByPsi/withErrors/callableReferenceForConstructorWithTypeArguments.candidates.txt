@@ -139,7 +139,39 @@ KtNameReferenceExpression(141,148): 'Boolean'
   NO_CANDIDATES
 
 KtNameReferenceExpression(151,169): 'InnerClassWithType'
-  NO_CANDIDATES
+  KaInapplicableCallCandidate:
+    candidate = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = kotlin.Unit
+        symbol = _synthetic/ACCEPT_SPECIFIC_TYPE_CALL(reference: kotlin.Any): kotlin.Unit
+        valueParameters = [
+          KaVariableSignature:
+            name = reference
+            receiverType = null
+            returnType = kotlin.Any
+            symbol = reference: kotlin.Any
+            contextParameters = []
+            callableId = null
+        ]
+        contextParameters = []
+        callableId = _synthetic/ACCEPT_SPECIFIC_TYPE_CALL
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {
+        ClassWithType<Boolean>::InnerClassWithType<String> -> (KaVariableSignature:
+          name = reference
+          receiverType = null
+          returnType = kotlin.Any
+          symbol = reference: kotlin.Any
+          contextParameters = []
+          callableId = null)
+      }
+    diagnostic = ERROR<OTHER_ERROR: CS errors: _synthetic/ACCEPT_SPECIFIC_TYPE_CALL>
+    isInBestCandidates = true
 
 KtTypeProjection(170,176): 'String'
   NO_CANDIDATES

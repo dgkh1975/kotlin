@@ -528,6 +528,7 @@ internal class KaFirResolver(
             ?: psi.getContainingDotQualifiedExpressionForSelectorExpression()
             ?: psi.getConstructorDelegationCallForDelegationReferenceExpression()
             ?: psi.getConstructorCallForNameReferenceExpression()
+            ?: psi.getContainingCallableReferenceExpressionForCalleeExpression()
             ?: psi
 
         val resolveFragmentOfCall = psiToResolve == containingBinaryExpressionForLhs || psiToResolve == containingUnaryExpressionForIncOrDec
@@ -724,6 +725,17 @@ internal class KaFirResolver(
         val callExpression = parentOfType<KtCallExpression>() ?: return null
         if (deparenthesize(callExpression.calleeExpression) != calleeExpression) return null
         return callExpression
+    }
+
+    /**
+     * When resolving the callableReference of a [KtCallableReferenceExpression], we resolve the entire [KtCallableReferenceExpression] instead.
+     * This way, the corresponding FIR element is the [FirFunctionCall], etc.
+     */
+    private fun KtElement.getContainingCallableReferenceExpressionForCalleeExpression(): KtCallableReferenceExpression? {
+        if (this !is KtSimpleNameExpression) return null
+
+        val callableReferenceExpression = parent as? KtCallableReferenceExpression ?: return null
+        return callableReferenceExpression.takeIf { it.callableReference == this }
     }
 
     /**
