@@ -3,6 +3,9 @@ declare namespace JS_TESTS {
     function KtSingleton<T>(): T & (abstract new() => any);
 
     namespace foo {
+        function withIntroducedAt(x: number, y?: number, o1?: string, k?: string, o2?: string): string;
+        function nonAscendingVersion(y?: number, o?: string, k?: string): void;
+        function invalidParameterPosition(x: number | undefined, y: number | undefined, z: number): void;
         function box(): string;
         class Simple /* implements kotlin.Annotation */ {
             constructor();

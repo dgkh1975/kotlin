@@ -67,6 +67,9 @@ declare namespace JS_TESTS {
                 const constructor: abstract new () => WithBooleanParam;
             }
         }
+        function withIntroducedAt(x: number, y?: number, o1?: string, k?: string, o2?: string): string;
+        function nonAscendingVersion(y?: number, o?: string, k?: string): void;
+        function invalidParameterPosition(x: number | undefined, y: number | undefined, z: number): void;
         function box(): string;
     }
 }
