@@ -638,52 +638,6 @@ internal class KaFirResolver(
         return when (this) {
             // FIR does not resolve to a symbol for equality calls.
             is FirEqualityOperatorCall -> toKaResolutionAttempt(psi)
-            is FirResolvable, is FirVariableAssignment, is FirResolvedCallableReference -> {
-                when (val calleeReference = toReference(analysisSession.firSession)) {
-                    is FirResolvedErrorReference -> transformErrorReference(this, calleeReference)
-                    is FirResolvedNamedReference -> when (calleeReference.resolvedSymbol) {
-                        // `calleeReference.resolvedSymbol` isn't guaranteed to be callable. For example, function type parameters used in
-                        // expression positions (e.g. `T` in `println(T)`) are parsed as `KtSimpleNameExpression` and built into
-                        // `FirPropertyAccessExpression` (which is `FirResolvable`).
-                        is FirCallableSymbol<*> -> createKaCallResolutionAttempt(
-                            psi = psi,
-                            fir = this,
-                            calleeReference = calleeReference,
-                            candidate = null,
-                            resolveFragmentOfCall = resolveFragmentOfCall,
-                        )
-
-                        else -> null
-                    }
-
-                    is FirErrorNamedReference -> transformErrorReference(this, calleeReference)
-                    // Unresolved delegated constructor call is untransformed and end up as an `FirSuperReference`
-                    is FirSuperReference -> {
-                        val delegatedConstructorCall = this as? FirDelegatedConstructorCall ?: return null
-                        val errorTypeRef = delegatedConstructorCall.constructedTypeRef as? FirErrorTypeRef ?: return null
-                        val psiSource = psi.toKtPsiSourceElement()
-                        val kaDiagnostic = errorTypeRef.diagnostic.asKaDiagnostic(source ?: psiSource, psiSource) ?: return null
-                        KaBaseCallResolutionError(
-                            backedDiagnostic = kaDiagnostic,
-                            backingCandidateCalls = emptyList(),
-                        )
-                    }
-
-                    // A workaround to support desugared assignment where the lhs is an object, so the result is the operation itself
-                    // E.g., `++MyObject`
-                    // `resolveFragmentOfCall` must be true to not resolve `MyObject` into the operator
-                    null if (!resolveFragmentOfCall && this is FirVariableAssignment && lValue is FirDesugaredAssignmentValueReferenceExpression) -> {
-                        rValue.toKaResolutionAttempt(
-                            psi = psi,
-                            resolveCalleeExpressionOfFunctionCall = resolveCalleeExpressionOfFunctionCall,
-                            resolveFragmentOfCall = false,
-                        )
-                    }
-
-                    else -> null
-                }
-            }
-
             is FirCollectionLiteral -> toKaResolutionAttempt()
             is FirComparisonExpression -> compareToCall.toKaResolutionAttempt(
                 psi,
@@ -704,7 +658,49 @@ internal class KaFirResolver(
             is FirWhileLoop if psi is KtForExpression -> resolveForLoopCall(this, psi)
             is FirProperty if psi is KtPropertyDelegate -> resolveDelegatedPropertyCall(this, psi)
 
-            else -> null
+            else -> when (val calleeReference = toReference(analysisSession.firSession)) {
+                is FirResolvedErrorReference -> transformErrorReference(this, calleeReference)
+                is FirResolvedNamedReference -> when (calleeReference.resolvedSymbol) {
+                    // `calleeReference.resolvedSymbol` isn't guaranteed to be callable. For example, function type parameters used in
+                    // expression positions (e.g. `T` in `println(T)`) are parsed as `KtSimpleNameExpression` and built into
+                    // `FirPropertyAccessExpression` (which is `FirResolvable`).
+                    is FirCallableSymbol<*> -> createKaCallResolutionAttempt(
+                        psi = psi,
+                        fir = this,
+                        calleeReference = calleeReference,
+                        candidate = null,
+                        resolveFragmentOfCall = resolveFragmentOfCall,
+                    )
+
+                    else -> null
+                }
+
+                is FirErrorNamedReference -> transformErrorReference(this, calleeReference)
+                // Unresolved delegated constructor call is untransformed and end up as an `FirSuperReference`
+                is FirSuperReference -> {
+                    val delegatedConstructorCall = this as? FirDelegatedConstructorCall ?: return null
+                    val errorTypeRef = delegatedConstructorCall.constructedTypeRef as? FirErrorTypeRef ?: return null
+                    val psiSource = psi.toKtPsiSourceElement()
+                    val kaDiagnostic = errorTypeRef.diagnostic.asKaDiagnostic(source ?: psiSource, psiSource) ?: return null
+                    KaBaseCallResolutionError(
+                        backedDiagnostic = kaDiagnostic,
+                        backingCandidateCalls = emptyList(),
+                    )
+                }
+
+                // A workaround to support desugared assignment where the lhs is an object, so the result is the operation itself
+                // E.g., `++MyObject`
+                // `resolveFragmentOfCall` must be true to not resolve `MyObject` into the operator
+                null if (!resolveFragmentOfCall && this is FirVariableAssignment && lValue is FirDesugaredAssignmentValueReferenceExpression) -> {
+                    rValue.toKaResolutionAttempt(
+                        psi = psi,
+                        resolveCalleeExpressionOfFunctionCall = resolveCalleeExpressionOfFunctionCall,
+                        resolveFragmentOfCall = false,
+                    )
+                }
+
+                else -> null
+            }
         }
     }
 
