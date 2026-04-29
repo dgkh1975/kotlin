@@ -1214,6 +1214,12 @@ public class FirStandaloneNormalAnalysisSourceModuleResolveCandidatesByFileTestG
     }
 
     @Test
+    @TestMetadata("callableReferenceForConstructorWithTypeArguments.kt")
+    public void testCallableReferenceForConstructorWithTypeArguments() {
+      run("callableReferenceForConstructorWithTypeArguments.kt");
+    }
+
+    @Test
     @TestMetadata("enumArrayAsAnnotationArgumentWithMissedValue.kt")
     public void testEnumArrayAsAnnotationArgumentWithMissedValue() {
       run("enumArrayAsAnnotationArgumentWithMissedValue.kt");
