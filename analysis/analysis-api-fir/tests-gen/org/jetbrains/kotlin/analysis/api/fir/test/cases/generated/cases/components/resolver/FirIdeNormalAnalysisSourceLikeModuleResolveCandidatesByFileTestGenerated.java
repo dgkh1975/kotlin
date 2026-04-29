@@ -309,6 +309,12 @@ public class FirIdeNormalAnalysisSourceLikeModuleResolveCandidatesByFileTestGene
   }
 
   @Test
+  @TestMetadata("thisSmartcasts.kt")
+  public void testThisSmartcasts() {
+    run("thisSmartcasts.kt");
+  }
+
+  @Test
   @TestMetadata("typeParameters.kt")
   public void testTypeParameters() {
     run("typeParameters.kt");
