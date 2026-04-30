@@ -26,11 +26,7 @@ KtDotQualifiedExpression(46,66): 'JavaClass<Int>.field'
     ]
 
 KtCallExpression(46,60): 'JavaClass<Int>'
-  KaSymbolResolutionError:
-    candidateSymbols = [
-      <constructor>(): JavaClass<T>
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(46,55): 'JavaClass'
   KaSymbolResolutionSuccess:

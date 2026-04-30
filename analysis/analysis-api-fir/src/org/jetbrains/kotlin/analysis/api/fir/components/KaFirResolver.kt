@@ -41,15 +41,13 @@ import org.jetbrains.kotlin.analysis.low.level.api.fir.api.resolveToFirSymbolOfT
 import org.jetbrains.kotlin.analysis.low.level.api.fir.resolver.AllCandidatesResolver
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.errorWithFirSpecificEntries
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.findStringPlusSymbol
-import org.jetbrains.kotlin.fir.FirElement
-import org.jetbrains.kotlin.fir.FirPackageDirective
+import org.jetbrains.kotlin.config.LanguageFeature
+import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.diagnostics.FirDiagnosticHolder
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.expressions.builder.buildFunctionCall
-import org.jetbrains.kotlin.fir.psi
-import org.jetbrains.kotlin.fir.realPsi
 import org.jetbrains.kotlin.fir.references.*
 import org.jetbrains.kotlin.fir.resolve.FirResolvedSymbolOrigin
 import org.jetbrains.kotlin.fir.resolve.ResolutionMode
@@ -703,8 +701,13 @@ internal class KaFirResolver(
      * provide as much useful information as possible.
      *
      * But there are some exceptions:
+     *
      * - [KtCallableReferenceExpression] could have [KtCallExpression] as a receiver and this is a valid code
-     *     - `MyClassWithType<Int>::foo`
+     *     - `MyClassWithType<Int>::member`
+     *
+     * - [KtDotQualifiedExpression] could have [KtCallExpression] as a receiver and this is a valid code if the resolved symbol is static due to KTLC-390
+     *     - `MyJavaClass<Int>.staticMethod()`
+     *     - It could be dropped after the 2.5 version
      */
     private fun handleMissedConstructorCall(fir: FirElement, psi: KtElement): KaCallResolutionError? {
         if (fir !is FirResolvedQualifier) {
@@ -715,9 +718,16 @@ internal class KaFirResolver(
             ?.getQualifiedExpressionForSelectorOrThis()
             ?: return null
 
-        val parent = callExpression.parent
-        if (parent is KtCallableReferenceExpression) {
-            return null
+        when (val parent = callExpression.parent) {
+            is KtCallableReferenceExpression -> return null
+            is KtDotQualifiedExpression -> when {
+                // The workaround is required only for the receiver position, and it also helps to avoid infinite recursion
+                parent.receiverExpression != callExpression -> {}
+
+                // The workaround is required only without the feature
+                analysisSession.firSession.languageVersionSettings.supportsFeature(LanguageFeature.ForbidUselessTypeArgumentsIn25) -> {}
+                else -> return null
+            }
         }
 
         val constructors = fir.findQualifierConstructors()

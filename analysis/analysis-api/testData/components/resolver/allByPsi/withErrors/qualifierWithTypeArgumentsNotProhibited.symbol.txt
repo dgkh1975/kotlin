@@ -23,11 +23,7 @@ KtDotQualifiedExpression(42,68): 'JavaClass<Int>.staticField'
     ]
 
 KtCallExpression(42,56): 'JavaClass<Int>'
-  KaSymbolResolutionError:
-    candidateSymbols = [
-      <constructor>(): JavaClass<T>
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(42,51): 'JavaClass'
   KaSymbolResolutionSuccess:
@@ -65,11 +61,7 @@ KtDotQualifiedExpression(72,98): 'JavaClass<Long>.unresolved'
     diagnostic = ERROR<UNRESOLVED_REFERENCE: Unresolved reference 'unresolved'.>
 
 KtCallExpression(72,87): 'JavaClass<Long>'
-  KaSymbolResolutionError:
-    candidateSymbols = [
-      <constructor>(): JavaClass<T>
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(72,81): 'JavaClass'
   KaSymbolResolutionSuccess:

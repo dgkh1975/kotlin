@@ -40,48 +40,10 @@ KtDotQualifiedExpression(46,66): 'JavaClass<Int>.field'
       typeArgumentsMapping = {}
 
 KtCallExpression(46,60): 'JavaClass<Int>'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = JavaClass<T>
-          symbol = <constructor>(): JavaClass<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.Int)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtNameReferenceExpression(46,55): 'JavaClass'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = JavaClass<T>
-          symbol = <constructor>(): JavaClass<T>
-          valueParameters = []
-          contextParameters = []
-          callableId = null
-        typeArgumentsMapping = {
-          T -> (kotlin.Int)
-        }
-        valueArgumentMapping = {}
-    ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+  null
 
 KtTypeArgumentList(55,60): '<Int>'
   null
