@@ -18,7 +18,7 @@ class SourceFileInfo(
     val info: JvmFileClassInfo
 )
 
-class JvmBinaryArtifact(val classFileFactory: ClassFileFactory, val fileInfos: Collection<SourceFileInfo>) : BinaryArtifacts.Jvm()
+class JvmClassFileArtifact(val classFileFactory: ClassFileFactory, val fileInfos: Collection<SourceFileInfo>) : BinaryArtifacts.Jvm()
 
 class JsIrArtifact(override val outputFile: File, val compilerResult: CompilerResult, val icCache: Map<String, ByteArray>? = null) : BinaryArtifacts.Js()
 

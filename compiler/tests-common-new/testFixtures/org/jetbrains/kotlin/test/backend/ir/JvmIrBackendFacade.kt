@@ -74,7 +74,7 @@ abstract class AbstractJvmIrBackendFacade(testServices: TestServices) : IrBacken
                 }
             }
 
-        return JvmBinaryArtifact(
+        return JvmClassFileArtifact(
             state.factory,
             inputArtifact.irModuleFragment.files.flatMap {
                 sourceFileInfos(it, allowNestedMultifileFacades = true)

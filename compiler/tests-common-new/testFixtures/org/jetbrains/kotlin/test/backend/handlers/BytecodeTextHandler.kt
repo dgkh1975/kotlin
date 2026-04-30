@@ -12,7 +12,7 @@ import org.jetbrains.kotlin.test.directives.CodegenTestDirectives.TREAT_AS_ONE_F
 import org.jetbrains.kotlin.test.directives.LanguageSettingsDirectives
 import org.jetbrains.kotlin.test.directives.model.DirectivesContainer
 import org.jetbrains.kotlin.test.model.BinaryArtifacts
-import org.jetbrains.kotlin.test.model.JvmBinaryArtifact
+import org.jetbrains.kotlin.test.model.JvmClassFileArtifact
 import org.jetbrains.kotlin.test.model.TestFile
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.services.TestServices
@@ -45,7 +45,7 @@ class BytecodeTextHandler(testServices: TestServices, private val shouldEnableEx
         }
     }
 
-    private fun processMultiFileTest(files: List<TestFile>, info: JvmBinaryArtifact, reportProblems: Boolean) {
+    private fun processMultiFileTest(files: List<TestFile>, info: JvmClassFileArtifact, reportProblems: Boolean) {
         val expectedOccurrencesByOutputFile = LinkedHashMap<String, List<OccurrenceInfo>>()
         val globalOccurrences = ArrayList<OccurrenceInfo>()
         for (file in files) {

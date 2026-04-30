@@ -13,7 +13,7 @@ import org.jetbrains.kotlin.test.directives.CodegenTestDirectives.SKIP_INLINE_CH
 import org.jetbrains.kotlin.test.directives.model.DirectivesContainer
 import org.jetbrains.kotlin.test.model.ArtifactKinds
 import org.jetbrains.kotlin.test.model.BinaryArtifacts
-import org.jetbrains.kotlin.test.model.JvmBinaryArtifact
+import org.jetbrains.kotlin.test.model.JvmClassFileArtifact
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.artifactsProvider
@@ -27,7 +27,7 @@ class BytecodeInliningHandler(testServices: TestServices) : JvmBinaryArtifactHan
 
     override fun processAfterAllModules(someAssertionWasFailed: Boolean) {
         val classFiles = testServices.moduleStructure.modules.flatMap {
-            val artifact = testServices.artifactsProvider.getArtifact(it, ArtifactKinds.Jvm) as JvmBinaryArtifact
+            val artifact = testServices.artifactsProvider.getArtifact(it, ArtifactKinds.Jvm) as JvmClassFileArtifact
             artifact.classFileFactory.getClassFiles()
         }
         val allDirectives = testServices.moduleStructure.allDirectives
