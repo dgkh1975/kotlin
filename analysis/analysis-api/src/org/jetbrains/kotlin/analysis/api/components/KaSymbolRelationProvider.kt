@@ -143,13 +143,27 @@ public interface KaSymbolRelationProvider : KaSessionComponent {
     public val KaConstructorSymbol.originalConstructorIfTypeAliased: KaConstructorSymbol?
 
     /**
-     * A list of **all** explicitly declared symbols that are overridden by the callable symbol.
+     * All explicitly declared (non-fake) callable symbols overridden by this callable symbol.
      *
-     * The function doesn't return fake declarations, as it unwraps substituted overridden symbols implicitly
+     * The result unwraps substituted and intersection override symbols implicitly
      * (see [INTERSECTION_OVERRIDE][org.jetbrains.kotlin.analysis.api.symbols.KaSymbolOrigin.INTERSECTION_OVERRIDE]
      * and [SUBSTITUTION_OVERRIDE][org.jetbrains.kotlin.analysis.api.symbols.KaSymbolOrigin.SUBSTITUTION_OVERRIDE]).
      *
-     * Also, the function doesn't return the original overridden declaration of a delegated symbol (for that, use [fakeOverrideOriginal]).
+     * The result doesn't include the original overridden declaration of a delegated symbol (for that, use [fakeOverrideOriginal]).
+     *
+     * Depending on this callable symbol, the result contains:
+     *
+     * - Regular [KaNamedFunctionSymbol] that is not a Java accessor method of a synthetic Java property: overridden function symbols.
+     * - Java [KaNamedFunctionSymbol] that corresponds to the getter or setter of a [KaSyntheticJavaPropertySymbol]: the same property
+     *   symbols as the corresponding synthetic property accessor, not Java accessor methods.
+     * - [KaPropertySymbol], including [KaSyntheticJavaPropertySymbol]: overridden property symbols.
+     * - [KaPropertyGetterSymbol]: overridden properties of the containing property, not getter symbols.
+     * - [KaPropertySetterSymbol]: overridden mutable properties whose setters are overridden by this setter.
+     * - [KaValueParameterSymbol] with [KaValueParameterSymbol.generatedPrimaryConstructorProperty]: overridden symbols of that generated
+     *   property.
+     * - Other callable kinds: an empty sequence.
+     *
+     * The result may include [KaSyntheticJavaPropertySymbol]s in Java/Kotlin hierarchies.
      *
      * #### Example
      *
@@ -175,13 +189,17 @@ public interface KaSymbolRelationProvider : KaSessionComponent {
     public val KaCallableSymbol.allOverriddenSymbols: Sequence<KaCallableSymbol>
 
     /**
-     * A list of explicitly declared symbols which are **directly** overridden by the callable symbol.
+     * Explicitly declared (non-fake) callable symbols that are directly overridden by this callable symbol.
      *
-     * The function doesn't return fake declarations, as it unwraps substituted overridden symbols implicitly
+     * The result unwraps substituted and intersection override symbols implicitly
      * (see [INTERSECTION_OVERRIDE][org.jetbrains.kotlin.analysis.api.symbols.KaSymbolOrigin.INTERSECTION_OVERRIDE]
      * and [SUBSTITUTION_OVERRIDE][org.jetbrains.kotlin.analysis.api.symbols.KaSymbolOrigin.SUBSTITUTION_OVERRIDE]).
      *
-     * Also, the function doesn't return the original overridden declaration of a delegated symbol (for that, use [fakeOverrideOriginal]).
+     * The result doesn't include the original overridden declaration of a delegated symbol (for that, use [fakeOverrideOriginal]).
+     *
+     * Returned symbol kinds follow the same mapping as [allOverriddenSymbols]. In particular, property accessor symbols and Java accessor
+     * methods of synthetic Java properties return property symbols rather than accessor or Java method symbols. Setters return only mutable
+     * properties whose setters are directly overridden.
      *
      * #### Example
      *
@@ -221,7 +239,12 @@ public interface KaSymbolRelationProvider : KaSessionComponent {
     public fun KaClassSymbol.isDirectSubClassOf(superClass: KaClassSymbol): Boolean
 
     /**
-     * If the given callable is an intersection override, returns the list of all overridden symbols. Otherwise, returns an empty list.
+     * If this callable symbol is an intersection override, returns all callable symbols overridden by the intersection override. Otherwise,
+     * returns an empty list.
+     *
+     * Returned symbol kinds follow the same mapping as [allOverriddenSymbols]. In particular, property accessor symbols and Java accessor
+     * methods of synthetic Java properties return property symbols rather than accessor or Java method symbols. Setters return only mutable
+     * properties whose setters are overridden by the intersection override.
      *
      * #### Example
      *
@@ -238,7 +261,7 @@ public interface KaSymbolRelationProvider : KaSessionComponent {
      * ```
      *
      * The `Both` interface contains an automatically generated intersection override for `foo()`. For it, [intersectionOverriddenSymbols]
-     * returns a list of two *unsubstituted* symbols: `Foo.foo(T)` and `Bar.foo(Int)`.
+     * returns a list of two *unsubstituted* symbols: `Foo.foo(T)` and `Bar.foo(String)`.
      *
      * @see KaSymbolOrigin.INTERSECTION_OVERRIDE
      */
@@ -498,13 +521,27 @@ public val KaConstructorSymbol.originalConstructorIfTypeAliased: KaConstructorSy
     get() = with(session) { originalConstructorIfTypeAliased }
 
 /**
- * A list of **all** explicitly declared symbols that are overridden by the callable symbol.
+ * All explicitly declared (non-fake) callable symbols overridden by this callable symbol.
  *
- * The function doesn't return fake declarations, as it unwraps substituted overridden symbols implicitly
+ * The result unwraps substituted and intersection override symbols implicitly
  * (see [INTERSECTION_OVERRIDE][org.jetbrains.kotlin.analysis.api.symbols.KaSymbolOrigin.INTERSECTION_OVERRIDE]
  * and [SUBSTITUTION_OVERRIDE][org.jetbrains.kotlin.analysis.api.symbols.KaSymbolOrigin.SUBSTITUTION_OVERRIDE]).
  *
- * Also, the function doesn't return the original overridden declaration of a delegated symbol (for that, use [fakeOverrideOriginal]).
+ * The result doesn't include the original overridden declaration of a delegated symbol (for that, use [fakeOverrideOriginal]).
+ *
+ * Depending on this callable symbol, the result contains:
+ *
+ * - Regular [KaNamedFunctionSymbol] that is not a Java accessor method of a synthetic Java property: overridden function symbols.
+ * - Java [KaNamedFunctionSymbol] that corresponds to the getter or setter of a [KaSyntheticJavaPropertySymbol]: the same property
+ *   symbols as the corresponding synthetic property accessor, not Java accessor methods.
+ * - [KaPropertySymbol], including [KaSyntheticJavaPropertySymbol]: overridden property symbols.
+ * - [KaPropertyGetterSymbol]: overridden properties of the containing property, not getter symbols.
+ * - [KaPropertySetterSymbol]: overridden mutable properties whose setters are overridden by this setter.
+ * - [KaValueParameterSymbol] with [KaValueParameterSymbol.generatedPrimaryConstructorProperty]: overridden symbols of that generated
+ *   property.
+ * - Other callable kinds: an empty sequence.
+ *
+ * The result may include [KaSyntheticJavaPropertySymbol]s in Java/Kotlin hierarchies.
  *
  * #### Example
  *
@@ -534,13 +571,17 @@ public val KaCallableSymbol.allOverriddenSymbols: Sequence<KaCallableSymbol>
     get() = with(session) { allOverriddenSymbols }
 
 /**
- * A list of explicitly declared symbols which are **directly** overridden by the callable symbol.
+ * Explicitly declared (non-fake) callable symbols that are directly overridden by this callable symbol.
  *
- * The function doesn't return fake declarations, as it unwraps substituted overridden symbols implicitly
+ * The result unwraps substituted and intersection override symbols implicitly
  * (see [INTERSECTION_OVERRIDE][org.jetbrains.kotlin.analysis.api.symbols.KaSymbolOrigin.INTERSECTION_OVERRIDE]
  * and [SUBSTITUTION_OVERRIDE][org.jetbrains.kotlin.analysis.api.symbols.KaSymbolOrigin.SUBSTITUTION_OVERRIDE]).
  *
- * Also, the function doesn't return the original overridden declaration of a delegated symbol (for that, use [fakeOverrideOriginal]).
+ * The result doesn't include the original overridden declaration of a delegated symbol (for that, use [fakeOverrideOriginal]).
+ *
+ * Returned symbol kinds follow the same mapping as [allOverriddenSymbols]. In particular, property accessor symbols and Java accessor
+ * methods of synthetic Java properties return property symbols rather than accessor or Java method symbols. Setters return only mutable
+ * properties whose setters are directly overridden.
  *
  * #### Example
  *
@@ -602,7 +643,12 @@ public fun KaClassSymbol.isDirectSubClassOf(superClass: KaClassSymbol): Boolean 
 }
 
 /**
- * If the given callable is an intersection override, returns the list of all overridden symbols. Otherwise, returns an empty list.
+ * If this callable symbol is an intersection override, returns all callable symbols overridden by the intersection override. Otherwise,
+ * returns an empty list.
+ *
+ * Returned symbol kinds follow the same mapping as [allOverriddenSymbols]. In particular, property accessor symbols and Java accessor
+ * methods of synthetic Java properties return property symbols rather than accessor or Java method symbols. Setters return only mutable
+ * properties whose setters are overridden by the intersection override.
  *
  * #### Example
  *
@@ -619,7 +665,7 @@ public fun KaClassSymbol.isDirectSubClassOf(superClass: KaClassSymbol): Boolean 
  * ```
  *
  * The `Both` interface contains an automatically generated intersection override for `foo()`. For it, [intersectionOverriddenSymbols]
- * returns a list of two *unsubstituted* symbols: `Foo.foo(T)` and `Bar.foo(Int)`.
+ * returns a list of two *unsubstituted* symbols: `Foo.foo(T)` and `Bar.foo(String)`.
  *
  * @see KaSymbolOrigin.INTERSECTION_OVERRIDE
  */
