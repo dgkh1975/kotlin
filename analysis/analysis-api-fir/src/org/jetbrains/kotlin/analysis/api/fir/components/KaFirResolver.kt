@@ -143,9 +143,7 @@ internal class KaFirResolver(
         val wholeQualifier = implicitInvokeCall?.explicitReceiver
             ?: element.getOrBuildFir(analysisSession.resolutionFacade)
 
-        if (wholeQualifier !is FirResolvedQualifier) return false
-
-        return wholeQualifier.resolvedToCompanionObject
+        return wholeQualifier is FirResolvedQualifier && wholeQualifier.resolvedToCompanionObject
     }
 
     override val KtReference.usesContextSensitiveResolution: Boolean
