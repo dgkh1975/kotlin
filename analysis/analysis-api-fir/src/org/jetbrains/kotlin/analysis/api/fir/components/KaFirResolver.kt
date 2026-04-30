@@ -587,18 +587,7 @@ internal class KaFirResolver(
             )
         }
 
-        if (this is FirResolvedQualifier) {
-            val callExpression = (psi as? KtExpression)?.getPossiblyQualifiedCallExpression()?.getQualifiedExpressionForSelectorOrThis()
-            val parent = callExpression?.parent
-            if (callExpression != null && parent !is KtCallableReferenceExpression) {
-                val constructors = findQualifierConstructors()
-                val calls = toKaCalls(constructors)
-                return KaBaseCallResolutionError(
-                    backedDiagnostic = inapplicableCandidateDiagnostic(),
-                    backingCandidateCalls = calls,
-                )
-            }
-        }
+        handleMissedConstructorCall(this, psi)?.let { return it }
 
         if (this is FirImplicitInvokeCall) {
 
@@ -706,6 +695,37 @@ internal class KaFirResolver(
                 else -> null
             }
         }
+    }
+
+    /**
+     * By default, [KtCallExpression] is expected to be resolved to a callable, so if [fir] is [FirResolvedQualifier]
+     * then, mostlikely, the call was missing `()`, so we try to resolve it as an error constructor call to
+     * provide as much useful information as possible.
+     *
+     * But there are some exceptions:
+     * - [KtCallableReferenceExpression] could have [KtCallExpression] as a receiver and this is a valid code
+     *     - `MyClassWithType<Int>::foo`
+     */
+    private fun handleMissedConstructorCall(fir: FirElement, psi: KtElement): KaCallResolutionError? {
+        if (fir !is FirResolvedQualifier) {
+            return null
+        }
+
+        val callExpression = (psi as? KtExpression)?.getPossiblyQualifiedCallExpression()
+            ?.getQualifiedExpressionForSelectorOrThis()
+            ?: return null
+
+        val parent = callExpression.parent
+        if (parent is KtCallableReferenceExpression) {
+            return null
+        }
+
+        val constructors = fir.findQualifierConstructors()
+        val calls = fir.toKaCalls(constructors)
+        return KaBaseCallResolutionError(
+            backedDiagnostic = inapplicableCandidateDiagnostic(),
+            backingCandidateCalls = calls,
+        )
     }
 
     private fun inapplicableCandidateDiagnostic(): KaDiagnostic {
