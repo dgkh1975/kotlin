@@ -207,6 +207,12 @@ public class FirStandaloneNormalAnalysisSourceModuleResolveCallByFileTestGenerat
   }
 
   @Test
+  @TestMetadata("javaQualifierWithTypeArguments.kt")
+  public void testJavaQualifierWithTypeArguments() {
+    run("javaQualifierWithTypeArguments.kt");
+  }
+
+  @Test
   @TestMetadata("labels.kt")
   public void testLabels() {
     run("labels.kt");
@@ -1223,6 +1229,18 @@ public class FirStandaloneNormalAnalysisSourceModuleResolveCallByFileTestGenerat
     @TestMetadata("enumArrayAsAnnotationArgumentWithMissedValue.kt")
     public void testEnumArrayAsAnnotationArgumentWithMissedValue() {
       run("enumArrayAsAnnotationArgumentWithMissedValue.kt");
+    }
+
+    @Test
+    @TestMetadata("qualifierWithTypeArgumentsNotProhibited.kt")
+    public void testQualifierWithTypeArgumentsNotProhibited() {
+      run("qualifierWithTypeArgumentsNotProhibited.kt");
+    }
+
+    @Test
+    @TestMetadata("qualifierWithTypeArgumentsProhibited.kt")
+    public void testQualifierWithTypeArgumentsProhibited() {
+      run("qualifierWithTypeArgumentsProhibited.kt");
     }
 
     @Nested
