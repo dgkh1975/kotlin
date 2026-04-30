@@ -477,8 +477,6 @@ tasks.named("validatePlugins") {
 projectTests {
     testTask(jUnitMode = JUnitMode.JUnit5) {
         workingDir = rootDir
-        @OptIn(TemporaryTestFederationApi::class)
-        isSmokeTest = true
     }
 }
 
