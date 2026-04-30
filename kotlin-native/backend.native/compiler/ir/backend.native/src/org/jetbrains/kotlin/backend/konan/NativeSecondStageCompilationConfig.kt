@@ -23,7 +23,7 @@ import org.jetbrains.kotlin.config.nativeBinaryOptions.SanitizerKind
 import org.jetbrains.kotlin.config.nativeBinaryOptions.UnitSuspendFunctionObjCExport
 import org.jetbrains.kotlin.konan.config.*
 import org.jetbrains.kotlin.konan.file.File
-import org.jetbrains.kotlin.konan.library.isFromKotlinNativeDistribution
+import org.jetbrains.kotlin.konan.library.isExplicitlySpecifiedByUserInCLIArgument
 import org.jetbrains.kotlin.konan.properties.loadProperties
 import org.jetbrains.kotlin.konan.target.*
 import org.jetbrains.kotlin.library.KotlinLibrary
@@ -400,7 +400,7 @@ class NativeSecondStageCompilationConfig(
      * Returns the list of libraries in reverse topological order.
      */
     fun librariesWithDependencies(): List<KotlinLibrary> {
-        return resolvedLibraries.filterRoots { (!it.library.isFromKotlinNativeDistribution && !purgeUserLibs) || it.library.hasDeclarationsAccessedDuringFrontendResolve }.getFullList()
+        return resolvedLibraries.filterRoots { (it.library.isExplicitlySpecifiedByUserInCLIArgument && !purgeUserLibs) || it.library.hasDeclarationsAccessedDuringFrontendResolve }.getFullList()
     }
 
     internal val externalDependenciesFile = configuration.externalDependencies?.let(::File)
