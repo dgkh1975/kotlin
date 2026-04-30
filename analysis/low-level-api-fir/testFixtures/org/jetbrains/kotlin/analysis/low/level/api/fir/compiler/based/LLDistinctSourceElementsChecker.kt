@@ -13,8 +13,8 @@ import org.jetbrains.kotlin.test.model.AfterAnalysisChecker
 import org.jetbrains.kotlin.test.services.TestServices
 
 /**
- * For all compiler-based tests, this checker ensures that the source elements of FIR declarations are distinct after analysis. See
- * [checkDistinctSourceElements] for more information.
+ * This checker ensures that the source elements of FIR declarations are distinct after analysis. See [checkDistinctSourceElements] for more
+ * information.
  *
  * FIR files are checked in the state they were resolved to, or built fresh and checked as raw FIR if they haven't been resolved yet.
  *
