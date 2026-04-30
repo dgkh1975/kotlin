@@ -95,6 +95,7 @@ class BuiltInsDeserializationForFirTestCase {
                 val jdk = when (jdkKind) {
                     TestJdkKind.MOCK_JDK -> KtTestUtil.findMockJdkRtJar()
                     TestJdkKind.MODIFIED_MOCK_JDK -> KtTestUtil.findMockJdkRtModified()
+                    TestJdkKind.FULL_JDK_8 -> KtTestUtil.getJdk8Home()
                     TestJdkKind.FULL_JDK_11 -> KtTestUtil.getJdk11Home()
                     TestJdkKind.FULL_JDK_17 -> KtTestUtil.getJdk17Home()
                     TestJdkKind.FULL_JDK_21 -> KtTestUtil.getJdk21Home()
