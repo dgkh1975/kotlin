@@ -58,6 +58,11 @@ class BuiltInsDeserializationForFirTestCase {
     }
 
     @Test
+    fun testFallbackBuiltInsFullJdk8() {
+        doTest("fallbackBuiltIns_fullJDK8.txt", TestJdkKind.FULL_JDK_8)
+    }
+
+    @Test
     fun testFallbackBuiltInsFullJdk21() {
         doTest("fallbackBuiltIns_fullJDK21.txt", TestJdkKind.FULL_JDK_21)
     }
