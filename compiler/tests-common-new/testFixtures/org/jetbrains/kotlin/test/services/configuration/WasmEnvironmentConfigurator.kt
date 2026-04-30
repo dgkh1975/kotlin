@@ -71,6 +71,8 @@ abstract class WasmEnvironmentConfigurator(
         fun isMainModule(module: TestModule, testServices: TestServices): Boolean {
             return module == getMainModule(testServices)
         }
+
+        const val WASM_BASE_FILE_NAME = "index"
     }
 
 
