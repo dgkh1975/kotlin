@@ -1244,6 +1244,12 @@ public class FirStandaloneNormalAnalysisSourceModuleResolveReferenceByFileTestGe
     }
 
     @Test
+    @TestMetadata("implicitInvokeFromBinaryExpression.kt")
+    public void testImplicitInvokeFromBinaryExpression() {
+      run("implicitInvokeFromBinaryExpression.kt");
+    }
+
+    @Test
     @TestMetadata("qualifierWithTypeArgumentsNotProhibited.kt")
     public void testQualifierWithTypeArgumentsNotProhibited() {
       run("qualifierWithTypeArgumentsNotProhibited.kt");
