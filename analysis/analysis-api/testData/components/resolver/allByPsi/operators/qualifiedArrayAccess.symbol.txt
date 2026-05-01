@@ -160,7 +160,7 @@ KtArrayAccessExpression(188,202): 's?.itself["1"]'
 KtSafeQualifiedExpression(188,197): 's?.itself'
   KaSymbolResolutionSuccess:
     symbols = [
-      /MyClass.get(<dispatch receiver>: MyClass, argument: kotlin.String): kotlin.Unit
+      val itself: MyClass
     ]
 
 KtNameReferenceExpression(188,189): 's'

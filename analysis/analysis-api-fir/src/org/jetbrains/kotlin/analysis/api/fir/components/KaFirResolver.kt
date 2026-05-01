@@ -636,10 +636,10 @@ internal class KaFirResolver(
                 resolveFragmentOfCall
             )
 
-            is FirSafeCallExpression -> selector.toKaResolutionAttempt(
+            is FirSafeCallExpression -> unwrapSelector(psi).toKaResolutionAttempt(
                 psi,
                 resolveCalleeExpressionOfFunctionCall,
-                resolveFragmentOfCall
+                resolveFragmentOfCall,
             )
 
             is FirSmartCastExpression -> originalExpression.toKaResolutionAttempt(
@@ -693,6 +693,23 @@ internal class KaFirResolver(
                 else -> null
             }
         }
+    }
+
+    /**
+     * Expressions like `s?.itself["1"]` where [KtSafeQualifiedExpression] is `s?.itself` are wrapped into something like `s?.{ $subj$.itself.get("1") }`,
+     * so we need to extract `itself` from `$subj$.itself` receiver.
+     * But! Expressions like `s?.itself("1")` where [KtSafeQualifiedExpression] is the whole expression might be wrapped the same way.
+     * For instance, it is the case for an implicit invoke. It could be wrapped into something like `s?.{ $subj$.itself.invoke("1") }` as well,
+     * but it has to be resolved into the call since the expression is call
+     */
+    private fun FirSafeCallExpression.unwrapSelector(psi: KtElement): FirElement {
+        val selector = selector
+        if (psi !is KtSafeQualifiedExpression || psi.selectorExpression is KtCallExpression || selector !is FirQualifiedAccessExpression) {
+            return selector
+        }
+
+        val nonDefaultReceiver = selector.explicitReceiver?.takeUnless { it is FirCheckedSafeCallSubject }
+        return nonDefaultReceiver ?: selector
     }
 
     /**
@@ -1954,7 +1971,7 @@ internal class KaFirResolver(
 
         return when (this) {
             is FirFunctionCall, is FirPropertyAccessExpression -> collectCallCandidates(psi, resolveFragmentOfCall)
-            is FirSafeCallExpression -> selector.collectCallCandidates(
+            is FirSafeCallExpression -> unwrapSelector(psi).collectCallCandidates(
                 psi = psi,
                 resolveCalleeExpressionOfFunctionCall = resolveCalleeExpressionOfFunctionCall,
                 resolveFragmentOfCall = resolveFragmentOfCall,
