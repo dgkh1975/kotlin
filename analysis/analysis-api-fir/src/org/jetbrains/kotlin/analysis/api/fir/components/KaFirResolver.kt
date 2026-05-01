@@ -593,7 +593,8 @@ internal class KaFirResolver(
             // and the only FIR that we have for that PSI is an implicit invoke call, that means that
             // `Foo.Bar` is definitely not a property access - otherwise it would have had its own FIR.
             // So, it does not make sense to try to resolve such parts of qualifiers as KaCallResolutionSuccess
-            if ((psi as? KtExpression)?.getPossiblyQualifiedCallExpression() == null) {
+            // Binary expressions are accepted as they could be resolved into implicit invoke calls (in error cases)
+            if ((psi as? KtExpression)?.getPossiblyQualifiedCallExpression() == null && psi !is KtBinaryExpression) {
                 return null
             }
 

@@ -107,7 +107,11 @@ KtReturnExpression(59,79): 'return n bar (n + 1)'
     ]
 
 KtBinaryExpression(66,79): 'n bar (n + 1)'
-  null
+  KaSymbolResolutionError:
+    candidateSymbols = [
+      kotlin/Function2.invoke(<dispatch receiver>: (P1, P2) -> R, p1: P1, p2: P2): R
+    ]
+    diagnostic = ERROR<INFIX_MODIFIER_REQUIRED: 'infix' modifier is required on 'fun invoke(p1: Int, p2: Int): Int'.>
 
 KtNameReferenceExpression(66,67): 'n'
   KaSymbolResolutionSuccess:
@@ -116,7 +120,11 @@ KtNameReferenceExpression(66,67): 'n'
     ]
 
 KtOperationReferenceExpression(68,71): 'bar'
-  null
+  KaSymbolResolutionError:
+    candidateSymbols = [
+      kotlin/Function2.invoke(<dispatch receiver>: (P1, P2) -> R, p1: P1, p2: P2): R
+    ]
+    diagnostic = ERROR<INFIX_MODIFIER_REQUIRED: 'infix' modifier is required on 'fun invoke(p1: Int, p2: Int): Int'.>
 
 KtParenthesizedExpression(72,79): '(n + 1)'
   null

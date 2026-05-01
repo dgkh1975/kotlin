@@ -51,10 +51,9 @@ KtOperationReferenceExpression(68,71): 'bar'
     isImplicitReferenceToCompanion: false
     usesContextSensitiveResolution: false
     resolvesByNamesViolations: 'invoke' !in [bar]
-    attempt: null
+    attempt: KaSymbolResolutionError
+    diagnostic: ERROR<INFIX_MODIFIER_REQUIRED: 'infix' modifier is required on 'fun invoke(p1: Int, p2: Int): Int'.>
     symbols:
-      Nothing (Unresolved reference)
-    resolveToSymbols:
       (in kotlin.Function2) operator fun invoke(p1: P1, p2: P2): R
 
 KtNameReferenceExpression(73,74): 'n'
