@@ -1162,6 +1162,18 @@ public class FirIdeNormalAnalysisSourceLikeModuleResolveReferenceByFileTestGener
     }
 
     @Test
+    @TestMetadata("qualifiedArrayAccess.kt")
+    public void testQualifiedArrayAccess() {
+      run("qualifiedArrayAccess.kt");
+    }
+
+    @Test
+    @TestMetadata("qualifiedImplicitInvokeAccess.kt")
+    public void testQualifiedImplicitInvokeAccess() {
+      run("qualifiedImplicitInvokeAccess.kt");
+    }
+
+    @Test
     @TestMetadata("range.kt")
     public void testRange() {
       run("range.kt");
