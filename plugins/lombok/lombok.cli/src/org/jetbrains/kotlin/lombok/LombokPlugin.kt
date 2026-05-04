@@ -18,7 +18,7 @@ import org.jetbrains.kotlin.lombok.k2.FirLombokCommonRegistrar
 import org.jetbrains.kotlin.lombok.k2.FirLombokJavaRegistrar
 import org.jetbrains.kotlin.lombok.k2.FirLombokKotlinRegistrar
 import org.jetbrains.kotlin.lombok.k2.LombokCliDiagnostics
-import org.jetbrains.kotlin.lombok.k2.generators.LombokIrGenerationExtension
+import org.jetbrains.kotlin.lombok.k2.generators.kotlin.ir.LombokIrGenerationExtension
 import org.jetbrains.kotlin.resolve.jvm.extensions.SyntheticJavaResolveExtension
 import java.io.File
 
