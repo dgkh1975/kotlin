@@ -36,6 +36,12 @@ class WithImplicitReturnTypeProperty {
 }
 
 @ToString
+class WithBackingFieldAndGetter {
+    val x: Int = 42
+        get() = field
+}
+
+@ToString
 class WithNonConflictingExtensionFunction(val a: Int) {
     fun WithNonConflictingExtensionFunction.toString(): String = "Ext"
 }
@@ -101,6 +107,7 @@ fun box(): String {
     assertEquals("WithExistingNonConflictingToString(x=5)", WithExistingNonConflictingToString(5).toString())
     assertEquals("WithComputedProperties()", WithComputedProperties().toString())
     assertEquals("WithImplicitReturnTypeProperty(implicitReturnTypeProp=implicit return type)", WithImplicitReturnTypeProperty().toString())
+    assertEquals("WithBackingFieldAndGetter(x=42)", WithBackingFieldAndGetter().toString())
     assertEquals("WithNonConflictingExtensionFunction(a=6)", WithNonConflictingExtensionFunction(6).toString())
     assertEquals("WithNonConflictingContextualFunction(b=str)", WithNonConflictingContextualFunction("str").toString())
 

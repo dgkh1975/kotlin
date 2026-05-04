@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin.GeneratedByPlugin
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
+import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.expressions.IrExpression
@@ -21,8 +22,8 @@ import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrGetValueImpl
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.classOrNull
+import org.jetbrains.kotlin.ir.util.findDeclaration
 import org.jetbrains.kotlin.ir.util.functions
-import org.jetbrains.kotlin.ir.util.getPropertyGetter
 import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
@@ -68,6 +69,13 @@ class LombokToStringIrBodyFiller(private val context: IrPluginContext) : IrVisit
             }
 
             for ((index, propInfo) in key.propertyInfos.withIndex()) {
+                @OptIn(UnsafeDuringIrConstructionAPI::class)
+                val propertyDeclaration = irClass.findDeclaration<IrProperty> { it.name == propInfo.propertyName }
+
+                if (propertyDeclaration == null || (propertyDeclaration.backingField == null && propInfo.ignoreWithoutBackingField)) {
+                    continue
+                }
+
                 addArgument(
                     irString(
                         buildString {
@@ -82,10 +90,7 @@ class LombokToStringIrBodyFiller(private val context: IrPluginContext) : IrVisit
                     )
                 )
 
-                @OptIn(UnsafeDuringIrConstructionAPI::class)
-                val getter = irClass.getPropertyGetter(propInfo.propertyName)!!
-
-                addArgument(irCall(getter).apply {
+                addArgument(irCall(propertyDeclaration.getter!!.symbol).apply {
                     arguments[0] =
                         IrGetValueImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, thisParam.type, thisParam.symbol)
                 })

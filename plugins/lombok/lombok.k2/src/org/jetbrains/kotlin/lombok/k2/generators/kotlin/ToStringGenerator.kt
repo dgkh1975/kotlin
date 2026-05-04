@@ -13,7 +13,6 @@ import org.jetbrains.kotlin.fir.caches.FirCache
 import org.jetbrains.kotlin.fir.caches.firCachesFactory
 import org.jetbrains.kotlin.fir.declarations.FirDeclarationOrigin
 import org.jetbrains.kotlin.fir.declarations.findArgumentByName
-import org.jetbrains.kotlin.fir.declarations.utils.hasBackingField
 import org.jetbrains.kotlin.fir.declarations.utils.isInterface
 import org.jetbrains.kotlin.fir.expressions.FirLiteralExpression
 import org.jetbrains.kotlin.fir.extensions.FirDeclarationGenerationExtension
@@ -23,7 +22,6 @@ import org.jetbrains.kotlin.fir.extensions.predicate.DeclarationPredicate
 import org.jetbrains.kotlin.fir.plugin.createMemberFunction
 import org.jetbrains.kotlin.fir.scopes.impl.FirClassDeclaredMemberScope
 import org.jetbrains.kotlin.fir.scopes.processAllProperties
-import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
@@ -44,10 +42,12 @@ import org.jetbrains.kotlin.name.Name
  *
  * @param propertyName the simple name of the backing property
  * @param displayName  the prefix to emit before `=value`; `null` means no prefix (includeFieldNames = false)
+ * @param ignoreWithoutBackingField whether to ignore the property if it has no backing field
  */
 data class ToStringPropertyInfo(
-    val propertyName: String,
+    val propertyName: Name,
     val displayName: String?,
+    val ignoreWithoutBackingField: Boolean,
 )
 
 /**
@@ -131,24 +131,29 @@ class ToStringGenerator(session: FirSession) : FirDeclarationGenerationExtension
         toStringConfig: ConeLombokAnnotations.ToString,
         declaredScope: FirClassDeclaredMemberScope?,
     ): List<ToStringPropertyInfo> {
+        // TODO: KT-86021 (include parameterless methods and computed properties if user explicitly opts them in (mirror Lombok behavior for methods)).
         return buildList {
             declaredScope?.processAllProperties { variableSymbol ->
                 val property = variableSymbol as? FirPropertySymbol ?: return@processAllProperties
 
-                val propertyIdentifier = property.name.identifier
+                val propertyName = property.name
 
                 if (property.findAnnotationOnPropertyOrField(LombokNames.TO_STRING_EXCLUDE_ID, session) != null ||
-                    propertyIdentifier in toStringConfig.excludeFields
+                    propertyName.identifier in toStringConfig.excludeFields
                 ) {
                     return@processAllProperties
                 }
 
                 val toStringIncludeAnnotation = property.findAnnotationOnPropertyOrField(LombokNames.TO_STRING_INCLUDE_ID, session)
 
-                // TODO: KT-86021 (include parameterless methods and computed properties (no backing field) if user explicitly opts them in (mirror Lombok behavior for methods)).
-                @OptIn(SymbolInternals::class) // It's necessary because `hasBackingField` on symbol requires `BODY_RESOLVE` phase, but the currenct phase might be less
-                if ((!property.fir.hasBackingField || toStringConfig.onlyExplicitlyIncluded) && toStringIncludeAnnotation == null) {
-                    return@processAllProperties
+                // Can't check for `property.hasBackingField` right here
+                // because it requires the `BODY_RESOLVE ` phase, but the current phase might be less.
+                // Delegate the computation to the IR generator.
+                val ignoreWithoutBackingField = if (toStringIncludeAnnotation != null) {
+                    false
+                } else {
+                    if (toStringConfig.onlyExplicitlyIncluded) return@processAllProperties
+                    true // Treat properties without backing fields as parameterless methods, so include them if only they are explicitly included.
                 }
 
                 val displayName = if (toStringConfig.includeFieldNames) {
@@ -157,7 +162,7 @@ class ToStringGenerator(session: FirSession) : FirDeclarationGenerationExtension
                             ?.let { arg -> (arg as? FirLiteralExpression)?.value as? String }
                             ?.takeIf { name -> name.isNotEmpty() }
                     }
-                    customName ?: propertyIdentifier
+                    customName ?: propertyName.identifier
                 } else {
                     null
                 }
@@ -170,7 +175,7 @@ class ToStringGenerator(session: FirSession) : FirDeclarationGenerationExtension
                     }
                     ?: 0
 
-                add(ToStringPropertyInfo(propertyIdentifier, displayName) to rank)
+                add(ToStringPropertyInfo(propertyName, displayName, ignoreWithoutBackingField) to rank)
             }
             sortByDescending { it.second }
         }.map { it.first }
