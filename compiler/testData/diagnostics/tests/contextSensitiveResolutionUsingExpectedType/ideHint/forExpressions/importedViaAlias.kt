@@ -11,13 +11,17 @@ sealed class A {
 
 // FILE: main.kt
 import test.A
-import test.A.*
+import test.A.X as XX
+import test.A.Y
 
 fun expectsA(x: A) {}
 
 fun main() {
-    expectsA(<!DEBUG_INFO_CSR_MIGHT_BE_USED_INSTEAD_OF_IMPORT!>X<!>)
-    val a: A = <!DEBUG_INFO_CSR_MIGHT_BE_USED_INSTEAD_OF_IMPORT!>Y<!>
+    val x: A = XX
+    val y: A = <!DEBUG_INFO_CSR_MIGHT_BE_USED_INSTEAD_OF_IMPORT!>Y<!>
+
+    expectsA(XX)
+    expectsA(<!DEBUG_INFO_CSR_MIGHT_BE_USED_INSTEAD_OF_IMPORT!>Y<!>)
 }
 
 /* GENERATED_FIR_TAGS: classDeclaration, functionDeclaration, localProperty, nestedClass, objectDeclaration,

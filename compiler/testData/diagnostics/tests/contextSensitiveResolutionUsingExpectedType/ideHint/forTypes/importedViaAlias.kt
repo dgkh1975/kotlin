@@ -11,11 +11,11 @@ sealed class A {
 
 // FILE: main.kt
 import test.A
-import test.A.X
+import test.A.X as XX
 import test.A.Y
 
 fun foo(a: A) {
-    if (a is <!DEBUG_INFO_CSR_MIGHT_BE_USED_INSTEAD_OF_IMPORT!>X<!>) {
+    if (a is XX) {
         "".hashCode()
     }
 
@@ -23,7 +23,7 @@ fun foo(a: A) {
         "".hashCode()
     }
 
-    val x = a as <!DEBUG_INFO_CSR_MIGHT_BE_USED_INSTEAD_OF_IMPORT!>X<!>
+    val x = a as XX
     val y = a <!CAST_NEVER_SUCCEEDS!>as?<!> <!DEBUG_INFO_CSR_MIGHT_BE_USED_INSTEAD_OF_IMPORT!>Y<!>
 }
 
