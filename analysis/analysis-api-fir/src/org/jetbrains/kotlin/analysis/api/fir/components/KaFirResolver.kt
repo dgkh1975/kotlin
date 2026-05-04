@@ -732,9 +732,11 @@ internal class KaFirResolver(
             return null
         }
 
-        val callExpression = (psi as? KtExpression)?.getPossiblyQualifiedCallExpression()
-            ?.getQualifiedExpressionForSelectorOrThis()
-            ?: return null
+        val callExpression = when (psi) {
+            is KtQualifiedExpression if psi.selectorExpression is KtCallExpression -> psi
+            is KtCallExpression -> psi.getQualifiedExpressionForSelectorOrThis()
+            else -> return null
+        }
 
         when (val parent = callExpression.parent) {
             is KtCallableReferenceExpression -> return null
