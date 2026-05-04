@@ -1250,6 +1250,12 @@ public class FirIdeNormalAnalysisSourceLikeModuleResolveCallByFileTestGenerated 
     }
 
     @Test
+    @TestMetadata("classLiteralWithArguments.kt")
+    public void testClassLiteralWithArguments() {
+      run("classLiteralWithArguments.kt");
+    }
+
+    @Test
     @TestMetadata("enumArrayAsAnnotationArgumentWithMissedValue.kt")
     public void testEnumArrayAsAnnotationArgumentWithMissedValue() {
       run("enumArrayAsAnnotationArgumentWithMissedValue.kt");
