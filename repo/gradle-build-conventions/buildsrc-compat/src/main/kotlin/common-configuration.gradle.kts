@@ -392,7 +392,6 @@ fun Project.configureTests() {
             ":tools:binary-compatibility-validator",
             ":tools:ide-plugin-dependencies-validator",
             ":tools:jdk-api-validator",
-            ":compiler:test-engine-sandbox",
             ":repo:test-federation-runtime",
             ":benchmarks",
         )
