@@ -23,6 +23,15 @@ import org.jetbrains.kotlin.test.TestDataAssertions
 import java.io.File
 
 /**
+ * When set to `true`, [AbstractAnalysisApiInternalApiTest] writes the suggested fix to the violating source file instead of asserting via
+ * [TestDataAssertions.assertEqualsToFile]. The test then throws to signal the iteration loop in the companion skill
+ * `analysis-api-mark-internal-apis`. Combined with `-Pkotlin.test.instrumentation.disable.inputs.check=true`, this lets the skill drive
+ * the test through the JVM's security manager.
+ */
+private val UPDATE_SOURCE_CODE: Boolean
+    get() = System.getProperty("kotlin.analysis.codebaseTest.internalApi.updateSourceCode").toBoolean()
+
+/**
  * A base test for verifying that public declarations in an Analysis API implementation module are marked to keep them out of the public
  * Analysis API surface.
  *
@@ -74,6 +83,13 @@ abstract class AbstractAnalysisApiInternalApiTest : AbstractAnalysisApiCodebaseV
         if (violations.isEmpty()) return
 
         val actualText = fileTextWithNewAnnotations(violations)
+        if (UPDATE_SOURCE_CODE) {
+            file.writeText(actualText)
+            fail(
+                "Auto-applied ${violations.size} marker annotation(s) to ${file.name}. " +
+                        "Re-run the test to surface the next file."
+            )
+        }
         TestDataAssertions.assertEqualsToFile(buildErrorMessage(violations), file, actualText)
     }
 
