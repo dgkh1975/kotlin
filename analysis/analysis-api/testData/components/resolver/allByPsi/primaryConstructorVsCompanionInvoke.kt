@@ -13,5 +13,3 @@ fun main() {
     Foo.Companion(3)
     com.example.Foo.Companion(4)
 }
-
-// IGNORE_STABILITY: candidates

@@ -19,5 +19,3 @@ fun main() {
    Foo.Nested.Companion(5)
    com.example.Foo.Nested.Companion(6)
 }
-
-// IGNORE_STABILITY: candidates
