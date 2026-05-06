@@ -246,6 +246,7 @@ class KlibDumpParser(klibDump: String, private val filePath: String? = null) {
             typeParameters = typeParams,
             valueParameters = contextAndReceiverParams + valueParameters,
             returnType = returnType,
+            companionExtensionsClass = null, // TODO add support
         )
     }
 
