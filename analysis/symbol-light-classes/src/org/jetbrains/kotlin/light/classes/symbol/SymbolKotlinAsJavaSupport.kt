@@ -36,7 +36,7 @@ import org.jetbrains.kotlin.asJava.classes.lazyPub
 import org.jetbrains.kotlin.asJava.elements.FakeFileForLightClass
 import org.jetbrains.kotlin.asJava.finder.JavaElementFinder
 import org.jetbrains.kotlin.light.classes.symbol.classes.*
-import org.jetbrains.kotlin.light.classes.symbol.utils.SafeNestedCaffeineCache
+import org.jetbrains.kotlin.light.classes.symbol.utils.SafeNestedNullableCaffeineCache
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.parentOrNull
@@ -129,7 +129,10 @@ internal class SymbolKotlinAsJavaSupport(project: Project) : KotlinAsJavaSupport
                     KotlinGlobalSourceModuleStateModificationEvent,
                     KotlinGlobalScriptModuleStateModificationEvent,
                     KotlinGlobalSourceOutOfBlockModificationEvent,
-                        -> moduleBasedLightClassCache.invalidateAll()
+                        -> {
+                        moduleBasedLightClassCache.invalidateAll()
+                        calculatedContextModuleCache.invalidateAll()
+                    }
 
                     is KotlinCodeFragmentContextModificationEvent -> {}
                 }
@@ -403,8 +406,14 @@ internal class SymbolKotlinAsJavaSupport(project: Project) : KotlinAsJavaSupport
 
     @OptIn(KaIdeApi::class)
     override fun KtElement.findContextModule(scope: GlobalSearchScope?, moduleFilter: (KaModule) -> Boolean): KaModule? {
-        val declarationModule = this.getContainingModule().takeIf(moduleFilter) ?: return null
+        val declarationModule = getContainingModule().takeIf(moduleFilter) ?: return null
+        return calculatedContextModuleCache.getOrPut(declarationModule, scope) { declarationModule, scope ->
+            findContextModuleNonCached(declarationModule, scope)
+        }
+    }
 
+    @OptIn(KaIdeApi::class)
+    private fun KtElement.findContextModuleNonCached(declarationModule: KaModule, scope: GlobalSearchScope?): KaModule? {
         val suitableImplementingDependents = KotlinModuleDependentsProvider.getInstance(project).getRefinementDependents(declarationModule)
             .filter { module ->
                 module.isValidContextModule() && analyzeForLightClasses(module) {
@@ -413,7 +422,7 @@ internal class SymbolKotlinAsJavaSupport(project: Project) : KotlinAsJavaSupport
                     // getRefinementDependents returns two jvmTest modules: one with kind=TEST and another with kind=PRODUCTION.
                     // We cannot blindly return PRODUCTION jvmTest module, as it doesn't depend on TEST commonTest module,
                     // only on PRODUCTION commonTest.
-                    this@findContextModule.canBeAnalysed()
+                    this@findContextModuleNonCached.canBeAnalysed()
                 }
             }
 
@@ -483,7 +492,7 @@ internal class SymbolKotlinAsJavaSupport(project: Project) : KotlinAsJavaSupport
      *
      * The whole cache gets invalidated on every project modification.
      */
-    private val moduleBasedLightClassCache = SafeNestedCaffeineCache<KaModule, KtElement, KtLightClass>(
+    private val moduleBasedLightClassCache = SafeNestedNullableCaffeineCache<KaModule, KtElement, KtLightClass>(
         outerCache =
             Caffeine.newBuilder()
                 .weakKeys()
@@ -492,6 +501,26 @@ internal class SymbolKotlinAsJavaSupport(project: Project) : KotlinAsJavaSupport
             Caffeine.newBuilder()
                 .weakKeys()
                 .softValues()
+                .build()
+        }
+    )
+
+    /**
+     * Stores a map declaration-site [KaModule] -> [GlobalSearchScope] -> context [KaModule] found for [KaModule] in [GlobalSearchScope].
+     *
+     * The whole cache gets invalidated on every project modification.
+     */
+    private val calculatedContextModuleCache = SafeNestedNullableCaffeineCache<KaModule, GlobalSearchScope, KaModule>(
+        outerCache =
+            Caffeine.newBuilder()
+                .weakKeys()
+                .expireAfterAccess(Duration.ofSeconds(10))
+                .build(),
+        innerCacheFactory = {
+            Caffeine.newBuilder()
+                .weakKeys()
+                .weakValues()
+                .expireAfterAccess(Duration.ofSeconds(5))
                 .build()
         }
     )
