@@ -29,10 +29,12 @@ import org.jetbrains.kotlin.test.model.*
 import org.jetbrains.kotlin.test.services.CompilationStage
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.artifactsProvider
+import org.jetbrains.kotlin.test.services.assertions
 import org.jetbrains.kotlin.test.services.compilerConfigurationProvider
 import org.jetbrains.kotlin.test.services.configuration.NativeEnvironmentConfigurator
 import org.jetbrains.kotlin.test.services.moduleStructure
 import org.jetbrains.kotlin.test.services.temporaryDirectoryManager
+import org.jetbrains.kotlin.test.services.testInfo
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.PrintStream
@@ -98,8 +100,10 @@ class NativeCompilerSecondStageFacade private constructor(
         private val customNativeCompilerSettings: CustomNativeCompilerSettings
     ) : AbstractGroupingPhaseTestFacade<GroupingPhaseInputArtifact, BinaryArtifacts.Native>() {
         override fun transform(inputArtifact: GroupingPhaseInputArtifact): BinaryArtifacts.Native {
-            val someModule = inputArtifact.nonGroupingPhaseOutputs.first().testServices.moduleStructure.modules.last()
+            val servicesOfSomeModule = inputArtifact.nonGroupingPhaseOutputs.first().testServices
+            val someModule = servicesOfSomeModule.moduleStructure.modules.last()
             var someLibrary: File? = null
+            val freeArgs = someModule.directives[FREE_COMPILER_ARGS]
 
             val regularDependencies = mutableSetOf<String>()
             val friendDependencies = mutableSetOf<String>()
@@ -113,6 +117,14 @@ class NativeCompilerSecondStageFacade private constructor(
                 val mainLibrary = services.artifactsProvider.getArtifact(mainModule, ArtifactKinds.KLib).outputFile
                 mainLibraries += mainLibrary.absolutePath
                 if (someLibrary == null) someLibrary = mainLibrary
+                val freeArgsOfTest = mainModule.directives[FREE_COMPILER_ARGS]
+                testServices.assertions.assertTrue(freeArgs.toSet() == freeArgsOfTest.toSet()) {
+                    buildString {
+                        appendLine("Free compiler args are not equal for two tests in batch:")
+                        appendLine("Test ${servicesOfSomeModule.testInfo.methodName}: $freeArgs")
+                        appendLine("Test ${services.testInfo.methodName}: $freeArgsOfTest")
+                    }
+                }
             }
 
             val facade = NativeCompilerSecondStageFacade(testServices, customNativeCompilerSettings)
@@ -132,7 +144,7 @@ class NativeCompilerSecondStageFacade private constructor(
                 enableAssertions = AssertionsMode.ALWAYS_DISABLE !in someModule.directives[ASSERTIONS_MODE],
                 withPlatformLibs = someModule.directives.contains(WITH_PLATFORM_LIBS),
                 customLanguageFeatures = someModule.directives[LanguageSettingsDirectives.LANGUAGE],
-                freeArgs = someModule.directives[FREE_COMPILER_ARGS] + "-Xklib-duplicated-unique-name-strategy=allow-all-with-warning",
+                freeArgs = freeArgs + "-Xklib-duplicated-unique-name-strategy=allow-all-with-warning",
             )
 
             if (exitCode == ExitCode.OK) {

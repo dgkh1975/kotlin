@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.konan.test.blackbox
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.konan.test.blackbox.support.AssertionsMode
 import org.jetbrains.kotlin.konan.test.blackbox.support.TestDirectives
+import org.jetbrains.kotlin.konan.test.blackbox.support.TestDirectives.FREE_COMPILER_ARGS
 import org.jetbrains.kotlin.konan.test.blackbox.support.TestKind
 import org.jetbrains.kotlin.konan.test.blackbox.support.testKind
 import org.jetbrains.kotlin.test.directives.model.DirectivesContainer
@@ -34,12 +35,27 @@ class NativeGroupingTestIsolator(testServices: TestServices) : GroupingTestIsola
                 || moduleStructure.sourceContains(packageKotlinInternalRegex)
                 || moduleStructure.modules.any { module -> module.files.any { it.name.endsWith(".def") } }
         if (shouldBeIsolated) return BatchToken.Isolated
-        return computeAssertionsModeToken(moduleStructure) ?: BatchToken.Regular
+
+        val specificTokens = listOfNotNull(
+            computeAssertionsModeToken(moduleStructure),
+            computeFreeCompilerArgsToken(moduleStructure),
+        )
+
+        return when (specificTokens.size) {
+            0 -> BatchToken.Regular
+            1 -> specificTokens.single()
+            else -> BatchToken.Isolated
+        }
     }
 
     private fun computeAssertionsModeToken(moduleStructure: TestModuleStructure): BatchToken? {
         val assertionsMode = moduleStructure.allDirectives.singleOrZeroValue(TestDirectives.ASSERTIONS_MODE) ?: return null
         return assertionTokens.getValue(assertionsMode)
+    }
+
+    private fun computeFreeCompilerArgsToken(moduleStructure: TestModuleStructure): FreeCompilerArgsToken? {
+        val freeArgs = moduleStructure.allDirectives[FREE_COMPILER_ARGS].takeIf { it.isNotEmpty() } ?: return null
+        return FreeCompilerArgsToken(freeArgs.toSet())
     }
 
     private val packageKotlinInternalRegex = Regex("package\\s${StandardNames.KOTLIN_INTERNAL_FQ_NAME}")
@@ -48,4 +64,6 @@ class NativeGroupingTestIsolator(testServices: TestServices) : GroupingTestIsola
     private fun TestModuleStructure.sourceContains(regex: Regex): Boolean {
         return sourceContainsCache.getOrPut(this to regex) { modules.any { it.files.any { it.originalContent.contains(regex) } } }
     }
+
+    private data class FreeCompilerArgsToken(val freeArgs: Set<String>) : BatchToken()
 }
