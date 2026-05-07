@@ -43,6 +43,7 @@ fun IrValidatorConfig.withBasicChecks() = withCheckers(
     IrSetValueAssignabilityChecker,
     IrTypeOperatorTypeOperandChecker,
     IrPrivateDeclarationOverrideChecker,
+    IrPropertyCompanionExtensionChecker,
 )
 
 fun IrValidatorConfig.withTypeChecks() = withCheckers(
