@@ -44,9 +44,10 @@ private val UPDATE_SOURCE_CODE: Boolean
  *  - It is annotated with one of `@KaImplementationDetail`, `@KaExperimentalApi`, `@KaPlatformInterface`, `@KaNonPublicApi`, `@KaIdeApi`,
  *    or `@LLFirInternals`.
  *  - It is an `annotation class` carrying `@RequiresOptIn` (these must remain public so callers can `@OptIn(...)`).
- *  - An enclosing classifier has `internal` or `private` visibility (the language already prevents external reach). An enclosing
- *    classifier carrying only an annotation marker does **not** cover its nested classifiers — each nested classifier must still be
- *    marked individually, since an opt-in user who acknowledges the parent annotation gains access to the nested types as well.
+ *  - An enclosing classifier has `internal` or `private` visibility (the language already prevents external reach).
+ *  - When an enclosing classifier carries one or more marker annotations, every nested classifier must carry the **same** markers
+ *    (additionally; nested classifiers may carry more). The Kotlin compiler propagates opt-in requirements lexically, but the binary
+ *    compatibility checker does not — so each nesting level must repeat the marker for the API dump to remain honest.
  *
  * Scope:
  *
@@ -96,31 +97,54 @@ abstract class AbstractAnalysisApiInternalApiTest : AbstractAnalysisApiCodebaseV
     private fun collectViolations(file: KtFile): List<CodebaseDeclarationAnnotation> {
         val violations = mutableListOf<CodebaseDeclarationAnnotation>()
         for (declaration in file.declarations) {
-            collectViolations(declaration, violations)
+            collectViolations(declaration, requiredMarkers = emptySet(), violations)
         }
         return violations
     }
 
-    private fun collectViolations(declaration: KtDeclaration, result: MutableList<CodebaseDeclarationAnnotation>) {
-        if (isViolation(declaration)) {
-            result += CodebaseDeclarationAnnotation(declaration, suggestedAnnotation(declaration))
+    private fun collectViolations(
+        declaration: KtDeclaration,
+        requiredMarkers: Set<String>,
+        result: MutableList<CodebaseDeclarationAnnotation>,
+    ) {
+        val ownMarkers = INTERNAL_API_MARKER_ANNOTATIONS.filterTo(linkedSetOf()) { declaration.hasAnnotation(it) }
+
+        if (isViolationCandidate(declaration)) {
+            // Iterate `INTERNAL_API_MARKER_ANNOTATIONS` so that suggested markers always land in a stable, canonical order regardless of
+            // how `requiredMarkers` was constructed by the recursion.
+            val missingRequiredMarkers = INTERNAL_API_MARKER_ANNOTATIONS.filterTo(linkedSetOf()) {
+                it in requiredMarkers && it !in ownMarkers
+            }
+            when {
+                // The declaration is missing one or more markers that its enclosing classifier(s) require it to repeat. This case takes
+                // precedence over `suggestedAnnotation` so the inherited markers always appear, even if the declaration already carries an
+                // unrelated marker.
+                missingRequiredMarkers.isNotEmpty() -> {
+                    missingRequiredMarkers.forEach { result += CodebaseDeclarationAnnotation(declaration, "@$it") }
+                }
+
+                // No required markers (e.g. a top-level declaration), and the declaration carries no marker at all.
+                ownMarkers.isEmpty() -> {
+                    result += CodebaseDeclarationAnnotation(declaration, suggestedAnnotation(declaration))
+                }
+            }
         }
 
         // Recurse into nested classifiers regardless of an annotation marker on the parent. The recursion stops only when the parent's
         // visibility (internal/private) already removes it from the public API surface. `protected` does not stop the recursion: a
         // protected nested classifier remains reachable from inheritors in another module.
         if (declaration is KtClassOrObject && declaration.isExternallyVisible) {
+            val nestedRequiredMarkers = requiredMarkers + ownMarkers
             for (nested in declaration.declarations.filterIsInstance<KtClassOrObject>()) {
-                collectViolations(nested, result)
+                collectViolations(nested, nestedRequiredMarkers, result)
             }
         }
     }
 
-    private fun isViolation(declaration: KtDeclaration): Boolean =
+    private fun isViolationCandidate(declaration: KtDeclaration): Boolean =
         when {
             !declaration.isInScope() -> false
             !declaration.isExternallyVisible -> false
-            INTERNAL_API_MARKER_ANNOTATIONS.any { declaration.hasAnnotation(it) } -> false
             declaration is KtClass && declaration.isAnnotation() && declaration.hasAnnotation(REQUIRES_OPT_IN) -> false
             isExempt(declaration) -> false
             else -> true
