@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.analysis.api.impl.base.codebaseTest
 import org.jetbrains.kotlin.AbstractAnalysisApiInternalApiTest
 import org.jetbrains.kotlin.AnalysisApiNonPublicMarkers.KA_IMPLEMENTATION_DETAIL_ANNOTATION
 import org.jetbrains.kotlin.psi.KtDeclaration
+import org.junit.jupiter.api.Test
 
 /**
  * Verifies that every public declaration in `analysis/analysis-api-impl-base/src` is marked. Suggests `@KaImplementationDetail` for
@@ -16,7 +17,7 @@ import org.jetbrains.kotlin.psi.KtDeclaration
  * See [AbstractAnalysisApiInternalApiTest] for the precise rules and rationale.
  */
 class AnalysisApiBaseInternalApiTest : AbstractAnalysisApiInternalApiTest() {
-    // We avoid the `@Test` annotation as it would make the test run twice with different JUnit runners.
+    @Test
     fun testInternalApiMarking() = doTest()
 
     override val sourceDirectories: List<SourceDirectory.ForValidation> =

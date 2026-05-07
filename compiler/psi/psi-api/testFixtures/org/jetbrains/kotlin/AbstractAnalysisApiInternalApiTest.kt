@@ -21,6 +21,7 @@ import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
 import org.jetbrains.kotlin.psi.psiUtil.isPublic
 import org.jetbrains.kotlin.test.TestDataAssertions
 import java.io.File
+import kotlin.test.fail
 
 /**
  * When set to `true`, [AbstractAnalysisApiInternalApiTest] writes the suggested fix to the violating source file instead of asserting via

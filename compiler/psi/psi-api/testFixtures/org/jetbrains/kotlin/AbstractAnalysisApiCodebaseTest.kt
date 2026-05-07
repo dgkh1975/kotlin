@@ -22,7 +22,6 @@ import org.jetbrains.kotlin.psi.psiUtil.endOffset
 import org.jetbrains.kotlin.psi.psiUtil.nextLeaf
 import org.jetbrains.kotlin.psi.psiUtil.startOffset
 import org.jetbrains.kotlin.test.TestDataAssertions
-import org.jetbrains.kotlin.test.testFramework.KtUsefulTestCase
 import org.jetbrains.kotlin.test.util.KtTestUtil
 import java.io.File
 
@@ -33,11 +32,11 @@ import java.io.File
  *
  * See [AbstractAnalysisApiCodebaseDumpFileComparisonTest] and [AbstractAnalysisApiCodebaseValidationTest]
  */
-abstract class AbstractAnalysisApiCodebaseTest<T : SourceDirectory> : KtUsefulTestCase() {
+abstract class AbstractAnalysisApiCodebaseTest<T : SourceDirectory> : TestWithDisposable() {
     protected fun doTest() {
         val environment = createProjectEnvironment(
             CompilerConfiguration.create(),
-            testRootDisposable,
+            disposable,
             EnvironmentConfigFiles.JVM_CONFIG_FILES,
         )
         val psiManager = PsiManager.getInstance(environment.project)
