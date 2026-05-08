@@ -11,7 +11,7 @@ import org.jetbrains.kotlin.test.services.TestServices
 
 
 /**
- * Makes `box()` function to be exported during CLI invocation of the previous compiler, so it can be invoked by the test runner.
+ * Marks the `box()` function as exported during CLI invocation of the previous compiler, so it can be invoked by the test runner.
  */
 class JsExportBoxPreprocessor(testServices: TestServices) : SourceFilePreprocessor(testServices) {
     private val topLevelBoxRegex = Regex("(^|\n|public\\s+)fun box\\(\\)")
