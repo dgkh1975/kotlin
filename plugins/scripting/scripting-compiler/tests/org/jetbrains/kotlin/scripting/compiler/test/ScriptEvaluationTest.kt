@@ -78,7 +78,7 @@ class ScriptEvaluationTest {
                 }
 
                 User.property
-            """.trimIndent().toScriptSource()
+            """.trimIndent().toScriptSource("script.kts")
         )
         assertTrue(res is ResultWithDiagnostics.Failure)
         if (!res.reports.any { it.message == "Object User captures the script class instance. Try to use class or anonymous object instead" }) {

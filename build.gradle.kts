@@ -959,7 +959,6 @@ tasks {
     }
 
     testLifecycleTask("scriptingJvmTest") {
-        dependsOn("dist")
         dependsOn(":kotlin-scripting-compiler:test")
         dependsOn(":kotlin-scripting-common:test")
         dependsOn(":kotlin-scripting-jvm:test")
