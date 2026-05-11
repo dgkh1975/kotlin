@@ -35,7 +35,7 @@ import org.jetbrains.kotlin.test.services.configuration.NativeFirstStageEnvironm
 import org.jetbrains.kotlin.test.services.configuration.NativeSecondStageEnvironmentConfigurator
 import org.jetbrains.kotlin.utils.bind
 
-abstract class AbstractNativeCodegenBoxCoreTest : AbstractTwoPhaseNativeCoreTest() {
+abstract class AbstractNativeCodegenBoxCoreTest : AbstractTwoStageNativeCoreTest() {
     override fun configure(builder: TwoStageTestConfigurationBuilder): Unit = with(builder) {
         super.configure(builder)
         commonConfiguration {

@@ -38,7 +38,7 @@ abstract class AbstractNativeCoreTest : AbstractKotlinCompilerWithTargetBackendT
     }
 }
 
-abstract class AbstractTwoPhaseNativeCoreTest : AbstractTwoStageKotlinCompilerTest() {
+abstract class AbstractTwoStageNativeCoreTest : AbstractTwoStageKotlinCompilerTest() {
     private lateinit var extensionContext: ExtensionContext
 
     @RegisterExtension
