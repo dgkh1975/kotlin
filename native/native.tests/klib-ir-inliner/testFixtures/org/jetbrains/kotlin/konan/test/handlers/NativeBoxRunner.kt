@@ -59,7 +59,7 @@ class NativeBoxRunner(testServices: TestServices) : NativeBinaryArtifactHandler(
     }
 }
 
-class NativeBoxRunnerGroupingPhase(testServices: TestServices) : GroupingPhaseHandler<BinaryArtifacts.Native>(
+class NativeBoxRunnerGroupingStage(testServices: TestServices) : GroupingStageHandler<BinaryArtifacts.Native>(
     testServices,
     failureDisablesNextSteps = false,
     doNotRunIfThereWerePreviousFailures = false

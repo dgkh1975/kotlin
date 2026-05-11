@@ -144,7 +144,7 @@ sealed class TestStep<InputArtifact, OutputArtifact>
 
         class HandlersStep<InputArtifact : ResultingArtifact<InputArtifact>>(
             override val inputArtifactKind: TestArtifactKind<InputArtifact>,
-            override val handlers: List<GroupingPhaseHandler<InputArtifact>>
+            override val handlers: List<GroupingStageHandler<InputArtifact>>
         ) : GroupingStageStep<InputArtifact, Nothing>(), TestStep.HandlersStep<InputArtifact> {
             init {
                 for (handler in handlers) {

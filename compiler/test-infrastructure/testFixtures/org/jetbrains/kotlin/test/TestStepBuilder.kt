@@ -118,12 +118,12 @@ sealed class TestStepBuilder<InputArtifact, OutputArtifact, out FacadeStep>
         ) : HandlersStepBuilder<
                 InputArtifact,
                 InputArtifactKind,
-                GroupingPhaseHandler<InputArtifact>,
+                GroupingStageHandler<InputArtifact>,
                 TestStep.GroupingStageStep.HandlersStep<InputArtifact>>
             (artifactKind, compilationStage)
                 where InputArtifact : ResultingArtifact<InputArtifact>,
                       InputArtifactKind : TestArtifactKind<InputArtifact> {
-            override fun createStep(handlers: List<GroupingPhaseHandler<InputArtifact>>): TestStep.GroupingStageStep.HandlersStep<InputArtifact> {
+            override fun createStep(handlers: List<GroupingStageHandler<InputArtifact>>): TestStep.GroupingStageStep.HandlersStep<InputArtifact> {
                 return TestStep.GroupingStageStep.HandlersStep(artifactKind, handlers)
             }
         }
