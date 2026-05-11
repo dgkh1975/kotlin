@@ -117,7 +117,7 @@ sealed class TestStep<InputArtifact, OutputArtifact>
         abstract fun process(inputArtifact: InputArtifact, thereWereExceptionsOnPreviousSteps: Boolean): StepResult<out OutputArtifact>
 
         class FacadeStep<InputArtifact, OutputArtifact>(
-            override val facade: AbstractGroupingPhaseTestFacade<InputArtifact, OutputArtifact>,
+            override val facade: AbstractGroupingStageTestFacade<InputArtifact, OutputArtifact>,
         ) : GroupingStageStep<InputArtifact, OutputArtifact>(), TestStep.FacadeStep<InputArtifact, OutputArtifact>
                 where InputArtifact : ResultingArtifact<InputArtifact>,
                       OutputArtifact : ResultingArtifact<OutputArtifact> {

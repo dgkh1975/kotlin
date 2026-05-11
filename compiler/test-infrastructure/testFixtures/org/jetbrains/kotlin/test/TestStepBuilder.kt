@@ -43,11 +43,11 @@ sealed class TestStepBuilder<InputArtifact, OutputArtifact, out FacadeStep>
         }
 
         class GroupingStage<InputArtifact, OutputArtifact>(
-            facade: Constructor<AbstractGroupingPhaseTestFacade<InputArtifact, OutputArtifact>>,
+            facade: Constructor<AbstractGroupingStageTestFacade<InputArtifact, OutputArtifact>>,
         ) : FacadeStepBuilder<
                 InputArtifact,
                 OutputArtifact,
-                AbstractGroupingPhaseTestFacade<InputArtifact, OutputArtifact>,
+                AbstractGroupingStageTestFacade<InputArtifact, OutputArtifact>,
                 TestStep.GroupingStageStep.FacadeStep<InputArtifact, OutputArtifact>
                 >(facade) where InputArtifact : ResultingArtifact<InputArtifact>,
                                 OutputArtifact : ResultingArtifact<OutputArtifact> {

@@ -354,7 +354,7 @@ class GroupingPhaseTestConfigurationBuilder :
     val mergerWorkers: MutableList<Constructor<GroupingPhaseInputsMerger.Worker>> = mutableListOf()
 
     fun <I : ResultingArtifact<I>, O : ResultingArtifact<O>> facadeStep(
-        facade: Constructor<AbstractGroupingPhaseTestFacade<I, O>>,
+        facade: Constructor<AbstractGroupingStageTestFacade<I, O>>,
     ): TestStepBuilder.FacadeStepBuilder.GroupingStage<I, O> {
         return TestStepBuilder.FacadeStepBuilder.GroupingStage(facade).also {
             steps.add(it)

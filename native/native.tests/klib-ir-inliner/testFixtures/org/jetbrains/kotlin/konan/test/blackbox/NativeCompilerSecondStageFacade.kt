@@ -98,7 +98,7 @@ class NativeCompilerSecondStageFacade private constructor(
     class Grouping(
         val testServices: TestServices,
         private val customNativeCompilerSettings: CustomNativeCompilerSettings
-    ) : AbstractGroupingPhaseTestFacade<GroupingPhaseInputArtifact, BinaryArtifacts.Native>() {
+    ) : AbstractGroupingStageTestFacade<GroupingPhaseInputArtifact, BinaryArtifacts.Native>() {
         override fun transform(inputArtifact: GroupingPhaseInputArtifact): BinaryArtifacts.Native {
             val servicesOfSomeModule = inputArtifact.nonGroupingPhaseOutputs.first().testServices
             val someModule = servicesOfSomeModule.moduleStructure.modules.last()
