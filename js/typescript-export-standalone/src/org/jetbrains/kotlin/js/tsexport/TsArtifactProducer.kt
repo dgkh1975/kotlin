@@ -76,6 +76,7 @@ internal object TsArtifactProducer : JsArtifactProducer<ProcessedModule, FileArt
                     append("/")
                 }
                 append(fileName)
+                append(".export")
             }
 
             override fun ProcessedModule.generateProxyArtifact(

@@ -47,7 +47,7 @@ internal class ExportModelGenerator(private val config: TypeScriptExportConfig) 
                 @OptIn(KaNonPublicApi::class)
                 val fileName = declaration.klibSourceFileName ?: continue
 
-                val key = FileArtifactKey(packageFqName, fileName)
+                val key = FileArtifactKey(packageFqName, fileName.removeSuffix(".kt"))
                 computeIfAbsent(key) { _ -> mutableListOf() }.addAll(exportTopLevelDeclaration(declaration))
             }
         }
