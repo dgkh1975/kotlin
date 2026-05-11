@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -24,13 +24,17 @@ abstract class CompilationOutputs {
 
     abstract val tsDefinitions: TypeScriptFragment?
 
+    /**
+     * The resulting JavaScript AST. This is not `null` only when running compiler tests, so that we could inspect it.
+     * In regular use, this is always `null` for memory optimization purposes.
+     */
     abstract val jsProgram: JsProgram?
 
     abstract fun writeJsCode(outputJsFile: File, outputJsMapFile: File)
 
     fun createWrittenFilesContainer(): MutableSet<File> = LinkedHashSet(2 * (dependencies.size + 1) + 1)
 
-    open fun writeAll(): Collection<File> {
+    fun writeAll(): Collection<File> {
         val writtenFiles = createWrittenFilesContainer()
 
         fun writeOutputFiles(out: CompilationOutputs) {
