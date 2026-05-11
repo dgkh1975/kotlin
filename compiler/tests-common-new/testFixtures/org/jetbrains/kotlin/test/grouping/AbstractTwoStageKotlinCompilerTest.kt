@@ -54,7 +54,7 @@ abstract class AbstractTwoStageKotlinCompilerTest : AbstractTwoStageKotlinCompil
     final override lateinit var nonGroupingRunner: NonGroupingTestRunner
         private set
 
-    final override var nonGroupingPhaseRunnerInitialized: Boolean = false
+    final override var nonGroupingStageRunnerInitialized: Boolean = false
         private set
 
     final override lateinit var groupingStageRunner: GroupingTestRunner
@@ -85,7 +85,7 @@ abstract class AbstractTwoStageKotlinCompilerTest : AbstractTwoStageKotlinCompil
     fun initTestRunners(@TestDataFile filePath: String) {
         val configurationBuilder = TwoStageTestConfigurationBuilder().apply(configurationBuilder)
         nonGroupingRunner = NonGroupingTestRunner(configurationBuilder.nonGroupingPhaseBuilder.build(filePath)).also {
-            nonGroupingPhaseRunnerInitialized = true
+            nonGroupingStageRunnerInitialized = true
         }
         groupingStageRunner = GroupingTestRunner(configurationBuilder.groupingPhaseBuilder.build(filePath)).also {
             secondStageRunnerInitialized = true
