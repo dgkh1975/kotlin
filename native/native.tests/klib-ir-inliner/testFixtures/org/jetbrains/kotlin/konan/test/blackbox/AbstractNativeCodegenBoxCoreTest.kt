@@ -19,7 +19,7 @@ import org.jetbrains.kotlin.konan.test.services.FileCheckTestSkipper
 import org.jetbrains.kotlin.konan.test.services.sourceProviders.NativeLauncherAdditionalSourceProvider
 import org.jetbrains.kotlin.konan.test.suppressors.NativeTestsSuppressor
 import org.jetbrains.kotlin.test.backend.handlers.NoIrCompilationErrorsHandler
-import org.jetbrains.kotlin.test.builders.TwoPhaseTestConfigurationBuilder
+import org.jetbrains.kotlin.test.builders.TwoStageTestConfigurationBuilder
 import org.jetbrains.kotlin.test.builders.configureIrHandlersStep
 import org.jetbrains.kotlin.test.builders.configureLoweredIrHandlersStep
 import org.jetbrains.kotlin.test.builders.klibArtifactsHandlersStep
@@ -36,7 +36,7 @@ import org.jetbrains.kotlin.test.services.configuration.NativeSecondStageEnviron
 import org.jetbrains.kotlin.utils.bind
 
 abstract class AbstractNativeCodegenBoxCoreTest : AbstractTwoPhaseNativeCoreTest() {
-    override fun configure(builder: TwoPhaseTestConfigurationBuilder): Unit = with(builder) {
+    override fun configure(builder: TwoStageTestConfigurationBuilder): Unit = with(builder) {
         super.configure(builder)
         commonConfiguration {
             defaultDirectives {

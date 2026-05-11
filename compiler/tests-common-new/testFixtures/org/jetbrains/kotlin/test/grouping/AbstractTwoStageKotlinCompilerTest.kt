@@ -10,7 +10,7 @@ import org.jetbrains.kotlin.test.ExecutionListenerBasedDisposableProvider
 import org.jetbrains.kotlin.test.GroupingTestRunner
 import org.jetbrains.kotlin.test.NonGroupingTestRunner
 import org.jetbrains.kotlin.test.backend.handlers.IrValidationErrorChecker
-import org.jetbrains.kotlin.test.builders.TwoPhaseTestConfigurationBuilder
+import org.jetbrains.kotlin.test.builders.TwoStageTestConfigurationBuilder
 import org.jetbrains.kotlin.test.directives.ModuleStructureDirectives
 import org.jetbrains.kotlin.test.model.ResultingArtifact
 import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerTest
@@ -24,7 +24,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.TestInfo
 
 abstract class AbstractTwoStageKotlinCompilerTest : AbstractTwoStageKotlinCompilerTestBase() {
-    val configurationBuilder: TwoPhaseTestConfigurationBuilder.() -> Unit = {
+    val configurationBuilder: TwoStageTestConfigurationBuilder.() -> Unit = {
         commonConfiguration {
             AbstractKotlinCompilerTest.defaultConfiguration(this)
             defaultDirectives {
@@ -80,10 +80,10 @@ abstract class AbstractTwoStageKotlinCompilerTest : AbstractTwoStageKotlinCompil
         this.testInfo = testInfo
     }
 
-    abstract fun configure(builder: TwoPhaseTestConfigurationBuilder)
+    abstract fun configure(builder: TwoStageTestConfigurationBuilder)
 
     fun initTestRunners(@TestDataFile filePath: String) {
-        val configurationBuilder = TwoPhaseTestConfigurationBuilder().apply(configurationBuilder)
+        val configurationBuilder = TwoStageTestConfigurationBuilder().apply(configurationBuilder)
         nonGroupingRunner = NonGroupingTestRunner(configurationBuilder.nonGroupingPhaseBuilder.build(filePath)).also {
             nonGroupingPhaseRunnerInitialized = true
         }
