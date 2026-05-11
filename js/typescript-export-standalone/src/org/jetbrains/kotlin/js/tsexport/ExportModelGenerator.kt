@@ -54,11 +54,17 @@ internal class ExportModelGenerator(private val config: TypeScriptExportConfig) 
 
         return ProcessedModule(
             library,
-            fileMap.mapValues { (key, exports) ->
-                when {
-                    exports.isEmpty() -> emptyList()
-                    !this.config.generateNamespacesForPackages || key.packageFqName.isRoot -> exports.compactIfPossible()
-                    else -> listOf(ExportedNamespace(key.packageFqName.asString(), exports.compactIfPossible()))
+            buildMap {
+                for ((key, exports) in fileMap) {
+                    when {
+                        exports.isEmpty() -> continue
+                        !this@ExportModelGenerator.config.generateNamespacesForPackages || key.packageFqName.isRoot -> {
+                            this[key] = exports.compactIfPossible()
+                        }
+                        else -> {
+                            this[key] = listOf(ExportedNamespace(key.packageFqName.asString(), exports.compactIfPossible()))
+                        }
+                    }
                 }
             },
             jsOutputName = config.outputName ?: library.libraryName.safeModuleName,
