@@ -15,6 +15,6 @@ abstract class AbstractTwoStageKotlinCompilerTestBase {
     abstract val nonGroupingRunner: NonGroupingTestRunner
     abstract val nonGroupingPhaseRunnerInitialized: Boolean
 
-    abstract val groupingPhaseRunner: GroupingTestRunner
-    abstract val secondPhaseRunnerInitialized: Boolean
+    abstract val groupingStageRunner: GroupingTestRunner
+    abstract val secondStageRunnerInitialized: Boolean
 }

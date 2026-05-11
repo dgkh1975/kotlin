@@ -57,10 +57,10 @@ abstract class AbstractTwoStageKotlinCompilerTest : AbstractTwoStageKotlinCompil
     final override var nonGroupingPhaseRunnerInitialized: Boolean = false
         private set
 
-    final override lateinit var groupingPhaseRunner: GroupingTestRunner
+    final override lateinit var groupingStageRunner: GroupingTestRunner
         private set
 
-    final override var secondPhaseRunnerInitialized: Boolean = false
+    final override var secondStageRunnerInitialized: Boolean = false
         private set
 
     open fun createApplicationDisposableProvider(): ApplicationDisposableProvider {
@@ -87,8 +87,8 @@ abstract class AbstractTwoStageKotlinCompilerTest : AbstractTwoStageKotlinCompil
         nonGroupingRunner = NonGroupingTestRunner(configurationBuilder.nonGroupingPhaseBuilder.build(filePath)).also {
             nonGroupingPhaseRunnerInitialized = true
         }
-        groupingPhaseRunner = GroupingTestRunner(configurationBuilder.groupingPhaseBuilder.build(filePath)).also {
-            secondPhaseRunnerInitialized = true
+        groupingStageRunner = GroupingTestRunner(configurationBuilder.groupingPhaseBuilder.build(filePath)).also {
+            secondStageRunnerInitialized = true
         }
     }
 

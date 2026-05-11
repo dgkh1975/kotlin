@@ -245,7 +245,7 @@ class CompilerTestGroupingTestEngine : TestEngine {
         executionListener.dynamicTestRegistered(testDescriptor)
         executionListener.executionStarted(testDescriptor)
         throwableCollector.execute {
-            val testRunner = someTestInstance.groupingPhaseRunner
+            val testRunner = someTestInstance.groupingStageRunner
             val nonGroupingStageOutputs = batch.map { methodInfo ->
                 NonGroupingStageOutput(
                     testServices = methodInfo.testInstance.nonGroupingRunner.testServices,
@@ -279,7 +279,7 @@ class CompilerTestGroupingTestEngine : TestEngine {
         val throwableCollector = testInfo.nonGroupingPhaseThrowableCollector
         val testInstance = testInfo.testInstance
         throwableCollector.execute {
-            val groupingRunner = testInstance.groupingPhaseRunner
+            val groupingRunner = testInstance.groupingStageRunner
             val nonGroupingRunner = testInstance.nonGroupingRunner
             val nonGroupingStageOutput = NonGroupingStageOutput(
                 testServices = testInstance.nonGroupingRunner.testServices,
