@@ -160,7 +160,7 @@ sealed class TestConfigurationImplBase<Step : TestStep<*, *>>(
 }
 
 @OptIn(TestInfrastructureInternals::class)
-class NonGroupingPhaseTestConfigurationImpl(
+class NonGroupingStageTestConfigurationImpl(
     testInfo: KotlinTestInfo,
     defaultsProvider: DefaultsProvider,
     assertions: AssertionsService,
@@ -188,14 +188,14 @@ class NonGroupingPhaseTestConfigurationImpl(
     additionalSourceProviders, preAnalysisHandlers, moduleStructureTransformers, metaTestConfigurators, afterAnalysisCheckers,
     failureSuppressors, compilerConfigurationProvider, runtimeClasspathProviders, metaInfoHandlerEnabled, directives,
     defaultRegisteredDirectives, additionalServices
-), NonGroupingPhaseTestConfiguration {
+), NonGroupingStageTestConfiguration {
     override val groupingTestIsolators: List<GroupingTestIsolator> = groupingTestIsolators.map { it.invoke(testServices) }.also {
         it.registerDirectivesAndServices()
     }
 }
 
 @OptIn(TestInfrastructureInternals::class)
-class GroupingPhaseTestConfigurationImpl(
+class GroupingStageTestConfigurationImpl(
     testInfo: KotlinTestInfo,
     defaultsProvider: DefaultsProvider,
     assertions: AssertionsService,
@@ -221,7 +221,7 @@ class GroupingPhaseTestConfigurationImpl(
     additionalSourceProviders, preAnalysisHandlers, moduleStructureTransformers, metaTestConfigurators, afterAnalysisCheckers,
     failureSuppressors, compilerConfigurationProvider, runtimeClasspathProviders, metaInfoHandlerEnabled, directives,
     defaultRegisteredDirectives, additionalServices,
-), GroupingPhaseTestConfiguration {
+), GroupingStageTestConfiguration {
     override val mergerWorkers: List<GroupingPhaseInputsMerger.Worker> = mergerWorkers.map { it.invoke(testServices) }
 }
 
@@ -231,7 +231,7 @@ val TestServices.testConfiguration: TestConfigurationImplBase<*> by TestServices
 
 @OptIn(TestInfrastructureInternals::class)
 fun TestServices.shouldIsolateTestInGroupingConfiguration(testModuleStructure: TestModuleStructure, fileGenerationPhase: Boolean): Boolean {
-    val groupingTestIsolators = (testConfiguration as NonGroupingPhaseTestConfiguration).groupingTestIsolators
+    val groupingTestIsolators = (testConfiguration as NonGroupingStageTestConfiguration).groupingTestIsolators
         .applyIf(fileGenerationPhase) { filter { it.affectsFileGenerators } }
     return groupingTestIsolators.any {
         it.computeBatchToken(testModuleStructure) == GroupingTestIsolator.BatchToken.Isolated

@@ -9,8 +9,8 @@ import com.intellij.openapi.Disposable
 import org.jetbrains.kotlin.test.*
 import org.jetbrains.kotlin.test.backend.handlers.UpdateTestDataHandler
 import org.jetbrains.kotlin.test.directives.model.DirectivesContainer
-import org.jetbrains.kotlin.test.impl.GroupingPhaseTestConfigurationImpl
-import org.jetbrains.kotlin.test.impl.NonGroupingPhaseTestConfigurationImpl
+import org.jetbrains.kotlin.test.impl.GroupingStageTestConfigurationImpl
+import org.jetbrains.kotlin.test.impl.NonGroupingStageTestConfigurationImpl
 import org.jetbrains.kotlin.test.model.*
 import org.jetbrains.kotlin.test.services.*
 import org.jetbrains.kotlin.util.PrivateForInline
@@ -204,7 +204,7 @@ sealed class OnePhaseTestConfigurationBuilderBase<Self, C> : TestConfigurationBu
 
 @OptIn(PrivateForInline::class)
 class NonGroupingPhaseTestConfigurationBuilder :
-    OnePhaseTestConfigurationBuilderBase<NonGroupingPhaseTestConfigurationBuilder, NonGroupingPhaseTestConfiguration>() {
+    OnePhaseTestConfigurationBuilderBase<NonGroupingPhaseTestConfigurationBuilder, NonGroupingStageTestConfiguration>() {
     lateinit var testInfo: KotlinTestInfo
     lateinit var startingArtifactFactory: (TestModule) -> ResultingArtifact<*>
     private val groupingTestIsolators: MutableList<Constructor<GroupingTestIsolator>> = mutableListOf()
@@ -281,7 +281,7 @@ class NonGroupingPhaseTestConfigurationBuilder :
     }
 
     @OptIn(TestInfrastructureInternals::class)
-    override fun build(testDataPath: String): NonGroupingPhaseTestConfiguration {
+    override fun build(testDataPath: String): NonGroupingStageTestConfiguration {
         applyConditionalConfigurations(testDataPath)
 
         // UpdateTestDataHandler should be _the very last_ handler at all times to avoid false-positive test data changes,
@@ -289,7 +289,7 @@ class NonGroupingPhaseTestConfigurationBuilder :
         useFailureSuppressors(::UpdateTestDataHandler)
 
         @Suppress("UNCHECKED_CAST")
-        return NonGroupingPhaseTestConfigurationImpl(
+        return NonGroupingStageTestConfigurationImpl(
             testInfo,
             defaultsProviderBuilder.build(),
             assertions,
@@ -349,7 +349,7 @@ typealias TestConfigurationBuilder = NonGroupingPhaseTestConfigurationBuilder
 
 @OptIn(PrivateForInline::class)
 class GroupingPhaseTestConfigurationBuilder :
-    OnePhaseTestConfigurationBuilderBase<GroupingPhaseTestConfigurationBuilder, GroupingPhaseTestConfiguration>() {
+    OnePhaseTestConfigurationBuilderBase<GroupingPhaseTestConfigurationBuilder, GroupingStageTestConfiguration>() {
     lateinit var testInfo: KotlinTestInfo
     val mergerWorkers: MutableList<Constructor<GroupingPhaseInputsMerger.Worker>> = mutableListOf()
 
@@ -421,7 +421,7 @@ class GroupingPhaseTestConfigurationBuilder :
     }
 
     @OptIn(TestInfrastructureInternals::class)
-    override fun build(testDataPath: String): GroupingPhaseTestConfiguration {
+    override fun build(testDataPath: String): GroupingStageTestConfiguration {
         applyConditionalConfigurations(testDataPath)
 
         // UpdateTestDataHandler should be _the very last_ handler at all times to avoid false-positive test data changes,
@@ -429,7 +429,7 @@ class GroupingPhaseTestConfigurationBuilder :
         useFailureSuppressors(::UpdateTestDataHandler)
 
         @Suppress("UNCHECKED_CAST")
-        return GroupingPhaseTestConfigurationImpl(
+        return GroupingStageTestConfigurationImpl(
             testInfo,
             defaultsProviderBuilder.build(),
             assertions,
@@ -477,6 +477,6 @@ class TwoStageTestConfigurationBuilder {
 inline fun testConfiguration(
     testDataPath: String,
     init: NonGroupingPhaseTestConfigurationBuilder.() -> Unit,
-): NonGroupingPhaseTestConfiguration {
+): NonGroupingStageTestConfiguration {
     return NonGroupingPhaseTestConfigurationBuilder().apply(init).build(testDataPath)
 }

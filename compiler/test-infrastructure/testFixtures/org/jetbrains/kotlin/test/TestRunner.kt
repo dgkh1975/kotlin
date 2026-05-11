@@ -9,7 +9,6 @@ import com.intellij.testFramework.TestDataFile
 import org.jetbrains.kotlin.cli.common.disposeRootInWriteAction
 import org.jetbrains.kotlin.test.directives.model.RegisteredDirectives
 import org.jetbrains.kotlin.test.directives.model.RegisteredDirectivesImpl
-import org.jetbrains.kotlin.test.model.AfterAnalysisChecker
 import org.jetbrains.kotlin.test.model.AnalysisHandler
 import org.jetbrains.kotlin.test.model.ResultingArtifact
 import org.jetbrains.kotlin.test.model.TestModule
@@ -162,8 +161,8 @@ sealed class TestRunner<Step : TestStep<*, *>, Configuration : TestConfiguration
 }
 
 class NonGroupingTestRunner(
-    testConfiguration: NonGroupingPhaseTestConfiguration
-) : TestRunner<TestStep.NonGroupingStep<*, *>, NonGroupingPhaseTestConfiguration>(testConfiguration) {
+    testConfiguration: NonGroupingStageTestConfiguration
+) : TestRunner<TestStep.NonGroupingStep<*, *>, NonGroupingStageTestConfiguration>(testConfiguration) {
     companion object {
         fun AnalysisHandler<*>.shouldRun(thereWasAnException: Boolean): Boolean {
             return !(doNotRunIfThereWerePreviousFailures && thereWasAnException)
@@ -172,7 +171,7 @@ class NonGroupingTestRunner(
 
     private val allRanHandlers = mutableSetOf<AnalysisHandler<*>>()
 
-    fun runTest(@TestDataFile testDataFileName: String, beforeDispose: (NonGroupingPhaseTestConfiguration) -> Unit = {}) {
+    fun runTest(@TestDataFile testDataFileName: String, beforeDispose: (NonGroupingStageTestConfiguration) -> Unit = {}) {
         try {
             prepareModuleStructure(testDataFileName) ?: return
             runTestPipeline()
@@ -298,8 +297,8 @@ class NonGroupingTestRunner(
 }
 
 class GroupingTestRunner(
-    testConfiguration: GroupingPhaseTestConfiguration
-) : TestRunner<TestStep.GroupingPhaseStep<*, *>, GroupingPhaseTestConfiguration>(testConfiguration) {
+    testConfiguration: GroupingStageTestConfiguration
+) : TestRunner<TestStep.GroupingPhaseStep<*, *>, GroupingStageTestConfiguration>(testConfiguration) {
     init {
         testServices.register(TestModuleStructure::class, EmptyModuleStructure)
     }
