@@ -27,7 +27,7 @@ sealed class TestStepBuilder<InputArtifact, OutputArtifact, out FacadeStep>
         @TestInfrastructureInternals
         abstract override fun createTestStep(testServices: TestServices): FacadeStep
 
-        class NonGroupingPhase<InputArtifact, OutputArtifact>(
+        class NonGroupingStage<InputArtifact, OutputArtifact>(
             facade: Constructor<AbstractTestFacade<InputArtifact, OutputArtifact>>,
         ) : FacadeStepBuilder<
                 InputArtifact,
@@ -42,7 +42,7 @@ sealed class TestStepBuilder<InputArtifact, OutputArtifact, out FacadeStep>
             }
         }
 
-        class GroupingPhase<InputArtifact, OutputArtifact>(
+        class GroupingStage<InputArtifact, OutputArtifact>(
             facade: Constructor<AbstractGroupingPhaseTestFacade<InputArtifact, OutputArtifact>>,
         ) : FacadeStepBuilder<
                 InputArtifact,
@@ -96,7 +96,7 @@ sealed class TestStepBuilder<InputArtifact, OutputArtifact, out FacadeStep>
 
         protected abstract fun createStep(handlers: List<Handler>): HandlersStep
 
-        class NonGroupingPhase<InputArtifact, InputArtifactKind>(
+        class NonGroupingStage<InputArtifact, InputArtifactKind>(
             artifactKind: InputArtifactKind,
             compilationStage: CompilationStage,
         ) : HandlersStepBuilder<
@@ -112,7 +112,7 @@ sealed class TestStepBuilder<InputArtifact, OutputArtifact, out FacadeStep>
             }
         }
 
-        class GroupingPhase<InputArtifact, InputArtifactKind>(
+        class GroupingStage<InputArtifact, InputArtifactKind>(
             artifactKind: InputArtifactKind,
             compilationStage: CompilationStage,
         ) : HandlersStepBuilder<

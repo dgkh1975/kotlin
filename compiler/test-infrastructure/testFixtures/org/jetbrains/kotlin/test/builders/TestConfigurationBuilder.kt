@@ -215,8 +215,8 @@ class NonGroupingPhaseTestConfigurationBuilder :
 
     fun <I : ResultingArtifact<I>, O : ResultingArtifact<O>> facadeStep(
         facade: Constructor<AbstractTestFacade<I, O>>,
-    ): TestStepBuilder.FacadeStepBuilder.NonGroupingPhase<I, O> {
-        return TestStepBuilder.FacadeStepBuilder.NonGroupingPhase(facade).also {
+    ): TestStepBuilder.FacadeStepBuilder.NonGroupingStage<I, O> {
+        return TestStepBuilder.FacadeStepBuilder.NonGroupingStage(facade).also {
             steps.add(it)
         }
     }
@@ -224,11 +224,11 @@ class NonGroupingPhaseTestConfigurationBuilder :
     inline fun <InputArtifact, InputArtifactKind> handlersStep(
         artifactKind: InputArtifactKind,
         compilationStage: CompilationStage,
-        init: TestStepBuilder.HandlersStepBuilder.NonGroupingPhase<InputArtifact, InputArtifactKind>.() -> Unit,
-    ): TestStepBuilder.HandlersStepBuilder.NonGroupingPhase<InputArtifact, InputArtifactKind>
+        init: TestStepBuilder.HandlersStepBuilder.NonGroupingStage<InputArtifact, InputArtifactKind>.() -> Unit,
+    ): TestStepBuilder.HandlersStepBuilder.NonGroupingStage<InputArtifact, InputArtifactKind>
             where InputArtifact : ResultingArtifact<InputArtifact>,
                   InputArtifactKind : TestArtifactKind<InputArtifact> {
-        return TestStepBuilder.HandlersStepBuilder.NonGroupingPhase(artifactKind, compilationStage).also {
+        return TestStepBuilder.HandlersStepBuilder.NonGroupingStage(artifactKind, compilationStage).also {
             it.init()
             steps += it
         }
@@ -238,8 +238,8 @@ class NonGroupingPhaseTestConfigurationBuilder :
         name: String,
         artifactKind: InputArtifactKind,
         compilationStage: CompilationStage,
-        init: TestStepBuilder.HandlersStepBuilder.NonGroupingPhase<InputArtifact, InputArtifactKind>.() -> Unit,
-    ): TestStepBuilder.HandlersStepBuilder.NonGroupingPhase<InputArtifact, InputArtifactKind>
+        init: TestStepBuilder.HandlersStepBuilder.NonGroupingStage<InputArtifact, InputArtifactKind>.() -> Unit,
+    ): TestStepBuilder.HandlersStepBuilder.NonGroupingStage<InputArtifact, InputArtifactKind>
             where InputArtifact : ResultingArtifact<InputArtifact>,
                   InputArtifactKind : TestArtifactKind<InputArtifact> {
         val previouslyContainedStep = namedStepOfType<InputArtifact, InputArtifactKind>(name)
@@ -257,7 +257,7 @@ class NonGroupingPhaseTestConfigurationBuilder :
         name: String,
         artifactKind: InputArtifactKind,
         skipMissingStep: Boolean = false,
-        init: TestStepBuilder.HandlersStepBuilder.NonGroupingPhase<InputArtifact, InputArtifactKind>.() -> Unit,
+        init: TestStepBuilder.HandlersStepBuilder.NonGroupingStage<InputArtifact, InputArtifactKind>.() -> Unit,
     ) where InputArtifact : ResultingArtifact<InputArtifact>,
             InputArtifactKind : TestArtifactKind<InputArtifact> {
         val step = namedStepOfType<InputArtifact, InputArtifactKind>(name)
@@ -269,11 +269,11 @@ class NonGroupingPhaseTestConfigurationBuilder :
         step.apply(init)
     }
 
-    fun <InputArtifact, InputArtifactKind> namedStepOfType(name: String): TestStepBuilder.HandlersStepBuilder.NonGroupingPhase<InputArtifact, InputArtifactKind>?
+    fun <InputArtifact, InputArtifactKind> namedStepOfType(name: String): TestStepBuilder.HandlersStepBuilder.NonGroupingStage<InputArtifact, InputArtifactKind>?
             where InputArtifact : ResultingArtifact<InputArtifact>,
                   InputArtifactKind : TestArtifactKind<InputArtifact> {
         @Suppress("UNCHECKED_CAST")
-        return namedSteps[name] as TestStepBuilder.HandlersStepBuilder.NonGroupingPhase<InputArtifact, InputArtifactKind>?
+        return namedSteps[name] as TestStepBuilder.HandlersStepBuilder.NonGroupingStage<InputArtifact, InputArtifactKind>?
     }
 
     fun enableMetaInfoHandler() {
@@ -355,8 +355,8 @@ class GroupingPhaseTestConfigurationBuilder :
 
     fun <I : ResultingArtifact<I>, O : ResultingArtifact<O>> facadeStep(
         facade: Constructor<AbstractGroupingPhaseTestFacade<I, O>>,
-    ): TestStepBuilder.FacadeStepBuilder.GroupingPhase<I, O> {
-        return TestStepBuilder.FacadeStepBuilder.GroupingPhase(facade).also {
+    ): TestStepBuilder.FacadeStepBuilder.GroupingStage<I, O> {
+        return TestStepBuilder.FacadeStepBuilder.GroupingStage(facade).also {
             steps.add(it)
         }
     }
@@ -364,11 +364,11 @@ class GroupingPhaseTestConfigurationBuilder :
     inline fun <InputArtifact, InputArtifactKind> handlersStep(
         artifactKind: InputArtifactKind,
         compilationStage: CompilationStage,
-        init: TestStepBuilder.HandlersStepBuilder.GroupingPhase<InputArtifact, InputArtifactKind>.() -> Unit,
-    ): TestStepBuilder.HandlersStepBuilder.GroupingPhase<InputArtifact, InputArtifactKind>
+        init: TestStepBuilder.HandlersStepBuilder.GroupingStage<InputArtifact, InputArtifactKind>.() -> Unit,
+    ): TestStepBuilder.HandlersStepBuilder.GroupingStage<InputArtifact, InputArtifactKind>
             where InputArtifact : ResultingArtifact<InputArtifact>,
                   InputArtifactKind : TestArtifactKind<InputArtifact> {
-        return TestStepBuilder.HandlersStepBuilder.GroupingPhase(artifactKind, compilationStage).also {
+        return TestStepBuilder.HandlersStepBuilder.GroupingStage(artifactKind, compilationStage).also {
             it.init()
             steps += it
         }
@@ -378,8 +378,8 @@ class GroupingPhaseTestConfigurationBuilder :
         name: String,
         artifactKind: InputArtifactKind,
         compilationStage: CompilationStage,
-        init: TestStepBuilder.HandlersStepBuilder.GroupingPhase<InputArtifact, InputArtifactKind>.() -> Unit,
-    ): TestStepBuilder.HandlersStepBuilder.GroupingPhase<InputArtifact, InputArtifactKind>
+        init: TestStepBuilder.HandlersStepBuilder.GroupingStage<InputArtifact, InputArtifactKind>.() -> Unit,
+    ): TestStepBuilder.HandlersStepBuilder.GroupingStage<InputArtifact, InputArtifactKind>
             where InputArtifact : ResultingArtifact<InputArtifact>,
                   InputArtifactKind : TestArtifactKind<InputArtifact> {
         val previouslyContainedStep = namedStepOfType<InputArtifact, InputArtifactKind>(name)
@@ -397,7 +397,7 @@ class GroupingPhaseTestConfigurationBuilder :
         name: String,
         artifactKind: InputArtifactKind,
         skipMissingStep: Boolean = false,
-        init: TestStepBuilder.HandlersStepBuilder.GroupingPhase<InputArtifact, InputArtifactKind>.() -> Unit,
+        init: TestStepBuilder.HandlersStepBuilder.GroupingStage<InputArtifact, InputArtifactKind>.() -> Unit,
     ) where InputArtifact : ResultingArtifact<InputArtifact>,
             InputArtifactKind : TestArtifactKind<InputArtifact> {
         val step = namedStepOfType<InputArtifact, InputArtifactKind>(name)
@@ -409,11 +409,11 @@ class GroupingPhaseTestConfigurationBuilder :
         step.apply(init)
     }
 
-    fun <InputArtifact, InputArtifactKind> namedStepOfType(name: String): TestStepBuilder.HandlersStepBuilder.GroupingPhase<InputArtifact, InputArtifactKind>?
+    fun <InputArtifact, InputArtifactKind> namedStepOfType(name: String): TestStepBuilder.HandlersStepBuilder.GroupingStage<InputArtifact, InputArtifactKind>?
             where InputArtifact : ResultingArtifact<InputArtifact>,
                   InputArtifactKind : TestArtifactKind<InputArtifact> {
         @Suppress("UNCHECKED_CAST")
-        return namedSteps[name] as TestStepBuilder.HandlersStepBuilder.GroupingPhase<InputArtifact, InputArtifactKind>?
+        return namedSteps[name] as TestStepBuilder.HandlersStepBuilder.GroupingStage<InputArtifact, InputArtifactKind>?
     }
 
     fun withMergerWorker(worker: Constructor<GroupingPhaseInputsMerger.Worker>) {
