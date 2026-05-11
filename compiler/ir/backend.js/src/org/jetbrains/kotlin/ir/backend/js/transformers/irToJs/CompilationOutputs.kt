@@ -8,7 +8,6 @@ package org.jetbrains.kotlin.ir.backend.js.transformers.irToJs
 import org.jetbrains.kotlin.ir.backend.js.tsexport.TypeScriptFragment
 import org.jetbrains.kotlin.ir.backend.js.tsexport.toTypeScript
 import org.jetbrains.kotlin.js.backend.ast.JsProgram
-import org.jetbrains.kotlin.js.config.ModuleKind
 import org.jetbrains.kotlin.js.config.TsCompilationStrategy
 import org.jetbrains.kotlin.js.config.WebArtifactConfiguration
 import java.io.File
@@ -63,7 +62,8 @@ abstract class CompilationOutputs {
 
         if (artifactConfiguration.tsCompilationStrategy == TsCompilationStrategy.MERGED) {
             val dtsFile = artifactConfiguration.outputDtsFile().normalizedAbsoluteFile
-            dtsFile.writeText(getFullTsDefinition(artifactConfiguration.moduleName, artifactConfiguration.moduleKind))
+            val allTsDefinitions = dependencies.mapNotNull { it.tsDefinitions } + listOfNotNull(tsDefinitions)
+            dtsFile.writeText(allTsDefinitions.toTypeScript(artifactConfiguration.moduleName, artifactConfiguration.moduleKind))
             writtenFiles += dtsFile
         }
 
@@ -76,11 +76,6 @@ abstract class CompilationOutputs {
             .map { it.toFile().normalizedAbsoluteFile }
             .filter { it != outputDir && it !in writtenFiles }
             .forEach(File::delete)
-    }
-
-    fun getFullTsDefinition(moduleName: String, moduleKind: ModuleKind): String {
-        val allTsDefinitions = dependencies.mapNotNull { it.tsDefinitions } + listOfNotNull(tsDefinitions)
-        return allTsDefinitions.toTypeScript(moduleName, moduleKind)
     }
 
     protected val File.normalizedAbsoluteFile
