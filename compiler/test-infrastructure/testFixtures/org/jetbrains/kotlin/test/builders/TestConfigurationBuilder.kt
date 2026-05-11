@@ -351,7 +351,7 @@ typealias TestConfigurationBuilder = NonGroupingPhaseTestConfigurationBuilder
 class GroupingPhaseTestConfigurationBuilder :
     OnePhaseTestConfigurationBuilderBase<GroupingPhaseTestConfigurationBuilder, GroupingStageTestConfiguration>() {
     lateinit var testInfo: KotlinTestInfo
-    val mergerWorkers: MutableList<Constructor<GroupingPhaseInputsMerger.Worker>> = mutableListOf()
+    val mergerWorkers: MutableList<Constructor<GroupingStageInputsMerger.Worker>> = mutableListOf()
 
     fun <I : ResultingArtifact<I>, O : ResultingArtifact<O>> facadeStep(
         facade: Constructor<AbstractGroupingStageTestFacade<I, O>>,
@@ -416,7 +416,7 @@ class GroupingPhaseTestConfigurationBuilder :
         return namedSteps[name] as TestStepBuilder.HandlersStepBuilder.GroupingStage<InputArtifact, InputArtifactKind>?
     }
 
-    fun withMergerWorker(worker: Constructor<GroupingPhaseInputsMerger.Worker>) {
+    fun withMergerWorker(worker: Constructor<GroupingStageInputsMerger.Worker>) {
         mergerWorkers += worker
     }
 

@@ -303,11 +303,11 @@ class GroupingTestRunner(
         testServices.register(TestModuleStructure::class, EmptyModuleStructure)
     }
 
-    fun run(nonGroupingPhaseOutputs: List<NonGroupingPhaseOutput>) {
-        testServices.register(GroupingPhaseInputsHolder::class, GroupingPhaseInputsHolder(nonGroupingPhaseOutputs))
-        val merger = GroupingPhaseInputsMerger(testServices, testConfiguration.mergerWorkers)
+    fun run(nonGroupingStageOutputs: List<NonGroupingStageOutput>) {
+        testServices.register(GroupingStageInputsHolder::class, GroupingStageInputsHolder(nonGroupingStageOutputs))
+        val merger = GroupingStageInputsMerger(testServices, testConfiguration.mergerWorkers)
         runPipelineOnSingleUnit(
-            produceStartingArtifact = { merger.merge(nonGroupingPhaseOutputs) },
+            produceStartingArtifact = { merger.merge(nonGroupingStageOutputs) },
             shouldRunStep = { _, _ -> true },
             runStep = { step, input, thereWereCriticalExceptionsOnPreviousSteps ->
                 step.hackyProcess(input, thereWereCriticalExceptionsOnPreviousSteps)
@@ -331,8 +331,8 @@ class GroupingTestRunner(
         thereWereExceptionsOnPreviousSteps: Boolean,
     ): TestStep.StepResult<*> {
         @Suppress("UNCHECKED_CAST")
-        return (this as TestStep.GroupingStageStep<GroupingPhaseInputArtifact, *>)
-            .process(inputArtifact as ResultingArtifact<GroupingPhaseInputArtifact>, thereWereExceptionsOnPreviousSteps)
+        return (this as TestStep.GroupingStageStep<GroupingStageInputArtifact, *>)
+            .process(inputArtifact as ResultingArtifact<GroupingStageInputArtifact>, thereWereExceptionsOnPreviousSteps)
     }
 
     private fun <I : ResultingArtifact<I>> TestStep.GroupingStageStep<I, *>.process(

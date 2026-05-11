@@ -214,7 +214,7 @@ class GroupingStageTestConfigurationImpl(
     metaInfoHandlerEnabled: Boolean,
     directives: List<DirectivesContainer>,
     defaultRegisteredDirectives: RegisteredDirectives,
-    mergerWorkers: List<Constructor<GroupingPhaseInputsMerger.Worker>>,
+    mergerWorkers: List<Constructor<GroupingStageInputsMerger.Worker>>,
     additionalServices: List<ServiceRegistrationData>,
 ) : TestConfigurationImplBase<TestStep.GroupingStageStep<*, *>>(
     testInfo, defaultsProvider, assertions, steps, sourcePreprocessors, additionalMetaInfoProcessors, environmentConfigurators,
@@ -222,7 +222,7 @@ class GroupingStageTestConfigurationImpl(
     failureSuppressors, compilerConfigurationProvider, runtimeClasspathProviders, metaInfoHandlerEnabled, directives,
     defaultRegisteredDirectives, additionalServices,
 ), GroupingStageTestConfiguration {
-    override val mergerWorkers: List<GroupingPhaseInputsMerger.Worker> = mergerWorkers.map { it.invoke(testServices) }
+    override val mergerWorkers: List<GroupingStageInputsMerger.Worker> = mergerWorkers.map { it.invoke(testServices) }
 }
 
 

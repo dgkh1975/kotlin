@@ -43,7 +43,7 @@ interface NonGroupingStageTestConfiguration : TestConfiguration<TestStep.NonGrou
 }
 
 interface GroupingStageTestConfiguration : TestConfiguration<TestStep.GroupingStageStep<*, *>> {
-    val mergerWorkers: List<GroupingPhaseInputsMerger.Worker>
+    val mergerWorkers: List<GroupingStageInputsMerger.Worker>
 }
 
 // ---------------------------- Utils ----------------------------

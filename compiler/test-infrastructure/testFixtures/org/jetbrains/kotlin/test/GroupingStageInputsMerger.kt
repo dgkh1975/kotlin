@@ -16,35 +16,35 @@ import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.testInfo
 
 /**
- * Prepares the input artifact for the grouping phase by merging non-grouping phase outputs.
+ * Prepares the input artifact for the grouping stage by merging non-grouping stage outputs.
  *
  * The services in the WIP state and could be changed in the future
  */
-class GroupingPhaseInputsMerger(val testServices: TestServices, val workers: List<Worker>) {
-    fun merge(nonGroupingPhaseOutputs: List<NonGroupingPhaseOutput>): GroupingPhaseInputArtifact {
-        val secondPhaseConfiguration = CompilerConfiguration.create(messageCollector = MessageCollector.NONE)
+class GroupingStageInputsMerger(val testServices: TestServices, val workers: List<Worker>) {
+    fun merge(nonGroupingStageOutputs: List<NonGroupingStageOutput>): GroupingStageInputArtifact {
+        val secondStageConfiguration = CompilerConfiguration.create(messageCollector = MessageCollector.NONE)
         workers.forEach { worker ->
-            worker.process(secondPhaseConfiguration, nonGroupingPhaseOutputs.map { it.testServices })
+            worker.process(secondStageConfiguration, nonGroupingStageOutputs.map { it.testServices })
         }
-        return GroupingPhaseInputArtifact(secondPhaseConfiguration, nonGroupingPhaseOutputs)
+        return GroupingStageInputArtifact(secondStageConfiguration, nonGroupingStageOutputs)
     }
 
     /**
      * Single unit of an artifact merging processing. Several workers could be registered in the test configuration.
      */
     abstract class Worker(val testServices: TestServices) {
-        abstract fun process(configuration: CompilerConfiguration, firstPhaseServices: List<TestServices>)
+        abstract fun process(configuration: CompilerConfiguration, firstStageServices: List<TestServices>)
     }
 }
 
-data class NonGroupingPhaseOutput(
+data class NonGroupingStageOutput(
     val testServices: TestServices,
     val catchingExecutor: CatchingExecutor,
 ) {
     val testInfo: KotlinTestInfo get() = testServices.testInfo
 
     /**
-     * Allows executing code which potentially throws an exception during the grouping phase, so this exception
+     * Allows executing code which potentially throws an exception during the grouping stage, so this exception
      * would be reported as a failure of the single test, not the whole group. The actual implementation is provided
      * by the test engine.
      */
@@ -54,17 +54,17 @@ data class NonGroupingPhaseOutput(
 }
 
 
-class GroupingPhaseInputArtifact(
-    val secondPhaseConfiguration: CompilerConfiguration,
-    val nonGroupingPhaseOutputs: List<NonGroupingPhaseOutput>
-) : ResultingArtifact<GroupingPhaseInputArtifact>() {
-    object Kind : TestArtifactKind<GroupingPhaseInputArtifact>("SecondPhaseInputArtifact")
+class GroupingStageInputArtifact(
+    val secondStageConfiguration: CompilerConfiguration,
+    val nonGroupingStageOutputs: List<NonGroupingStageOutput>
+) : ResultingArtifact<GroupingStageInputArtifact>() {
+    object Kind : TestArtifactKind<GroupingStageInputArtifact>("SecondStageInputArtifact")
 
     override val kind: Kind get() = Kind
 }
 
-class GroupingPhaseInputsHolder(val nonGroupingPhaseOutputs: List<NonGroupingPhaseOutput>) : TestService
+class GroupingStageInputsHolder(val nonGroupingStageOutputs: List<NonGroupingStageOutput>) : TestService
 
-private val TestServices.groupingPhaseInputsHolder: GroupingPhaseInputsHolder by TestServices.testServiceAccessor()
-val TestServices.groupingPhaseInputs: List<NonGroupingPhaseOutput>
-    get() = groupingPhaseInputsHolder.nonGroupingPhaseOutputs
+private val TestServices.groupingStageInputsHolder: GroupingStageInputsHolder by TestServices.testServiceAccessor()
+val TestServices.groupingStageInputs: List<NonGroupingStageOutput>
+    get() = groupingStageInputsHolder.nonGroupingStageOutputs

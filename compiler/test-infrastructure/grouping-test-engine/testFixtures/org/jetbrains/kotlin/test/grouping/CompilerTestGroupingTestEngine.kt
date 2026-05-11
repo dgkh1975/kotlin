@@ -9,7 +9,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import org.jetbrains.kotlin.test.DynamicWithMaxThresholdParallelExecutionConfigurationStrategy
-import org.jetbrains.kotlin.test.NonGroupingPhaseOutput
+import org.jetbrains.kotlin.test.NonGroupingStageOutput
 import org.jetbrains.kotlin.test.TestMetadata
 import org.jetbrains.kotlin.test.model.GroupingTestIsolator.BatchToken
 import org.jetbrains.kotlin.test.services.moduleStructure
@@ -246,15 +246,15 @@ class CompilerTestGroupingTestEngine : TestEngine {
         executionListener.executionStarted(testDescriptor)
         throwableCollector.execute {
             val testRunner = someTestInstance.groupingPhaseRunner
-            val nonGroupingPhaseOutputs = batch.map { methodInfo ->
-                NonGroupingPhaseOutput(
+            val nonGroupingStageOutputs = batch.map { methodInfo ->
+                NonGroupingStageOutput(
                     testServices = methodInfo.testInstance.nonGroupingRunner.testServices,
                     catchingExecutor = { wrapper, block ->
                         methodInfo.testInstance.nonGroupingRunner.failuresInterceptor.withAssertionCatching(wrapper, block)
                     }
                 )
             }
-            testRunner.run(nonGroupingPhaseOutputs)
+            testRunner.run(nonGroupingStageOutputs)
             testRunner.failuresInterceptor.reportFailures(checkForUnmuting = true)
         }
         for (methodInfo in batch) {
@@ -281,13 +281,13 @@ class CompilerTestGroupingTestEngine : TestEngine {
         throwableCollector.execute {
             val groupingRunner = testInstance.groupingPhaseRunner
             val nonGroupingRunner = testInstance.nonGroupingRunner
-            val nonGroupingPhaseOutput = NonGroupingPhaseOutput(
+            val nonGroupingStageOutput = NonGroupingStageOutput(
                 testServices = testInstance.nonGroupingRunner.testServices,
                 catchingExecutor = { wrapper, block ->
                     nonGroupingRunner.failuresInterceptor.withAssertionCatching(wrapper, block)
                 }
             )
-            groupingRunner.run(listOf(nonGroupingPhaseOutput))
+            groupingRunner.run(listOf(nonGroupingStageOutput))
 
             /*
              * Exceptions from facades were reported to the failures interceptor of the grouping runner.

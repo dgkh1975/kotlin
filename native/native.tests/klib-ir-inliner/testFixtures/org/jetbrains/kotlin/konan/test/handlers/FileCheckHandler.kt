@@ -16,7 +16,7 @@ import org.jetbrains.kotlin.konan.test.blackbox.testRunSettings
 import org.jetbrains.kotlin.konan.test.klib.fileCheckDump
 import org.jetbrains.kotlin.konan.test.klib.fileCheckStage
 import org.jetbrains.kotlin.native.executors.runProcess
-import org.jetbrains.kotlin.test.groupingPhaseInputs
+import org.jetbrains.kotlin.test.groupingStageInputs
 import org.jetbrains.kotlin.test.model.ArtifactKinds
 import org.jetbrains.kotlin.test.model.BinaryArtifacts
 import org.jetbrains.kotlin.test.model.GroupingStageHandler
@@ -39,7 +39,7 @@ class FileCheckHandler(testServices: TestServices) : GroupingStageHandler<Binary
      * Mimics [org.jetbrains.kotlin.konan.test.blackbox.support.runner.TestRunCheck.FileCheckMatcher]
      */
     override fun processArtifact(artifact: BinaryArtifacts.Native) {
-        val originalModuleStructures = testServices.groupingPhaseInputs.map { it.testServices.moduleStructure }
+        val originalModuleStructures = testServices.groupingStageInputs.map { it.testServices.moduleStructure }
         if (originalModuleStructures.first().allDirectives[TestDirectives.FILECHECK_STAGE].isEmpty())
             return
         require(originalModuleStructures.size == 1) {
