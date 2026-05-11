@@ -7,7 +7,7 @@ package org.jetbrains.kotlin.test.impl
 
 import com.intellij.openapi.Disposable
 import org.jetbrains.kotlin.test.*
-import org.jetbrains.kotlin.test.builders.NonGroupingPhaseTestConfigurationBuilder
+import org.jetbrains.kotlin.test.builders.NonGroupingStageTestConfigurationBuilder
 import org.jetbrains.kotlin.test.directives.model.ComposedDirectivesContainer
 import org.jetbrains.kotlin.test.directives.model.DirectivesContainer
 import org.jetbrains.kotlin.test.directives.model.RegisteredDirectives
@@ -182,7 +182,7 @@ class NonGroupingStageTestConfigurationImpl(
     defaultRegisteredDirectives: RegisteredDirectives,
     override var startingArtifactFactory: (TestModule) -> ResultingArtifact<*>,
     additionalServices: List<ServiceRegistrationData>,
-    val originalBuilder: NonGroupingPhaseTestConfigurationBuilder.ReadOnlyBuilder,
+    val originalBuilder: NonGroupingStageTestConfigurationBuilder.ReadOnlyBuilder,
 ) : TestConfigurationImplBase<TestStep.NonGroupingStep<*, *>>(
     testInfo, defaultsProvider, assertions, steps, sourcePreprocessors, additionalMetaInfoProcessors, environmentConfigurators,
     additionalSourceProviders, preAnalysisHandlers, moduleStructureTransformers, metaTestConfigurators, afterAnalysisCheckers,

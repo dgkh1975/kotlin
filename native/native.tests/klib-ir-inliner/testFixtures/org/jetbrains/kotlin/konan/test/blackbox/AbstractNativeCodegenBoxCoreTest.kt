@@ -60,7 +60,7 @@ abstract class AbstractNativeCodegenBoxCoreTest : AbstractTwoStageNativeCoreTest
             )
         }
 
-        nonGroupingPhase {
+        nonGroupingStage {
             useConfigurators(
                 ::CommonEnvironmentConfigurator,
                 ::NativeFirstStageEnvironmentConfigurator,
@@ -102,7 +102,7 @@ abstract class AbstractNativeCodegenBoxCoreTest : AbstractTwoStageNativeCoreTest
             enableMetaInfoHandler()
         }
 
-        groupingPhase {
+        groupingStage {
             useConfigurators(::NativeSecondStageEnvironmentConfigurator)
 
             facadeStep(NativeCompilerSecondStageFacade::Grouping.bind(currentCustomNativeCompilerSettings))

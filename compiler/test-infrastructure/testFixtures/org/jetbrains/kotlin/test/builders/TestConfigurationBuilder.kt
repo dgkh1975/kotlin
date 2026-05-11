@@ -188,7 +188,7 @@ abstract class TestConfigurationBuilderBase<Self : TestConfigurationBuilderBase<
 
 @DefaultsDsl
 @OptIn(TestInfrastructureInternals::class, PrivateForInline::class)
-sealed class OnePhaseTestConfigurationBuilderBase<Self, C> : TestConfigurationBuilderBase<Self, C>()
+sealed class OneStageTestConfigurationBuilderBase<Self, C> : TestConfigurationBuilderBase<Self, C>()
         where Self : TestConfigurationBuilderBase<Self, C>,
               C : TestConfiguration<*>
 {
@@ -203,8 +203,8 @@ sealed class OnePhaseTestConfigurationBuilderBase<Self, C> : TestConfigurationBu
 }
 
 @OptIn(PrivateForInline::class)
-class NonGroupingPhaseTestConfigurationBuilder :
-    OnePhaseTestConfigurationBuilderBase<NonGroupingPhaseTestConfigurationBuilder, NonGroupingStageTestConfiguration>() {
+class NonGroupingStageTestConfigurationBuilder :
+    OneStageTestConfigurationBuilderBase<NonGroupingStageTestConfigurationBuilder, NonGroupingStageTestConfiguration>() {
     lateinit var testInfo: KotlinTestInfo
     lateinit var startingArtifactFactory: (TestModule) -> ResultingArtifact<*>
     private val groupingTestIsolators: MutableList<Constructor<GroupingTestIsolator>> = mutableListOf()
@@ -315,7 +315,7 @@ class NonGroupingPhaseTestConfigurationBuilder :
         )
     }
 
-    class ReadOnlyBuilder(private val builder: NonGroupingPhaseTestConfigurationBuilder, val testDataPath: String) {
+    class ReadOnlyBuilder(private val builder: NonGroupingStageTestConfigurationBuilder, val testDataPath: String) {
         val assertions: AssertionsService
             get() = builder.assertions
         val sourcePreprocessors: List<Constructor<SourceFilePreprocessor>>
@@ -345,11 +345,11 @@ class NonGroupingPhaseTestConfigurationBuilder :
     }
 }
 
-typealias TestConfigurationBuilder = NonGroupingPhaseTestConfigurationBuilder
+typealias TestConfigurationBuilder = NonGroupingStageTestConfigurationBuilder
 
 @OptIn(PrivateForInline::class)
-class GroupingPhaseTestConfigurationBuilder :
-    OnePhaseTestConfigurationBuilderBase<GroupingPhaseTestConfigurationBuilder, GroupingStageTestConfiguration>() {
+class GroupingStageTestConfigurationBuilder :
+    OneStageTestConfigurationBuilderBase<GroupingStageTestConfigurationBuilder, GroupingStageTestConfiguration>() {
     lateinit var testInfo: KotlinTestInfo
     val mergerWorkers: MutableList<Constructor<GroupingStageInputsMerger.Worker>> = mutableListOf()
 
@@ -457,26 +457,26 @@ class GroupingPhaseTestConfigurationBuilder :
 @DefaultsDsl
 @OptIn(TestInfrastructureInternals::class, PrivateForInline::class)
 class TwoStageTestConfigurationBuilder {
-    val nonGroupingPhaseBuilder = NonGroupingPhaseTestConfigurationBuilder()
-    val groupingPhaseBuilder = GroupingPhaseTestConfigurationBuilder()
+    val nonGroupingStageBuilder = NonGroupingStageTestConfigurationBuilder()
+    val groupingStageBuilder = GroupingStageTestConfigurationBuilder()
 
     fun commonConfiguration(init: TestConfigurationBuilderBase<*, *>.() -> Unit) {
-        nonGroupingPhaseBuilder.apply(init)
-        groupingPhaseBuilder.apply(init)
+        nonGroupingStageBuilder.apply(init)
+        groupingStageBuilder.apply(init)
     }
 
-    fun nonGroupingPhase(init: NonGroupingPhaseTestConfigurationBuilder.() -> Unit) {
-        nonGroupingPhaseBuilder.apply(init)
+    fun nonGroupingStage(init: NonGroupingStageTestConfigurationBuilder.() -> Unit) {
+        nonGroupingStageBuilder.apply(init)
     }
 
-    fun groupingPhase(init: GroupingPhaseTestConfigurationBuilder.() -> Unit) {
-        groupingPhaseBuilder.apply(init)
+    fun groupingStage(init: GroupingStageTestConfigurationBuilder.() -> Unit) {
+        groupingStageBuilder.apply(init)
     }
 }
 
 inline fun testConfiguration(
     testDataPath: String,
-    init: NonGroupingPhaseTestConfigurationBuilder.() -> Unit,
+    init: NonGroupingStageTestConfigurationBuilder.() -> Unit,
 ): NonGroupingStageTestConfiguration {
-    return NonGroupingPhaseTestConfigurationBuilder().apply(init).build(testDataPath)
+    return NonGroupingStageTestConfigurationBuilder().apply(init).build(testDataPath)
 }

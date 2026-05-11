@@ -36,13 +36,13 @@ abstract class AbstractTwoStageKotlinCompilerTest : AbstractTwoStageKotlinCompil
             useFailureSuppressors(::IrValidationErrorChecker)
         }
 
-        nonGroupingPhase {
+        nonGroupingStage {
             startingArtifactFactory = { ResultingArtifact.Source() }
             testInfo = this@AbstractTwoStageKotlinCompilerTest.testInfo
             useGroupingTestIsolators(::MutedTestsIsolator)
         }
 
-        groupingPhase {
+        groupingStage {
             testInfo = this@AbstractTwoStageKotlinCompilerTest.testInfo
         }
 
@@ -84,10 +84,10 @@ abstract class AbstractTwoStageKotlinCompilerTest : AbstractTwoStageKotlinCompil
 
     fun initTestRunners(@TestDataFile filePath: String) {
         val configurationBuilder = TwoStageTestConfigurationBuilder().apply(configurationBuilder)
-        nonGroupingRunner = NonGroupingTestRunner(configurationBuilder.nonGroupingPhaseBuilder.build(filePath)).also {
+        nonGroupingRunner = NonGroupingTestRunner(configurationBuilder.nonGroupingStageBuilder.build(filePath)).also {
             nonGroupingStageRunnerInitialized = true
         }
-        groupingStageRunner = GroupingTestRunner(configurationBuilder.groupingPhaseBuilder.build(filePath)).also {
+        groupingStageRunner = GroupingTestRunner(configurationBuilder.groupingStageBuilder.build(filePath)).also {
             secondStageRunnerInitialized = true
         }
     }
