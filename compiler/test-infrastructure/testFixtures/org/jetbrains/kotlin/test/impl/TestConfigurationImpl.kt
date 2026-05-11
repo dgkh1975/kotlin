@@ -199,7 +199,7 @@ class GroupingStageTestConfigurationImpl(
     testInfo: KotlinTestInfo,
     defaultsProvider: DefaultsProvider,
     assertions: AssertionsService,
-    steps: List<TestStepBuilder<*, *, TestStep.GroupingPhaseStep<*, *>>>,
+    steps: List<TestStepBuilder<*, *, TestStep.GroupingStageStep<*, *>>>,
     sourcePreprocessors: List<Constructor<SourceFilePreprocessor>>,
     additionalMetaInfoProcessors: List<Constructor<AdditionalMetaInfoProcessor>>,
     environmentConfigurators: List<Constructor<AbstractEnvironmentConfigurator>>,
@@ -216,7 +216,7 @@ class GroupingStageTestConfigurationImpl(
     defaultRegisteredDirectives: RegisteredDirectives,
     mergerWorkers: List<Constructor<GroupingPhaseInputsMerger.Worker>>,
     additionalServices: List<ServiceRegistrationData>,
-) : TestConfigurationImplBase<TestStep.GroupingPhaseStep<*, *>>(
+) : TestConfigurationImplBase<TestStep.GroupingStageStep<*, *>>(
     testInfo, defaultsProvider, assertions, steps, sourcePreprocessors, additionalMetaInfoProcessors, environmentConfigurators,
     additionalSourceProviders, preAnalysisHandlers, moduleStructureTransformers, metaTestConfigurators, afterAnalysisCheckers,
     failureSuppressors, compilerConfigurationProvider, runtimeClasspathProviders, metaInfoHandlerEnabled, directives,

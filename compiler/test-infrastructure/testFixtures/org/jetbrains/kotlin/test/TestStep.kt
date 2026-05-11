@@ -110,7 +110,7 @@ sealed class TestStep<InputArtifact, OutputArtifact>
         }
     }
 
-    sealed class GroupingPhaseStep<InputArtifact, OutputArtifact> : TestStep<InputArtifact, OutputArtifact>()
+    sealed class GroupingStageStep<InputArtifact, OutputArtifact> : TestStep<InputArtifact, OutputArtifact>()
             where InputArtifact : ResultingArtifact<InputArtifact>,
                   OutputArtifact : ResultingArtifact<OutputArtifact> {
 
@@ -118,7 +118,7 @@ sealed class TestStep<InputArtifact, OutputArtifact>
 
         class FacadeStep<InputArtifact, OutputArtifact>(
             override val facade: AbstractGroupingPhaseTestFacade<InputArtifact, OutputArtifact>,
-        ) : GroupingPhaseStep<InputArtifact, OutputArtifact>(), TestStep.FacadeStep<InputArtifact, OutputArtifact>
+        ) : GroupingStageStep<InputArtifact, OutputArtifact>(), TestStep.FacadeStep<InputArtifact, OutputArtifact>
                 where InputArtifact : ResultingArtifact<InputArtifact>,
                       OutputArtifact : ResultingArtifact<OutputArtifact> {
             override val inputArtifactKind: TestArtifactKind<InputArtifact>
@@ -145,7 +145,7 @@ sealed class TestStep<InputArtifact, OutputArtifact>
         class HandlersStep<InputArtifact : ResultingArtifact<InputArtifact>>(
             override val inputArtifactKind: TestArtifactKind<InputArtifact>,
             override val handlers: List<GroupingPhaseHandler<InputArtifact>>
-        ) : GroupingPhaseStep<InputArtifact, Nothing>(), TestStep.HandlersStep<InputArtifact> {
+        ) : GroupingStageStep<InputArtifact, Nothing>(), TestStep.HandlersStep<InputArtifact> {
             init {
                 for (handler in handlers) {
                     require(handler.artifactKind == inputArtifactKind) {

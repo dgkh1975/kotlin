@@ -48,12 +48,12 @@ sealed class TestStepBuilder<InputArtifact, OutputArtifact, out FacadeStep>
                 InputArtifact,
                 OutputArtifact,
                 AbstractGroupingPhaseTestFacade<InputArtifact, OutputArtifact>,
-                TestStep.GroupingPhaseStep.FacadeStep<InputArtifact, OutputArtifact>
+                TestStep.GroupingStageStep.FacadeStep<InputArtifact, OutputArtifact>
                 >(facade) where InputArtifact : ResultingArtifact<InputArtifact>,
                                 OutputArtifact : ResultingArtifact<OutputArtifact> {
             @TestInfrastructureInternals
-            override fun createTestStep(testServices: TestServices): TestStep.GroupingPhaseStep.FacadeStep<InputArtifact, OutputArtifact> {
-                return TestStep.GroupingPhaseStep.FacadeStep(facade.invoke(testServices))
+            override fun createTestStep(testServices: TestServices): TestStep.GroupingStageStep.FacadeStep<InputArtifact, OutputArtifact> {
+                return TestStep.GroupingStageStep.FacadeStep(facade.invoke(testServices))
             }
         }
     }
@@ -119,12 +119,12 @@ sealed class TestStepBuilder<InputArtifact, OutputArtifact, out FacadeStep>
                 InputArtifact,
                 InputArtifactKind,
                 GroupingPhaseHandler<InputArtifact>,
-                TestStep.GroupingPhaseStep.HandlersStep<InputArtifact>>
+                TestStep.GroupingStageStep.HandlersStep<InputArtifact>>
             (artifactKind, compilationStage)
                 where InputArtifact : ResultingArtifact<InputArtifact>,
                       InputArtifactKind : TestArtifactKind<InputArtifact> {
-            override fun createStep(handlers: List<GroupingPhaseHandler<InputArtifact>>): TestStep.GroupingPhaseStep.HandlersStep<InputArtifact> {
-                return TestStep.GroupingPhaseStep.HandlersStep(artifactKind, handlers)
+            override fun createStep(handlers: List<GroupingPhaseHandler<InputArtifact>>): TestStep.GroupingStageStep.HandlersStep<InputArtifact> {
+                return TestStep.GroupingStageStep.HandlersStep(artifactKind, handlers)
             }
         }
     }

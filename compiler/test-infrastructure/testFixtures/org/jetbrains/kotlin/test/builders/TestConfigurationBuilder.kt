@@ -433,7 +433,7 @@ class GroupingPhaseTestConfigurationBuilder :
             testInfo,
             defaultsProviderBuilder.build(),
             assertions,
-            steps as List<TestStepBuilder<*, *, TestStep.GroupingPhaseStep<*, *>>>,
+            steps as List<TestStepBuilder<*, *, TestStep.GroupingStageStep<*, *>>>,
             sourcePreprocessors,
             additionalMetaInfoProcessors,
             environmentConfigurators,

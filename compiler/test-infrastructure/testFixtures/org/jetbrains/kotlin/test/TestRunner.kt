@@ -298,7 +298,7 @@ class NonGroupingTestRunner(
 
 class GroupingTestRunner(
     testConfiguration: GroupingStageTestConfiguration
-) : TestRunner<TestStep.GroupingPhaseStep<*, *>, GroupingStageTestConfiguration>(testConfiguration) {
+) : TestRunner<TestStep.GroupingStageStep<*, *>, GroupingStageTestConfiguration>(testConfiguration) {
     init {
         testServices.register(TestModuleStructure::class, EmptyModuleStructure)
     }
@@ -326,16 +326,16 @@ class GroupingTestRunner(
             get() = emptyList()
     }
 
-    private fun TestStep.GroupingPhaseStep<*, *>.hackyProcess(
+    private fun TestStep.GroupingStageStep<*, *>.hackyProcess(
         inputArtifact: ResultingArtifact<*>,
         thereWereExceptionsOnPreviousSteps: Boolean,
     ): TestStep.StepResult<*> {
         @Suppress("UNCHECKED_CAST")
-        return (this as TestStep.GroupingPhaseStep<GroupingPhaseInputArtifact, *>)
+        return (this as TestStep.GroupingStageStep<GroupingPhaseInputArtifact, *>)
             .process(inputArtifact as ResultingArtifact<GroupingPhaseInputArtifact>, thereWereExceptionsOnPreviousSteps)
     }
 
-    private fun <I : ResultingArtifact<I>> TestStep.GroupingPhaseStep<I, *>.process(
+    private fun <I : ResultingArtifact<I>> TestStep.GroupingStageStep<I, *>.process(
         artifact: ResultingArtifact<I>,
         thereWereExceptionsOnPreviousSteps: Boolean,
     ): TestStep.StepResult<*> {
