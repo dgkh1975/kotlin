@@ -142,7 +142,7 @@ class TestFederationFunctionalTest {
      */
     @Test
     fun `test - build with test federation enabled (full) - build with test federation disabled - reuses build caches`(@TempDir cache: Path) {
-        val buildCacheArgs = listOf("-Pkotlin.build.cache.local.directory=$cache")
+        val buildCacheArgs = buildCacheArgs(cache)
 
         cleanTest()
         runTestBuild(
@@ -175,7 +175,7 @@ class TestFederationFunctionalTest {
      */
     @Test
     fun `test - build with test federation disabled - build with test federation enabled (full) - reuses build caches`(@TempDir cache: Path) {
-        val buildCacheArgs = listOf("-Pkotlin.build.cache.local.directory=$cache")
+        val buildCacheArgs = buildCacheArgs(cache)
 
         cleanTest()
         runTestBuild(
@@ -205,7 +205,7 @@ class TestFederationFunctionalTest {
 
     @Test
     fun `test - build with test federation enabled - build in smoke mode - cant reuse caches`(@TempDir cache: Path) {
-        val buildCacheArgs = listOf("-Pkotlin.build.cache.local.directory=$cache")
+        val buildCacheArgs = buildCacheArgs(cache)
 
         cleanTest()
         runTestBuild(
@@ -235,7 +235,7 @@ class TestFederationFunctionalTest {
 
     @Test
     fun `test - build cache can be reused in smoke mode - if affected domains match`(@TempDir cache: Path) {
-        val buildCacheArgs = listOf("-Pkotlin.build.cache.local.directory=$cache")
+        val buildCacheArgs = buildCacheArgs(cache)
         cleanTest()
         runTestBuild(
             mode = TestFederationMode.Smoke,
@@ -293,7 +293,11 @@ private fun runTestBuild(
     rerun: Boolean = true,
     additionalCliArgs: List<String> = emptyList(),
 ): TestBuildResult {
-    val environment = System.getenv().toMutableMap().apply {
+    val environment = defaultEnv().toMutableMap().apply {
+        remove(TEST_FEDERATION_ENABLED_ENV_KEY)
+        remove(TEST_FEDERATION_MODE_ENV_KEY)
+        remove(TEST_FEDERATION_AFFECTED_DOMAINS_ENV_KEY)
+
         this[TEST_FEDERATION_MODE_ENV_KEY] = mode.name
 
         if (smokeTestConfig != null) {
@@ -354,7 +358,7 @@ private fun cleanTest(): BuildResult {
 }
 
 private fun createGradleRunner(
-    environment: Map<String, String> = emptyMap(),
+    environment: Map<String, String> = defaultEnv(),
 ): GradleRunner {
     val gradleUserHome = System.getenv("GRADLE_USER_HOME") ?: error("Missing 'GRADLE_USER_HOME' environment variable")
     return GradleRunner.create()
@@ -362,6 +366,19 @@ private fun createGradleRunner(
         .withEnvironment(System.getenv() + environment)
         .withTestKitDir(File(gradleUserHome))
 }
+
+private fun defaultEnv(): Map<String, String> {
+    return System.getenv().toMutableMap().apply {
+        remove(TEST_FEDERATION_ENABLED_ENV_KEY)
+        remove(TEST_FEDERATION_MODE_ENV_KEY)
+        remove(TEST_FEDERATION_AFFECTED_DOMAINS_ENV_KEY)
+    }
+}
+
+private fun buildCacheArgs(cache: Path) = listOf(
+    "-Pkotlin.build.cache.local.directory=$cache",
+    "-Pkotlin.build.cache.local.enabled=true"
+)
 
 private fun BuildResult.requireTask(path: String) =
     task(path) ?: fail("Task '$path' could not be found\nTasks: ${tasks.joinToString("\n")}")

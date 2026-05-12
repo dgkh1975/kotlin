@@ -32,7 +32,7 @@ kotlin.target.compilations.all {
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 
-    /* Used by the ContractAndSmokeTest and 'PseudoTest' for testing the test federations behavior */
+    /* Used by the TestFederationFunctionalTest and 'PseudoTest' for testing the test federations behavior */
     providers.environmentVariable("_PSEUDO_TEST_").orNull?.let { value ->
         smokeTestConfig = when (value) {
             "RunAllTests" -> SmokeTestConfig.RunAllTests
