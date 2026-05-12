@@ -136,37 +136,6 @@
     </option>
     <option name="testTags">
       <map>
-        <entry key="ClassicJsIrText.*">
-          <value>
-            <array>
-              <option value="K1" />
-              <option value="JS" />
-            </array>
-          </value>
-        </entry>
-        <entry key="ClassicJvmIrText.*">
-          <value>
-            <array>
-              <option value="K1" />
-              <option value="JVM" />
-            </array>
-          </value>
-        </entry>
-        <entry key="ClassicNativeIrText.*">
-          <value>
-            <array>
-              <option value="K1" />
-              <option value="Native" />
-            </array>
-          </value>
-        </entry>
-        <entry key="Diagnostic.*TestGenerated">
-          <value>
-            <array>
-              <option value="K1" />
-            </array>
-          </value>
-        </entry>
         <entry key="Fir.*BlackBoxInlineCodegen.*">
           <value>
             <array>
@@ -180,13 +149,6 @@
             <array>
               <option value="FIR" />
               <option value="JVM" />
-            </array>
-          </value>
-        </entry>
-        <entry key="Fir.*CompileKotlinAgainstInline.*">
-          <value>
-            <array>
-              <option value="FIR" />
             </array>
           </value>
         </entry>
@@ -279,29 +241,6 @@
             </array>
           </value>
         </entry>
-        <entry key="Ir.*BlackBoxInlineCodegen.*">
-          <value>
-            <array>
-              <option value="K1" />
-              <option value="JVM" />
-            </array>
-          </value>
-        </entry>
-        <entry key="Ir.*CompileKotlinAgainstInline.*">
-          <value>
-            <array>
-              <option value="K1" />
-            </array>
-          </value>
-        </entry>
-        <entry key="IrBlackBoxCodegen.*">
-          <value>
-            <array>
-              <option value="K1" />
-              <option value="JVM" />
-            </array>
-          </value>
-        </entry>
         <entry key="Js.*BlackBoxCodegenWithSeparateKmpCompilationTestGenerated">
           <value>
             <array>
@@ -336,26 +275,10 @@
             </array>
           </value>
         </entry>
-        <entry key="K1Wasm.*Codegen.*">
-          <value>
-            <array>
-              <option value="K1" />
-              <option value="WASM" />
-            </array>
-          </value>
-        </entry>
         <entry key="LL.*Generated">
           <value>
             <array>
               <option value="AA" />
-            </array>
-          </value>
-        </entry>
-        <entry key="LightAnalysisModeTestGenerated">
-          <value>
-            <array>
-              <option value="K1" />
-              <option value="JVM" />
             </array>
           </value>
         </entry>
