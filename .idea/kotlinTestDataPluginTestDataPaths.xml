@@ -229,7 +229,7 @@
             </array>
           </value>
         </entry>
-        <entry key="FirJs.*BoxCodegen.*">
+        <entry key="Js.*BoxCodegen.*">
           <value>
             <array>
               <option value="FIR" />
@@ -237,7 +237,7 @@
             </array>
           </value>
         </entry>
-        <entry key="FirJs.*Codegen.*">
+        <entry key="Js.*Codegen.*">
           <value>
             <array>
               <option value="FIR" />
@@ -245,7 +245,7 @@
             </array>
           </value>
         </entry>
-        <entry key="FirJs.*WithInl.*">
+        <entry key="Js.*WithInl.*">
           <value>
             <array>
               <option value="FIR" />
@@ -299,14 +299,6 @@
             <array>
               <option value="K1" />
               <option value="JVM" />
-            </array>
-          </value>
-        </entry>
-        <entry key="IrJs.*Codegen.*">
-          <value>
-            <array>
-              <option value="K1" />
-              <option value="JS" />
             </array>
           </value>
         </entry>
