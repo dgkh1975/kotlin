@@ -139,7 +139,6 @@
         <entry key="Fir.*BlackBoxInlineCodegen.*">
           <value>
             <array>
-              <option value="FIR" />
               <option value="JVM" />
             </array>
           </value>
@@ -147,7 +146,6 @@
         <entry key="Fir.*BoxCodegen.*">
           <value>
             <array>
-              <option value="FIR" />
               <option value="JVM" />
             </array>
           </value>
@@ -155,14 +153,13 @@
         <entry key="Fir.*Diagnostic.*TestGenerated">
           <value>
             <array>
-              <option value="FIR" />
+              <option value="Diag" />
             </array>
           </value>
         </entry>
         <entry key="Fir.*JsIrText.*">
           <value>
             <array>
-              <option value="FIR" />
               <option value="JS" />
             </array>
           </value>
@@ -170,7 +167,6 @@
         <entry key="Fir.*JvmIrText.*">
           <value>
             <array>
-              <option value="FIR" />
               <option value="JVM" />
             </array>
           </value>
@@ -178,7 +174,6 @@
         <entry key="Fir.*NativeIrText.*">
           <value>
             <array>
-              <option value="FIR" />
               <option value="Native" />
             </array>
           </value>
@@ -186,7 +181,6 @@
         <entry key="Fir.*WasmIrText.*">
           <value>
             <array>
-              <option value="FIR" />
               <option value="WASM" />
             </array>
           </value>
@@ -194,7 +188,6 @@
         <entry key="Js.*BoxCodegen.*">
           <value>
             <array>
-              <option value="FIR" />
               <option value="JS" />
             </array>
           </value>
@@ -202,7 +195,6 @@
         <entry key="Js.*Codegen.*">
           <value>
             <array>
-              <option value="FIR" />
               <option value="JS" />
             </array>
           </value>
@@ -210,7 +202,6 @@
         <entry key="Js.*WithInl.*">
           <value>
             <array>
-              <option value="FIR" />
               <option value="JS" />
               <option value="Klib" />
             </array>
@@ -219,7 +210,6 @@
         <entry key="FirNative.*Codegen.*">
           <value>
             <array>
-              <option value="FIR" />
               <option value="Native" />
             </array>
           </value>
@@ -227,7 +217,6 @@
         <entry key="FirNative.*WithInlined.*">
           <value>
             <array>
-              <option value="FIR" />
               <option value="Native" />
               <option value="Klib" />
             </array>
@@ -236,7 +225,6 @@
         <entry key="FirWasm.*.Codegen.*">
           <value>
             <array>
-              <option value="FIR" />
               <option value="WASM" />
             </array>
           </value>
@@ -244,7 +232,6 @@
         <entry key="Js.*BlackBoxCodegenWithSeparateKmpCompilationTestGenerated">
           <value>
             <array>
-              <option value="FIR" />
               <option value="JS" />
               <option value="HMPP" />
             </array>
@@ -253,7 +240,6 @@
         <entry key="JsIrDeserialization.*">
           <value>
             <array>
-              <option value="FIR" />
               <option value="JS" />
               <option value="Klib" />
             </array>
@@ -262,7 +248,6 @@
         <entry key="Jvm.*BlackBoxCodegenWithSeparateKmpCompilationTestGenerated">
           <value>
             <array>
-              <option value="FIR" />
               <option value="JVM" />
               <option value="HMPP" />
             </array>
@@ -293,7 +278,6 @@
         <entry key="NativeIrDeserialization.*">
           <value>
             <array>
-              <option value="FIR" />
               <option value="Native" />
               <option value="Klib" />
             </array>
@@ -302,7 +286,6 @@
         <entry key="NativeUnboundIrSerialization.*">
           <value>
             <array>
-              <option value="FIR" />
               <option value="Native" />
               <option value="Klib" />
             </array>
@@ -311,7 +294,6 @@
         <entry key="Phased.*Jvm.*">
           <value>
             <array>
-              <option value="FIR" />
               <option value="JVM" />
             </array>
           </value>
@@ -319,7 +301,7 @@
         <entry key="Repl.*BlackBoxCodegenTestGenerated">
           <value>
             <array>
-              <option value="FIR" />
+              <option value="Repl" />
               <option value="JVM" />
             </array>
           </value>
@@ -327,14 +309,14 @@
         <entry key="Repl.*DiagnosticsTestGenerated">
           <value>
             <array>
-              <option value="FIR" />
+              <option value="Repl" />
             </array>
           </value>
         </entry>
         <entry key="Script.*BlackBoxCodegenTestGenerated">
           <value>
             <array>
-              <option value="FIR" />
+              <option value="Script" />
               <option value="JVM" />
             </array>
           </value>
@@ -342,7 +324,7 @@
         <entry key="Script.*DiagnosticsTestGenerated">
           <value>
             <array>
-              <option value="FIR" />
+              <option value="Script" />
             </array>
           </value>
         </entry>
