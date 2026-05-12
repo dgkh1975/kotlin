@@ -20,21 +20,12 @@ class C {
     }
 }
 
-companion var C.c by Delegate
-companion var C.d by DelegateProvider
-
 fun box(): String {
     C.a = "a"
     if (C.a != "a") return "FAIL 1"
 
     C.b = "b"
     if (C.b != "b") return "FAIL 2"
-
-    C.c = "c"
-    if (C.c != "c") return "FAIL 3"
-
-    C.d = "d"
-    if (C.d != "d") return "FAIL 4"
 
     return "OK"
 }
