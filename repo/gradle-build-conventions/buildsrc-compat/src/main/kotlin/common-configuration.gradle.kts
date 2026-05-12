@@ -365,7 +365,6 @@ fun Project.configureTests() {
             ":kotlin-stdlib-jdk8",
             ":kotlin-stdlib:samples",
             ":kotlin-test",
-            ":kotlin-tooling-metadata",
             ":kotlin-util-klib",
             ":kotlinx-metadata-klib",
             ":libraries:tools:abi-validation:abi-tools",
