@@ -54,8 +54,7 @@ tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 
     /* The shape of the entire repo is considered an input. Always re-run this task */
-    outputs.upToDateWhen { false }
-    outputs.doNotCacheIf("Always run this tests") { true }
+    doNotTrackState("The shape of the entire repo is considered as input (DomainsDump)")
 
     workingDir = gradle.linearClosure { it.parent }.last().rootProject.isolated.projectDirectory.asFile
 
