@@ -337,7 +337,6 @@ fun Project.configureTests() {
             ":kotlin-daemon-client",
             ":kotlin-gradle-plugin",
             ":kotlin-gradle-plugin-dsl-codegen",
-            ":kotlin-gradle-plugin-idea-proto",
             ":kotlin-gradle-plugin-integration-tests",
             ":kotlin-gradle-statistics",
             ":kotlin-main-kts",
