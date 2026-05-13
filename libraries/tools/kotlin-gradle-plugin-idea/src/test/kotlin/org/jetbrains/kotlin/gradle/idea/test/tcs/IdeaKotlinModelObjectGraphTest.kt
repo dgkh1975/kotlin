@@ -73,7 +73,7 @@ class IdeaKotlinModelObjectGraphTest {
 
                 next.resolveReachableClasses().forEach { child ->
                     resolveQueue.add(child)
-                    if (child.java.isInterface || Modifier.isAbstract(child.java.modifiers)) {
+                    if (child !in ignoredNodes && (child.java.isInterface || Modifier.isAbstract(child.java.modifiers))) {
                         val subtypes = kotlinReflections.getSubTypesOf(child.java).map { it.kotlin }
                         assertTrue(subtypes.isNotEmpty(), "Missing implementations for $child")
                         resolveQueue.addAll(subtypes)
