@@ -4,11 +4,9 @@ import org.jetbrains.kotlin.gradle.targets.js.KotlinJsCompilerAttribute
 
 plugins {
     id("common-configuration")
-    id("test-federation-convention")
     id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("d8-configuration")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
@@ -44,7 +42,6 @@ dependencies {
     compileOnly(project(":core:descriptors"))
     compileOnly(project(":core:descriptors.jvm"))
     compileOnly(project(":core:language.targets.jvm"))
-    compileOnly(project(":js:js.frontend"))
     compileOnly(project(":kotlin-util-klib-metadata"))
     compileOnly(project(":compiler:frontend"))
     compileOnly(project(":compiler:backend.jvm"))
@@ -112,7 +109,6 @@ dependencies {
 }
 
 optInToUnsafeDuringIrConstructionAPI()
-optInToObsoleteDescriptorBasedAPI()
 
 kotlin {
     jvmToolchain(8)
@@ -167,7 +163,6 @@ projectTests {
 
     withJvmStdlibAndReflect()
     withJsRuntime()
-    withScriptRuntime()
     withTestJar()
     withMockJdkAnnotationsJar()
     withMockJdkRuntime()
@@ -176,4 +171,3 @@ projectTests {
     withDist()
 }
 
-testsJar()

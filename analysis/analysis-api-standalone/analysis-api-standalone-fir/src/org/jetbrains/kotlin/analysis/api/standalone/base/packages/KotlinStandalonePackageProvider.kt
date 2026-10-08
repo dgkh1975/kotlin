@@ -11,19 +11,19 @@ import com.intellij.openapi.vfs.StandardFileSystems
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.search.GlobalSearchScope
+import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
 import org.jetbrains.kotlin.analysis.api.platform.mergeSpecificProviders
 import org.jetbrains.kotlin.analysis.api.platform.packages.*
 import org.jetbrains.kotlin.library.KlibConstants.KLIB_FILE_EXTENSION
 import org.jetbrains.kotlin.library.components.metadata
 import org.jetbrains.kotlin.library.loader.KlibLoader
-import org.jetbrains.kotlin.library.metadata.parseModuleHeader
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtFile
 import java.nio.file.Path
 import kotlin.io.path.extension
 
-class KotlinStandalonePackageProvider(
+internal class KotlinStandalonePackageProvider(
     project: Project,
     internal val scope: GlobalSearchScope,
     matchingPackageNames: Set<FqName>
@@ -50,6 +50,7 @@ class KotlinStandalonePackageProvider(
     }
 }
 
+@KaImplementationDetail
 class KotlinStandalonePackageProviderFactory(
     private val project: Project,
     private val indexedFiles: Collection<KtFile>,
@@ -80,8 +81,8 @@ class KotlinStandalonePackageProviderFactory(
             buildList {
                 val kotlinLibraries = KlibLoader { libraryPaths(libraryFile) }.load().librariesStdlibFirst
                 for (kotlinLibrary in kotlinLibraries) {
-                    val moduleHeader = parseModuleHeader(kotlinLibrary.metadata.moduleHeaderData)
-                    for (packageNameString in moduleHeader.packageFragmentNameList) {
+                    val packageNames = kotlinLibrary.metadata.getPackageNames()
+                    for (packageNameString in packageNames) {
                         add(FqName(packageNameString))
                     }
                 }
@@ -108,6 +109,7 @@ class KotlinStandalonePackageProviderFactory(
     }
 }
 
+@KaImplementationDetail
 class KotlinStandalonePackageProviderMerger(private val project: Project) : KotlinPackageProviderMerger {
     override fun merge(providers: List<KotlinPackageProvider>): KotlinPackageProvider =
         providers.mergeSpecificProviders<_, KotlinStandalonePackageProvider>(KotlinCompositePackageProvider.factory) { targetProviders ->
